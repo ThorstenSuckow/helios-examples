@@ -1,5 +1,6 @@
 import helios;
-import helios.ext;
+import helios.opengl;
+import helios.ecs;
 
 import helios.examples.ecs_rendering.GameLoop;
 

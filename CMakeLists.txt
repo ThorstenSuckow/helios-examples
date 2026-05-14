@@ -1,6 +1,33 @@
-project(demo LANGUAGES C CXX)
+cmake_minimum_required(VERSION 4.0)
+project(helios-examples LANGUAGES C CXX)
 
-file(GLOB_RECURSE EXAMPLE_FILES "*.cpp")
+include(FetchContent)
+
+set(HELIOS_ENGINE_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-engine" CACHE PATH "Local path to helios-engine")
+set(HELIOS_OPENGL_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-opengl" CACHE PATH "Local path to helios-opengl")
+
+if(EXISTS "${HELIOS_ENGINE_LOCAL_PATH}/CMakeLists.txt")
+    add_subdirectory("${HELIOS_ENGINE_LOCAL_PATH}" "${CMAKE_BINARY_DIR}/_deps/helios-engine-build")
+else()
+    FetchContent_Declare(helios_engine
+            GIT_REPOSITORY https://github.com/thorstensuckow/helios-engine.git
+            GIT_TAG main
+    )
+    FetchContent_MakeAvailable(helios_engine)
+endif()
+
+if(EXISTS "${HELIOS_OPENGL_LOCAL_PATH}/CMakeLists.txt")
+    add_subdirectory("${HELIOS_OPENGL_LOCAL_PATH}" "${CMAKE_BINARY_DIR}/_deps/helios-opengl-build")
+else()
+    FetchContent_Declare(helios_opengl
+            GIT_REPOSITORY https://github.com/thorstensuckow/helios-opengl.git
+            GIT_TAG main
+    )
+    FetchContent_MakeAvailable(helios_opengl)
+endif()
+
+file(GLOB_RECURSE EXAMPLE_FILES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
 foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
     file(RELATIVE_PATH REL_PATH ${CMAKE_CURRENT_SOURCE_DIR} ${EXAMPLE_FILE})
@@ -18,8 +45,7 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
 
     target_link_libraries(${UNIQUE_TARGET} PRIVATE
             helios
-            thirdparty::opengl
-            thirdparty::freetype
+            helios::opengl
     )
 
     target_compile_definitions(${UNIQUE_TARGET} PRIVATE GLFW_INCLUDE_NONE)

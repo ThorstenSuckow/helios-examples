@@ -11,7 +11,7 @@
 using namespace helios::bootstrap;
 
 // External backends
-using namespace helios::ext::opengl::rendering;
+using namespace helios::opengl;
 
 // Rendering
 using namespace helios::rendering;
@@ -83,29 +83,17 @@ using namespace helios::platform::window::types;
 using namespace helios::platform::glfw;
 using namespace helios::platform::glfw::components;
 using namespace helios::platform::glfw::systems;
-using namespace helios::platform::opengl;
-using namespace helios::platform::opengl::components;
+using namespace helios::opengl::components;
 
 // Mechanics: scoring, timing, combat
-using namespace helios::gameplay::scoring;
-using namespace helios::gameplay::scoring::systems;
-using namespace helios::gameplay::scoring::types;
+
 using namespace helios::runtime::timing;
 using namespace helios::runtime::timing::systems;
-using namespace helios::gameplay::combat::components;
-using namespace helios::gameplay::combat::systems;
+
 
 // Mechanics: spawn, bounds, damage, health, input, lifecycle
 using namespace helios::gameplay::spawn::systems;
 using namespace helios::gameplay::spawn::types;
-using namespace helios::gameplay::bounds::systems;
-using namespace helios::gameplay::damage::systems;
-using namespace helios::gameplay::health::systems;
-using namespace helios::gameplay::health::types;
-using namespace helios::gameplay::input::systems;
-using namespace helios::gameplay::lifecycle::systems;
-using namespace helios::gameplay::lifecycle::components;
-using namespace helios::gameplay::health;
 using namespace helios::gameplay::gamestate::types;
 using namespace helios::gameplay::gamestate::systems;
 using namespace helios::gameplay::matchstate::types;
@@ -127,5 +115,4 @@ using namespace helios::rendering;
 using namespace helios::rendering::common::components;
 using namespace helios::rendering::common::types;
 using namespace helios::rendering::common::commands;
-using namespace helios::gameplay::ai::systems;
 
