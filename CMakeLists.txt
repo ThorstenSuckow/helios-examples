@@ -5,6 +5,7 @@ include(FetchContent)
 
 set(HELIOS_ENGINE_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-engine" CACHE PATH "Local path to helios-engine")
 set(HELIOS_OPENGL_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-opengl" CACHE PATH "Local path to helios-opengl")
+set(HELIOS_GLFW_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-glfw" CACHE PATH "Local path to helios-glfw")
 
 if(NOT TARGET helios)
     if(EXISTS "${HELIOS_ENGINE_LOCAL_PATH}/CMakeLists.txt")
@@ -30,6 +31,18 @@ if(NOT TARGET helios::opengl)
     endif()
 endif()
 
+if(NOT TARGET helios::glfw)
+    if(EXISTS "${HELIOS_GLFW_LOCAL_PATH}/CMakeLists.txt")
+        add_subdirectory("${HELIOS_GLFW_LOCAL_PATH}" "${CMAKE_BINARY_DIR}/_deps/helios-glfw-build")
+    else()
+        FetchContent_Declare(helios_glfw
+                GIT_REPOSITORY https://github.com/thorstensuckow/helios-glfw.git
+                GIT_TAG main
+        )
+        FetchContent_MakeAvailable(helios_glfw)
+    endif()
+endif()
+
 file(GLOB_RECURSE EXAMPLE_FILES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
@@ -50,6 +63,7 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
     target_link_libraries(${UNIQUE_TARGET} PRIVATE
             helios
             helios::opengl
+            helios::glfw
     )
 
     target_compile_definitions(${UNIQUE_TARGET} PRIVATE GLFW_INCLUDE_NONE)

@@ -80,9 +80,9 @@ using namespace helios::platform::window;
 using namespace helios::platform::window::components;
 using namespace helios::platform::window::systems;
 using namespace helios::platform::window::types;
-using namespace helios::platform::glfw;
-using namespace helios::platform::glfw::components;
-using namespace helios::platform::glfw::systems;
+using namespace helios::glfw;
+using namespace helios::glfw::components;
+using namespace helios::glfw::systems;
 using namespace helios::opengl::components;
 
 // Mechanics: scoring, timing, combat
