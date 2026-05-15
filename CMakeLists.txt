@@ -6,24 +6,28 @@ include(FetchContent)
 set(HELIOS_ENGINE_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-engine" CACHE PATH "Local path to helios-engine")
 set(HELIOS_OPENGL_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-opengl" CACHE PATH "Local path to helios-opengl")
 
-if(EXISTS "${HELIOS_ENGINE_LOCAL_PATH}/CMakeLists.txt")
-    add_subdirectory("${HELIOS_ENGINE_LOCAL_PATH}" "${CMAKE_BINARY_DIR}/_deps/helios-engine-build")
-else()
-    FetchContent_Declare(helios_engine
-            GIT_REPOSITORY https://github.com/thorstensuckow/helios-engine.git
-            GIT_TAG main
-    )
-    FetchContent_MakeAvailable(helios_engine)
+if(NOT TARGET helios)
+    if(EXISTS "${HELIOS_ENGINE_LOCAL_PATH}/CMakeLists.txt")
+        add_subdirectory("${HELIOS_ENGINE_LOCAL_PATH}" "${CMAKE_BINARY_DIR}/_deps/helios-engine-build")
+    else()
+        FetchContent_Declare(helios_engine
+                GIT_REPOSITORY https://github.com/thorstensuckow/helios-engine.git
+                GIT_TAG main
+        )
+        FetchContent_MakeAvailable(helios_engine)
+    endif()
 endif()
 
-if(EXISTS "${HELIOS_OPENGL_LOCAL_PATH}/CMakeLists.txt")
-    add_subdirectory("${HELIOS_OPENGL_LOCAL_PATH}" "${CMAKE_BINARY_DIR}/_deps/helios-opengl-build")
-else()
-    FetchContent_Declare(helios_opengl
-            GIT_REPOSITORY https://github.com/thorstensuckow/helios-opengl.git
-            GIT_TAG main
-    )
-    FetchContent_MakeAvailable(helios_opengl)
+if(NOT TARGET helios::opengl)
+    if(EXISTS "${HELIOS_OPENGL_LOCAL_PATH}/CMakeLists.txt")
+        add_subdirectory("${HELIOS_OPENGL_LOCAL_PATH}" "${CMAKE_BINARY_DIR}/_deps/helios-opengl-build")
+    else()
+        FetchContent_Declare(helios_opengl
+                GIT_REPOSITORY https://github.com/thorstensuckow/helios-opengl.git
+                GIT_TAG main
+        )
+        FetchContent_MakeAvailable(helios_opengl)
+    endif()
 endif()
 
 file(GLOB_RECURSE EXAMPLE_FILES CONFIGURE_DEPENDS
