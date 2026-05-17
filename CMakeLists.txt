@@ -7,7 +7,7 @@ set(HELIOS_ENGINE_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-engine" CACHE 
 set(HELIOS_OPENGL_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-opengl" CACHE PATH "Local path to helios-opengl")
 set(HELIOS_GLFW_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-glfw" CACHE PATH "Local path to helios-glfw")
 
-if(NOT TARGET helios)
+if(NOT TARGET helios::engine)
     if(EXISTS "${HELIOS_ENGINE_LOCAL_PATH}/CMakeLists.txt")
         add_subdirectory("${HELIOS_ENGINE_LOCAL_PATH}" "${CMAKE_BINARY_DIR}/_deps/helios-engine-build")
     else()
@@ -61,7 +61,7 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
     endif()
 
     target_link_libraries(${UNIQUE_TARGET} PRIVATE
-            helios
+            helios::engine
             helios::opengl
             helios::glfw
     )

@@ -1,15 +1,18 @@
-import helios;
+
+#include <utility>
+
+import helios.engine;
+import helios.math;
 import helios.opengl;
 import helios.glfw;
 import helios.ecs;
 
-import helios.examples.ecs_rendering.GameLoop;
-
 #include "Namespaces.h"
 
 
-
 int main() {
+
+    auto& logger = helios::engine::util::log::LogManager::loggerForScope("main");
 
     // ========================================
     // Constants
@@ -52,9 +55,9 @@ int main() {
     );
 
     // register additional managers
-    gameWorld.registerManager<helios::rendering::RenderManager<OpenGLBackend, GameObjectHandle>>(renderBackend);
+    gameWorld.registerManager<helios::engine::rendering::RenderManager<OpenGLBackend, GameObjectHandle>>(renderBackend);
 
-    gameWorld.registerManager<GLFWPlatformManager<WindowHandle,  /*InputHandle, */ StateCommandBuffer, PlatformCommandBuffer>>(
+    gameWorld.registerManager<GLFWPlatformManager<WindowHandle,  /*InputHandle, */ EngineCommandBuffer, PlatformCommandBuffer>>(
         gameWorld.platformWorld(), gameWorld.resourceRegistry().commandBufferRegistry()
     );
 
@@ -103,7 +106,7 @@ int main() {
     MainCamera.add<LookAtComponent<GameObjectHandle>>();
     MainCamera.add<ProjectionMatrixComponent<GameObjectHandle>>();
     MainCamera.add<ViewMatrixComponent<GameObjectHandle>>();
-    MainCamera.add<DirectionComponent<GameObjectHandle>>();
+    MainCamera.add<Direction3DComponent<GameObjectHandle>>();
     MainCamera.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
     // later on: rebuildHandleMultiMapFromSceneMembership(). SSoT w/ components, but systems get the
     // multimaps for faster access / querying?
@@ -159,36 +162,36 @@ int main() {
     // GameLoop Config
     // ----------------------------------------
     gameLoop.phase(PhaseType::Pre)
-                .addPass<GameState>(GameState::Any)
-                .addSystem<GameFlowSystem<StateCommandBuffer>>()
+                .addPass<EngineState>(EngineState::Any)
+                .addSystem<EngineFlowSystem<EngineCommandBuffer>>()
                 .addCommitPoint(CommitPoint::Structural)
 
-                .addPass<GameState>(GameState::Booting)
+                .addPass<EngineState>(EngineState::Booting)
                 .addSystem<PlatformInitSystem<PlatformCommandBuffer>>()
                 .addCommitPoint(CommitPoint::Structural)
 
-                .addPass<GameState>(GameState::Booted | GameState::Live)
+                .addPass<EngineState>(EngineState::Booted | EngineState::Running)
                 .addSystem<PollEventsSystem<PlatformCommandBuffer>>()
                 .addSystem<WindowCreateSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addCommitPoint(CommitPoint::Structural)
 
-                .addPass<GameState>(GameState::Warmup)
+                .addPass<EngineState>(EngineState::Warmup)
                 .addSystem<ShaderCompileSystem<ShaderHandle, RenderCommandBuffer>>()
-                .addSystem<WarmupDoneSystem<ShaderHandle, StateCommandBuffer>>()
+                .addSystem<WarmupDoneSystem<ShaderHandle, EngineCommandBuffer>>()
                 .addCommitPoint(CommitPoint::Structural)
 
-                .addPass<GameState>(GameState::Live)
+                .addPass<EngineState>(EngineState::Running)
                 .addSystem<ScaleSystem<GameObjectHandle>>();
 
             gameLoop.phase(PhaseType::Main)
-                .addPass(GameState::Live)
+                .addPass(EngineState::Running)
                 //.addSystem<PerspectiveProjectionUpdateSystem<GameObjectHandle>>()
                 //.addSystem<CameraLookAtSystem<GameObjectHandle>>()
                 //.addSystem<ViewMatrixUpdateSystem<GameObjectHandle>>()
                 ;
 
             gameLoop.phase(PhaseType::Post)
-                 .addPass(GameState::Live)
+                 .addPass(EngineState::Running)
 
                  //.addSystem<LocalComposeTransformSystem>()
                  //.addSystem<WorldTransformSystem>()
@@ -205,7 +208,7 @@ int main() {
                 >(NoCullingStrategy<GameObjectHandle>()).addCommitPoint(CommitPoint::FlushCommands)
 
                  // Clear, bufferswapping
-                .addPass<GameState>(GameState::Live)
+                .addPass<EngineState>(EngineState::Running)
                 .addSystem<TransformClearSystem<GameObjectHandle>>()
                 // WindowSizeUpdateSystem is not used right now:
                 // it was mainly used for framebufefr resizing, which is now handled
@@ -217,7 +220,7 @@ int main() {
                 .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addCommitPoint(CommitPoint::Structural)
 
-                .addPass<GameState>(GameState::Shutdown)
+                .addPass<EngineState>(EngineState::Shutdown)
                 .addSystem<DestroySessionSystem>()
             ;
 
@@ -244,6 +247,9 @@ int main() {
         frameStats = framePacer.sync();;
         DELTA_TIME = frameStats.totalFrameTime;
     }
+
+
+    logger.info("Engine is now in State {0}", std::to_underlying(gameWorld.session().state<EngineState>()));
 
 
     return 0;

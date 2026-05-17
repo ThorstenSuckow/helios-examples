@@ -8,43 +8,43 @@
 
 #pragma once
 
-using namespace helios::bootstrap;
+using namespace helios::engine::bootstrap;
 
 // External backends
 using namespace helios::opengl;
 
 // Rendering
-using namespace helios::rendering;
-using namespace helios::rendering::mesh;
-using namespace helios::rendering::material;
-using namespace helios::rendering::shader;
-using namespace helios::rendering::mesh::types;
-using namespace helios::rendering::material::types;
-using namespace helios::rendering::shader::types;
-using namespace helios::rendering::shader::components;
-using namespace helios::rendering::shader::systems;
-using namespace helios::rendering::viewport;
-using namespace helios::rendering::viewport::types;
-using namespace helios::rendering::framebuffer;
-using namespace helios::rendering::framebuffer::types;
-using namespace helios::rendering::framebuffer::components;
-using namespace helios::rendering::asset::shape::basic;
+using namespace helios::engine::rendering;
+using namespace helios::engine::rendering::mesh;
+using namespace helios::engine::rendering::material;
+using namespace helios::engine::rendering::shader;
+using namespace helios::engine::rendering::mesh::types;
+using namespace helios::engine::rendering::material::types;
+using namespace helios::engine::rendering::shader::types;
+using namespace helios::engine::rendering::shader::components;
+using namespace helios::engine::rendering::shader::systems;
+using namespace helios::engine::rendering::viewport;
+using namespace helios::engine::rendering::viewport::types;
+using namespace helios::engine::rendering::framebuffer;
+using namespace helios::engine::rendering::framebuffer::types;
+using namespace helios::engine::rendering::framebuffer::components;
+using namespace helios::engine::rendering::asset::shape::basic;
 
 // Input
-using namespace helios::input;
-using namespace helios::input::gamepad;
-using namespace helios::input::types;
+using namespace helios::engine::input;
+using namespace helios::engine::input::gamepad;
+using namespace helios::engine::input::types;
 
 // Core libraries
 using namespace helios::math;
-using namespace helios::scene;
-using namespace helios::scene::types;
-using namespace helios::core::units;
-using namespace helios::core;
-using namespace helios::core::container;
-using namespace helios::core::components;
-using namespace helios::util::io;
-using namespace helios::util::time;
+using namespace helios::engine::scene;
+using namespace helios::engine::scene::types;
+using namespace helios::engine::core::units;
+using namespace helios::engine::core;
+using namespace helios::engine::core::container;
+using namespace helios::engine::core::components;
+using namespace helios::engine::util::io;
+using namespace helios::engine::util::time;
 
 // ECS library
 using namespace helios::ecs;
@@ -55,31 +55,33 @@ using namespace helios::ecs::types;
 
 
 // Engine core
-using namespace helios::state;
-using namespace helios::state::types;
-using namespace helios::tooling;
+using namespace helios::engine::state;
+using namespace helios::engine::state::types;
+using namespace helios::engine::tooling;
 
 
 // Runtime
-using namespace helios::runtime::messaging::command;
-using namespace helios::runtime::world;
-using namespace helios::runtime::world::types;
-using namespace helios::runtime::gameloop;
-using namespace helios::runtime::pooling;
-using namespace helios::gameplay::spawn;
+using namespace helios::engine::runtime::enginestate;
+using namespace helios::engine::runtime::enginestate::systems;
+using namespace helios::engine::runtime::enginestate::types;
+using namespace helios::engine::runtime::messaging::command;
+using namespace helios::engine::runtime::world;
+using namespace helios::engine::runtime::world::types;
+using namespace helios::engine::runtime::gameloop;
+using namespace helios::engine::runtime::pooling;
 
 // Platform
-using namespace helios::platform::lifecycle;
-using namespace helios::platform::lifecycle::commands;
-using namespace helios::platform::lifecycle::systems;
-using namespace helios::platform::environment;
-using namespace helios::platform::environment::components;
-using namespace helios::platform::environment::systems;
-using namespace helios::platform::environment::types;
-using namespace helios::platform::window;
-using namespace helios::platform::window::components;
-using namespace helios::platform::window::systems;
-using namespace helios::platform::window::types;
+using namespace helios::engine::platform::lifecycle;
+using namespace helios::engine::platform::lifecycle::commands;
+using namespace helios::engine::platform::lifecycle::systems;
+using namespace helios::engine::platform::environment;
+using namespace helios::engine::platform::environment::components;
+using namespace helios::engine::platform::environment::systems;
+using namespace helios::engine::platform::environment::types;
+using namespace helios::engine::platform::window;
+using namespace helios::engine::platform::window::components;
+using namespace helios::engine::platform::window::systems;
+using namespace helios::engine::platform::window::types;
 using namespace helios::glfw;
 using namespace helios::glfw::components;
 using namespace helios::glfw::systems;
@@ -87,32 +89,18 @@ using namespace helios::opengl::components;
 
 // Mechanics: scoring, timing, combat
 
-using namespace helios::runtime::timing;
-using namespace helios::runtime::timing::systems;
+using namespace helios::engine::runtime::timing;
+using namespace helios::engine::runtime::timing::systems;
 
-
-// Mechanics: spawn, bounds, damage, health, input, lifecycle
-using namespace helios::gameplay::spawn::systems;
-using namespace helios::gameplay::spawn::types;
-using namespace helios::gameplay::gamestate::types;
-using namespace helios::gameplay::gamestate::systems;
-using namespace helios::gameplay::matchstate::types;
-
-
-// Modules: physics
-using namespace helios::physics::collision::types;
-using namespace helios::physics::collision::systems;
-using namespace helios::physics::motion::systems;
-using namespace helios::physics::motion::components;
 
 // Modules: spatial, scene, rendering, UI, AI
-using namespace helios::spatial::systems;
-using namespace helios::spatial::components;
-using namespace helios::scene::components;
-using namespace helios::scene;
-using namespace helios::rendering::viewport::systems;
-using namespace helios::rendering;
-using namespace helios::rendering::common::components;
-using namespace helios::rendering::common::types;
-using namespace helios::rendering::common::commands;
+using namespace helios::engine::spatial::systems;
+using namespace helios::engine::spatial::components;
+using namespace helios::engine::scene::components;
+using namespace helios::engine::scene;
+using namespace helios::engine::rendering::viewport::systems;
+using namespace helios::engine::rendering;
+using namespace helios::engine::rendering::common::components;
+using namespace helios::engine::rendering::common::types;
+using namespace helios::engine::rendering::common::commands;
 
