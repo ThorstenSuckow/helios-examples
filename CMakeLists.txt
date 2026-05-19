@@ -3,6 +3,23 @@ project(helios-examples LANGUAGES C CXX)
 
 include(FetchContent)
 
+function(helios_enable_strict_warnings target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE
+                /W4
+                /we4715
+        )
+    else()
+        target_compile_options(${target} PRIVATE
+                -Wall
+                -Wextra
+                -Wpedantic
+                -Wreturn-type
+                -Werror=return-type
+        )
+    endif()
+endfunction()
+
 set(HELIOS_ENGINE_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-engine" CACHE PATH "Local path to helios-engine")
 set(HELIOS_OPENGL_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-opengl" CACHE PATH "Local path to helios-opengl")
 set(HELIOS_GLFW_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-glfw" CACHE PATH "Local path to helios-glfw")
@@ -56,7 +73,9 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
 
     add_executable(${UNIQUE_TARGET} ${EXAMPLE_FILE})
 
-    if (MSVC)
+    helios_enable_strict_warnings(${UNIQUE_TARGET})
+
+    if(MSVC)
         target_compile_options(${UNIQUE_TARGET} PRIVATE /bigobj)
     endif()
 
@@ -73,7 +92,7 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
             "${EXAMPLE_DIR}/*.ixx"
     )
 
-    if (EXAMPLE_MODULES)
+    if(EXAMPLE_MODULES)
         target_sources(${UNIQUE_TARGET}
                 PRIVATE
                 FILE_SET cxx_modules TYPE CXX_MODULES FILES
@@ -98,7 +117,4 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
                 "${RESOURCES_DEST_DIR}"
         )
     endif()
-
 endforeach()
-
-
