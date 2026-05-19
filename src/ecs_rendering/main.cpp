@@ -57,7 +57,12 @@ int main() {
     // register additional managers
     gameWorld.registerManager<helios::engine::rendering::RenderManager<OpenGLBackend, GameObjectHandle>>(renderBackend);
 
-    gameWorld.registerManager<GLFWPlatformManager<WindowHandle,  /*InputHandle, */ EngineCommandBuffer, PlatformCommandBuffer>>(
+    gameWorld.registerManager<GLFWPlatformManager<
+        OpenGLBackend,
+        WindowHandle,
+        EngineCommandBuffer,
+        PlatformCommandBuffer>>(
+        renderBackend,
         gameWorld.platformWorld(), gameWorld.resourceRegistry().commandBufferRegistry()
     );
 
