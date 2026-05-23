@@ -28,7 +28,7 @@ using namespace helios::engine::rendering::viewport::types;
 using namespace helios::engine::rendering::framebuffer;
 using namespace helios::engine::rendering::framebuffer::types;
 using namespace helios::engine::rendering::framebuffer::components;
-using namespace helios::engine::rendering::assets;
+using namespace helios::engine::rendering::mesh::assets;
 
 // Input
 using namespace helios::engine::input;
