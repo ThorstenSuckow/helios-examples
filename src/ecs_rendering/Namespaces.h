@@ -25,10 +25,12 @@ using namespace helios::engine::rendering::shader::components;
 using namespace helios::engine::rendering::shader::systems;
 using namespace helios::engine::rendering::viewport;
 using namespace helios::engine::rendering::viewport::types;
-using namespace helios::engine::rendering::framebuffer;
-using namespace helios::engine::rendering::framebuffer::types;
-using namespace helios::engine::rendering::framebuffer::components;
+using namespace helios::engine::rendering::renderTarget;
+using namespace helios::engine::rendering::renderTarget::types;
+using namespace helios::engine::rendering::renderTarget::components;
 using namespace helios::engine::rendering::mesh::assets;
+using namespace helios::engine::rendering::mesh::components;
+using namespace helios::engine::rendering::mesh::systems;
 
 // Input
 using namespace helios::engine::input;
@@ -43,6 +45,8 @@ using namespace helios::engine::core::units;
 using namespace helios::engine::core;
 using namespace helios::engine::core::container;
 using namespace helios::engine::core::components;
+using namespace helios::engine::core::concepts;
+using namespace helios::engine::core::systems;
 using namespace helios::engine::util::io;
 using namespace helios::engine::util::time;
 
@@ -94,9 +98,9 @@ using namespace helios::engine::runtime::timing::systems;
 
 
 // Modules: spatial, scene, rendering, UI, AI
-using namespace helios::engine::spatial::systems;
 using namespace helios::engine::spatial::components;
 using namespace helios::engine::scene::components;
+using namespace helios::engine::scene::systems;
 using namespace helios::engine::scene;
 using namespace helios::engine::rendering::viewport::systems;
 using namespace helios::engine::rendering;

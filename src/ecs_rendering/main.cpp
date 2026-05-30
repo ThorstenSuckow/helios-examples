@@ -49,10 +49,7 @@ int main() {
 
 
     // Renderbackend
-    auto renderBackend = OpenGLBackend(
-        gameWorld.renderResourceWorld(),
-        gameWorld.renderTargetWorld()
-    );
+    auto renderBackend = OpenGLBackend(gameWorld.engineWorld());
 
     // register additional managers
     gameWorld.registerManager<helios::engine::rendering::RenderManager<OpenGLBackend, GameObjectHandle>>(renderBackend);
@@ -66,7 +63,12 @@ int main() {
         gameWorld.platformWorld(), gameWorld.resourceRegistry().commandBufferRegistry()
     );
 
-    gameWorld.registerManager<OpenGLShaderCompileManager<ShaderHandle>>(gameWorld.renderResourceWorld());
+
+    gameWorld.registerManager<OpenGLMeshUploadManager<MeshHandle>>(gameWorld.renderResourceWorld());
+    gameWorld.registerManager<OpenGLShaderCompileManager<ShaderHandle, OpenGLUniformLocationCacheStrategy<ShaderHandle>>>(
+        gameWorld.renderResourceWorld(),
+        OpenGLUniformLocationCacheStrategy<ShaderHandle>()
+    );
 
 
     // ========================================
@@ -85,19 +87,19 @@ int main() {
     // Scene and Viewport Setup
     // ========================================
 
-    auto WindowFramebuffer = gameWorld.add<FramebufferHandle>(FramebufferId{"WindowFramebuffer"});
-    WindowFramebuffer.add<OpenGLFramebufferIdComponent<FramebufferHandle>>(0);
-    WindowFramebuffer.add<Size2DComponent<FramebufferHandle>>();
-    WindowFramebuffer.add<ClearComponent<FramebufferHandle>>(ClearFlags::Color);
-    WindowFramebuffer.add<ColorComponent<FramebufferHandle>>(0.5f);
+    auto WindowRenderTarget = gameWorld.add<RenderTargetHandle>(RenderTargetId{"WindowRenderTarget"});
+    WindowRenderTarget.add<OpenGLRenderTargetIdComponent<RenderTargetHandle>>(0);
+    WindowRenderTarget.add<Size2DComponent<RenderTargetHandle>>();
+    WindowRenderTarget.add<ClearComponent<RenderTargetHandle>>(ClearFlags::Color);
+    WindowRenderTarget.add<ColorComponent<RenderTargetHandle>>(0.5f);
     auto MainViewport = gameWorld.add<ViewportHandle>(ViewportId{"MainViewport"});
 
     auto MainScene = gameWorld.add<SceneHandle>(SceneId("MainScene"));
 
-    MainWindow.add<FramebufferBindingComponent<WindowHandle>>(WindowFramebuffer);
+    MainWindow.add<RenderTargetBindingComponent<WindowHandle>>(WindowRenderTarget);
 
-    // Framebuffer : Viewport (1:N)
-    MainViewport.add<FramebufferBindingComponent<ViewportHandle>>(WindowFramebuffer);
+    // RenderTarget : Viewport (1:N)
+    MainViewport.add<RenderTargetBindingComponent<ViewportHandle>>(WindowRenderTarget);
     MainViewport.add<BoundsComponent<ViewportHandle>>(helios::math::vec4f{.5f, .5f, .5f, .5f});
 
     // Viewport : Scene (N:1)
@@ -106,12 +108,13 @@ int main() {
     auto player = gameWorld.add<GameObjectHandle>();
     player.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
 
-    auto MainCamera = gameWorld.add<GameObjectHandle>();
+    auto MainCamera = gameWorld.add<GameObjectHandle>(GameObjectId("MainCamera"));
     MainCamera.add<PerspectiveCameraComponent<GameObjectHandle>>();
-    MainCamera.add<LookAtComponent<GameObjectHandle>>();
     MainCamera.add<ProjectionMatrixComponent<GameObjectHandle>>();
     MainCamera.add<ViewMatrixComponent<GameObjectHandle>>();
-    MainCamera.add<Direction3DComponent<GameObjectHandle>>();
+    MainCamera.add<UpVector3DComponent<GameObjectHandle>>(0.0f, 1.0f, 0.0f);
+    MainCamera.add<TargetPosition3DComponent<GameObjectHandle>>(0.0f, 0.0f, 0.0f);
+    MainCamera.add<Position3DComponent<GameObjectHandle>>(0.0f, 0.0f, 1.0f);
     MainCamera.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
     // later on: rebuildHandleMultiMapFromSceneMembership(). SSoT w/ components, but systems get the
     // multimaps for faster access / querying?
@@ -128,9 +131,22 @@ int main() {
     // shader, mesh, material for cube
     auto CubeShader = gameWorld.add<ShaderHandle>(ShaderId("CubeShader"));
     CubeShader.add<ShaderSourceComponent<ShaderHandle>>("./resources/cube.vert", "./resources/cube.frag");
-    auto CubeMesh = gameWorld.add<MeshHandle>(MeshId("CubeMesh"));
-    auto CubeMaterial = gameWorld.add<MaterialHandle>(MaterialId("CubeMaterial"));
 
+    CubeShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Pass>>(
+        UniformMapping{UniformSemantics::ProjectionMatrix, "projectionMatrix"},
+        UniformMapping{UniformSemantics::ViewMatrix, "viewMatrix"}
+    );
+    CubeShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Draw>>(
+        UniformMapping{UniformSemantics::ModelMatrix, "modelMatrix"},
+        UniformMapping{UniformSemantics::MaterialBaseColor, "color"}
+    );
+
+    auto CubeMesh = gameWorld.add<MeshHandle>(MeshId("CubeMesh"));
+    CubeMesh.add<MeshDataComponent<MeshHandle>>(Triangle::meshData());
+    CubeMesh.add<MeshUploadRequestComponent<MeshHandle>>();
+
+    auto CubeMaterial = gameWorld.add<MaterialHandle>(MaterialId("CubeMaterial"));
+    CubeMaterial.add<ColorComponent<MaterialHandle>>(1.0f, 0.0f, 0.0f, 1.0f);
 
     // ========================================
     // Entity Setup
@@ -138,9 +154,8 @@ int main() {
     // cube
     auto cube = gameWorld.add<GameObjectHandle>();
     cube.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
-    cube.add<LocalPositionStateComponent<GameObjectHandle>>();
-    cube.add<LocalToWorldBoundsComponent<GameObjectHandle>>();
-    cube.add<LocalToWorldMatrixComponent<GameObjectHandle>>();
+    cube.add<WorldBoundsComponent<GameObjectHandle>>();
+    cube.add<WorldMatrixComponent<GameObjectHandle>>(1.0f);
     cube.add<RenderPrototypeComponent<GameObjectHandle>>(CubeShader, CubeMaterial, CubeMesh);
 
 
@@ -181,12 +196,12 @@ int main() {
                 .addCommitPoint(CommitPoint::Structural)
 
                 .addPass<EngineState>(EngineState::Warmup)
+                .addSystem<MeshUploadSystem<MeshHandle, RenderCommandBuffer>>()
                 .addSystem<ShaderCompileSystem<ShaderHandle, RenderCommandBuffer>>()
                 .addSystem<WarmupDoneSystem<ShaderHandle, EngineCommandBuffer>>()
                 .addCommitPoint(CommitPoint::Structural)
 
-                .addPass<EngineState>(EngineState::Running)
-                .addSystem<ScaleSystem<GameObjectHandle>>();
+                .addPass<EngineState>(EngineState::Running);
 
             gameLoop.phase(PhaseType::Main)
                 .addPass(EngineState::Running)
@@ -201,10 +216,11 @@ int main() {
                  //.addSystem<LocalComposeTransformSystem>()
                  //.addSystem<WorldTransformSystem>()
 
+                .addSystem<PerspectiveCameraUpdateSystem<GameObjectHandle>>()
                 // this will produce render commands after scenes have been culled according to
                 // their active viewports
                 .addSystem<
-                    SceneRenderExtractionSystem<
+                    SceneMemberRenderContextExtractionSystem<
                         ViewportHandle,
                         GameObjectHandle,
                         NoCullingStrategy<GameObjectHandle>,
@@ -214,7 +230,6 @@ int main() {
 
                  // Clear, bufferswapping
                 .addPass<EngineState>(EngineState::Running)
-                .addSystem<TransformClearSystem<GameObjectHandle>>()
                 // WindowSizeUpdateSystem is not used right now:
                 // it was mainly used for framebufefr resizing, which is now handled
                 // directly in the GLFWPlatformManager
@@ -223,6 +238,14 @@ int main() {
                 .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addSystem<GLFWWindowCloseSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
+                .addSystem<ClearDirtySystem<
+                    GameObjectHandle,
+                    PerspectiveCameraComponent,
+                    TargetPosition3DComponent,
+                    Position3DComponent,
+                    Direction3DComponent,
+                    UpVector3DComponent>
+                >()
                 .addCommitPoint(CommitPoint::Structural)
 
                 .addPass<EngineState>(EngineState::Shutdown)
