@@ -6,6 +6,7 @@ import helios.math;
 import helios.opengl;
 import helios.glfw;
 import helios.ecs;
+import helios.imgui;
 
 #include "Namespaces.h"
 
@@ -91,8 +92,10 @@ int main() {
     WindowRenderTarget.add<OpenGLRenderTargetIdComponent<RenderTargetHandle>>(0);
     WindowRenderTarget.add<Size2DComponent<RenderTargetHandle>>();
     WindowRenderTarget.add<ClearComponent<RenderTargetHandle>>(ClearFlags::Color);
-    WindowRenderTarget.add<ColorComponent<RenderTargetHandle>>(0.5f);
+    WindowRenderTarget.add<ColorComponent<RenderTargetHandle>>(0.0f);
     auto MainViewport = gameWorld.add<ViewportHandle>(ViewportId{"MainViewport"});
+    MainViewport.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
+    MainViewport.add<ColorComponent<ViewportHandle>>(0.5f);
 
     auto MainScene = gameWorld.add<SceneHandle>(SceneId("MainScene"));
 
@@ -169,14 +172,35 @@ int main() {
 
 
 
+    // ----------------------------------------
+    // ImGui and Debug Tooling
+    // ----------------------------------------
+    auto imguiBackend = ImGuiGlfwOpenGLBackend(MainWindow.handle(), gameWorld.platformWorld());
+    auto imguiOverlay = ImGuiOverlay::forBackend(&imguiBackend);
+    auto fpsMetrics = FpsMetrics();
+    auto framePacer = FramePacer();
+    framePacer.setTargetFps(0.0f);
+    FrameStats frameStats{};
+    auto menu = new MainMenuWidget();
+    auto fpsWidget = new FpsWidget(&fpsMetrics, &framePacer);
+    auto logWidget = new LogWidget();
+    imguiOverlay.addWidget(menu);
+    imguiOverlay.addWidget(fpsWidget);
+    imguiOverlay.addWidget(logWidget);
+
+    // ----------------------------------------
+    // 2.5 Logger Configuration
+    // ----------------------------------------
+    LogManager::getInstance().enableLogging(true);
+    LogManager::getInstance().enableSink<ImGuiLogSink>(logWidget);
+
+
     // ========================================
     // Initialization of GameWorld and Game Loop
     // ========================================
     float DELTA_TIME = 0.0f;
 
-    auto framePacer = FramePacer();
-    framePacer.setTargetFps(0.0f);
-    FrameStats frameStats{};
+
 
     // ----------------------------------------
     // GameLoop Config
@@ -226,10 +250,12 @@ int main() {
                         NoCullingStrategy<GameObjectHandle>,
                         RenderCommandBuffer
                     >
-                >(NoCullingStrategy<GameObjectHandle>()).addCommitPoint(CommitPoint::FlushCommands)
+                >(NoCullingStrategy<GameObjectHandle>())
+                .addCommitPoint(CommitPoint::Structural)
 
                  // Clear, bufferswapping
                 .addPass<EngineState>(EngineState::Running)
+                .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                 // WindowSizeUpdateSystem is not used right now:
                 // it was mainly used for framebufefr resizing, which is now handled
                 // directly in the GLFWPlatformManager
@@ -269,10 +295,14 @@ int main() {
 
         //const auto viewportSnapshots = renderTargetsRegistry.viewportSnapshots();
 
+
         // Frame Synchronization is now done via GLFWSwapBuffersSystems
         gameLoop.update(gameWorld, DELTA_TIME, inputSnapshot);//inputSnapshot, viewportSnapshots);;
 
-        frameStats = framePacer.sync();;
+
+
+        frameStats = framePacer.sync();
+        fpsMetrics.addFrame(frameStats);
         DELTA_TIME = frameStats.totalFrameTime;
     }
 
