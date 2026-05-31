@@ -91,6 +91,13 @@ using namespace helios::glfw::components;
 using namespace helios::glfw::systems;
 using namespace helios::opengl::components;
 
+// imgui
+using namespace helios::imgui;
+using namespace helios::imgui::widgets;
+using namespace helios::imgui::systems;
+
+using namespace helios::engine::util::log;
+
 // Mechanics: scoring, timing, combat
 
 using namespace helios::engine::runtime::timing;
