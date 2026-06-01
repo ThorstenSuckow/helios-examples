@@ -93,7 +93,9 @@ int main() {
     WindowRenderTarget.add<Size2DComponent<RenderTargetHandle>>();
     WindowRenderTarget.add<ClearComponent<RenderTargetHandle>>(ClearFlags::Color);
     WindowRenderTarget.add<ColorComponent<RenderTargetHandle>>(0.0f);
+
     auto MainViewport = gameWorld.add<ViewportHandle>(ViewportId{"MainViewport"});
+    MainViewport.add<DebugNameComponent<ViewportHandle>>("MainViewport");
     MainViewport.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
     MainViewport.add<ColorComponent<ViewportHandle>>(0.5f);
 
@@ -112,12 +114,13 @@ int main() {
     player.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
 
     auto MainCamera = gameWorld.add<GameObjectHandle>(GameObjectId("MainCamera"));
+    MainCamera.add<DebugNameComponent<GameObjectHandle>>("MainCamera");
     MainCamera.add<PerspectiveCameraComponent<GameObjectHandle>>();
     MainCamera.add<ProjectionMatrixComponent<GameObjectHandle>>();
     MainCamera.add<ViewMatrixComponent<GameObjectHandle>>();
     MainCamera.add<UpVector3DComponent<GameObjectHandle>>(0.0f, 1.0f, 0.0f);
     MainCamera.add<TargetPosition3DComponent<GameObjectHandle>>(0.0f, 0.0f, 0.0f);
-    MainCamera.add<Position3DComponent<GameObjectHandle>>(0.0f, 0.0f, 1.0f);
+    MainCamera.add<Position3DComponent<GameObjectHandle>>(0.0f, 0.0f, 10.0f);
     MainCamera.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
     // later on: rebuildHandleMultiMapFromSceneMembership(). SSoT w/ components, but systems get the
     // multimaps for faster access / querying?
@@ -181,15 +184,20 @@ int main() {
     auto framePacer = FramePacer();
     framePacer.setTargetFps(0.0f);
     FrameStats frameStats{};
+
     auto menu = new MainMenuWidget();
     auto fpsWidget = new FpsWidget(&fpsMetrics, &framePacer);
     auto logWidget = new LogWidget();
+
+    auto cameraWidget = new CameraWidget(gameWorld);
+
     imguiOverlay.addWidget(menu);
     imguiOverlay.addWidget(fpsWidget);
     imguiOverlay.addWidget(logWidget);
+    imguiOverlay.addWidget(cameraWidget);
 
     // ----------------------------------------
-    // 2.5 Logger Configuration
+    // Logger Configuration
     // ----------------------------------------
     LogManager::getInstance().enableLogging(true);
     LogManager::getInstance().enableSink<ImGuiLogSink>(logWidget);
@@ -255,13 +263,11 @@ int main() {
 
                  // Clear, bufferswapping
                 .addPass<EngineState>(EngineState::Running)
-                .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                 // WindowSizeUpdateSystem is not used right now:
                 // it was mainly used for framebufefr resizing, which is now handled
                 // directly in the GLFWPlatformManager
                 //.addSystem<WindowSizeUpdateSystem<WindowHandle>>()
                 //.addSystem<WindowSizeDirtyClearSystem<WindowHandle>>()
-                .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addSystem<GLFWWindowCloseSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addSystem<ClearDirtySystem<
@@ -272,6 +278,8 @@ int main() {
                     Direction3DComponent,
                     UpVector3DComponent>
                 >()
+                .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
+                .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addCommitPoint(CommitPoint::Structural)
 
                 .addPass<EngineState>(EngineState::Shutdown)
