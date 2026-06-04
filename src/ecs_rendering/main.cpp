@@ -1,12 +1,13 @@
 
 #include <utility>
-
+#include <functional>
 import helios.engine;
 import helios.math;
 import helios.opengl;
 import helios.glfw;
 import helios.ecs;
 import helios.imgui;
+
 
 #include "Namespaces.h"
 
@@ -21,29 +22,16 @@ int main() {
     constexpr unsigned int SCREEN_WIDTH  = 1280;
     constexpr unsigned int SCREEN_HEIGHT = 720;
 
-    constexpr float FOVY               = radians(90.0f);
-    constexpr float ASPECT_RATIO_NUMER = 16.0f;
-    constexpr float ASPECT_RATIO_DENOM = 9.0f;
-
-    constexpr auto SHADER_POOL_CAPACITY   = 10;
-    constexpr auto MATERIAL_POOL_CAPACITY = 10;
-    constexpr auto MESH_POOL_CAPACITY     = 10;
-    constexpr auto FRAMEBUFFER_POOL_CAPACITY = 10;
-    constexpr auto VIEWPORT_POOL_CAPACITY    = 10;
+    constexpr float WINDOW_ASPECT_RATIO_NUMER = 16.0f;
+    constexpr float WINDOW_ASPECT_RATIO_DENOM = 9.0f;
 
 
     // ==========================================================
     // Infrastructure init / GameWorld / GameLoop / InputManager
     // ==========================================================
 
-    // inputmanager
-    auto deadzoneStrategy = RadialDeadzoneStrategy();
-    /*const auto inputManager = std::make_unique<InputManager>(
-        std::make_unique<helios::ext::glfw::input::GLFWInputAdapter>(std::move(deadzoneStrategy))
-    );*/
 
     // gameworld
-
     auto [gameWorldPtr, gameLoopPtr] = bootstrapGameWorld();
     auto& gameWorld = *gameWorldPtr;
     auto& gameLoop = *gameLoopPtr;
@@ -64,6 +52,8 @@ int main() {
         gameWorld.platformWorld(), gameWorld.resourceRegistry().commandBufferRegistry()
     );
 
+    SceneMemberVisibilityRegistry<GameObjectHandle> sceneMemberVisibilityRegistry{};
+
 
     gameWorld.registerManager<OpenGLMeshUploadManager<MeshHandle>>(gameWorld.renderResourceWorld());
     gameWorld.registerManager<OpenGLShaderCompileManager<ShaderHandle, OpenGLUniformLocationCacheStrategy<ShaderHandle>>>(
@@ -79,8 +69,8 @@ int main() {
     MainWindow.add<WindowCreateRequestComponent<WindowHandle>>(WindowConfig{
         "helios - ECS Rendering Demo",
         {SCREEN_WIDTH, SCREEN_HEIGHT},
-        ASPECT_RATIO_NUMER,
-        ASPECT_RATIO_DENOM
+        WINDOW_ASPECT_RATIO_NUMER,
+        WINDOW_ASPECT_RATIO_DENOM
     });
 
     
@@ -88,46 +78,60 @@ int main() {
     // Scene and Viewport Setup
     // ========================================
 
-    auto WindowRenderTarget = gameWorld.add<RenderTargetHandle>(RenderTargetId{"WindowRenderTarget"});
-    WindowRenderTarget.add<OpenGLRenderTargetIdComponent<RenderTargetHandle>>(0);
-    WindowRenderTarget.add<Size2DComponent<RenderTargetHandle>>();
-    WindowRenderTarget.add<ClearComponent<RenderTargetHandle>>(ClearFlags::Color);
-    WindowRenderTarget.add<ColorComponent<RenderTargetHandle>>(0.0f);
+    auto MainRenderTarget = gameWorld.add<RenderTargetHandle>(RenderTargetId{"MainRenderTarget"});
+    MainRenderTarget.add<OpenGLRenderTargetIdComponent<RenderTargetHandle>>(0);
+    MainRenderTarget.add<Size2DComponent<RenderTargetHandle>>();
+    MainRenderTarget.add<ClearComponent<RenderTargetHandle>>(ClearFlags::Color);
+    MainRenderTarget.add<ColorComponent<RenderTargetHandle>>(helios::engine::util::Colors::Black);
 
-    auto MainViewport = gameWorld.add<ViewportHandle>(ViewportId{"MainViewport"});
-    MainViewport.add<DebugNameComponent<ViewportHandle>>("MainViewport");
-    MainViewport.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
-    MainViewport.add<ColorComponent<ViewportHandle>>(0.5f);
+    auto CullingViewport = gameWorld.add<ViewportHandle>(ViewportId{"CullingViewport"});
+    CullingViewport.add<DebugNameComponent<ViewportHandle>>("CullingViewport");
+    CullingViewport.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
+    CullingViewport.add<ColorComponent<ViewportHandle>>(helios::engine::util::Colors::LightGray);
+    // RenderTarget : Viewport (1:N)
+    CullingViewport.add<RenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
+    CullingViewport.add<BoundsComponent<ViewportHandle>>(helios::math::vec4f{0.0f, .5f, 1.0f, 0.5f});
+
+    auto CullingViewport_bottom = gameWorld.add<ViewportHandle>(ViewportId{"CullingViewport_bottom"});
+    CullingViewport_bottom.add<DebugNameComponent<ViewportHandle>>("CullingViewport_bottom");
+    CullingViewport_bottom.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
+    CullingViewport_bottom.add<ColorComponent<ViewportHandle>>(helios::engine::util::Colors::Gray);
+    // RenderTarget : Viewport (1:N)
+    CullingViewport_bottom.add<RenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
+    CullingViewport_bottom.add<BoundsComponent<ViewportHandle>>(helios::math::vec4f{0.0f, .0f, 1.0f, 0.5f});
 
     auto MainScene = gameWorld.add<SceneHandle>(SceneId("MainScene"));
-
-    MainWindow.add<RenderTargetBindingComponent<WindowHandle>>(WindowRenderTarget);
-
-    // RenderTarget : Viewport (1:N)
-    MainViewport.add<RenderTargetBindingComponent<ViewportHandle>>(WindowRenderTarget);
-    MainViewport.add<BoundsComponent<ViewportHandle>>(helios::math::vec4f{.5f, .5f, .5f, .5f});
+    MainWindow.add<RenderTargetBindingComponent<WindowHandle>>(MainRenderTarget);
 
     // Viewport : Scene (N:1)
-    MainViewport.add<SceneBindingComponent<ViewportHandle>>(MainScene);
+        CullingViewport.add<SceneBindingComponent<ViewportHandle>>(MainScene);
+    CullingViewport_bottom.add<SceneBindingComponent<ViewportHandle>>(MainScene);
 
-    auto player = gameWorld.add<GameObjectHandle>();
-    player.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
-
-    auto MainCamera = gameWorld.add<GameObjectHandle>(GameObjectId("MainCamera"));
-    MainCamera.add<DebugNameComponent<GameObjectHandle>>("MainCamera");
-    MainCamera.add<PerspectiveCameraComponent<GameObjectHandle>>();
-    MainCamera.add<ProjectionMatrixComponent<GameObjectHandle>>();
-    MainCamera.add<ViewMatrixComponent<GameObjectHandle>>();
-    MainCamera.add<UpVector3DComponent<GameObjectHandle>>(0.0f, 1.0f, 0.0f);
-    MainCamera.add<TargetPosition3DComponent<GameObjectHandle>>(0.0f, 0.0f, 0.0f);
-    MainCamera.add<Position3DComponent<GameObjectHandle>>(0.0f, 0.0f, 10.0f);
-    MainCamera.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
+    auto CullingCamera = gameWorld.add<GameObjectHandle>(GameObjectId("CullingCamera"));
+    CullingCamera.add<DebugNameComponent<GameObjectHandle>>("CullingCamera");
+    CullingCamera.add<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
+    CullingCamera.add<ProjectionMatrixComponent<GameObjectHandle>>();
+    CullingCamera.add<ViewMatrixComponent<GameObjectHandle>>();
+    CullingCamera.add<UpVector3DComponent<GameObjectHandle>>(0.0f, 1.0f, 0.0f);
+    CullingCamera.add<TargetPosition3DComponent<GameObjectHandle>>(0.0f, 0.0f, 0.0f);
+    CullingCamera.add<Position3DComponent<GameObjectHandle>>(0.0f, 0.0f, 10.0f);
+    CullingCamera.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
     // later on: rebuildHandleMultiMapFromSceneMembership(). SSoT w/ components, but systems get the
     // multimaps for faster access / querying?
     // or the view gets extended internally that it can fall back to a multimap, e.g. filter<> instead of view<>
     // or some other adequate semantic name
+    CullingViewport.add<CameraBindingComponent<ViewportHandle>>(CullingCamera);
 
-    MainViewport.add<CameraBindingComponent<ViewportHandle>>(MainCamera);
+    auto CullingCamera_bottom = gameWorld.add<GameObjectHandle>(GameObjectId("CullingCamera_bottom"));
+    CullingCamera_bottom.add<DebugNameComponent<GameObjectHandle>>("CullingCamera_bottom");
+    CullingCamera_bottom.add<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
+    CullingCamera_bottom.add<ProjectionMatrixComponent<GameObjectHandle>>();
+    CullingCamera_bottom.add<ViewMatrixComponent<GameObjectHandle>>();
+    CullingCamera_bottom.add<UpVector3DComponent<GameObjectHandle>>(0.0f, 1.0f, 0.0f);
+    CullingCamera_bottom.add<TargetPosition3DComponent<GameObjectHandle>>(0.0f, 0.0f, 0.0f);
+    CullingCamera_bottom.add<Position3DComponent<GameObjectHandle>>(0.0f, 0.0f, 10.0f);
+    CullingCamera_bottom.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
+    CullingViewport_bottom.add<CameraBindingComponent<ViewportHandle>>(CullingCamera_bottom);
 
 
     // ========================================
@@ -152,7 +156,7 @@ int main() {
     CubeMesh.add<MeshUploadRequestComponent<MeshHandle>>();
 
     auto CubeMaterial = gameWorld.add<MaterialHandle>(MaterialId("CubeMaterial"));
-    CubeMaterial.add<ColorComponent<MaterialHandle>>(1.0f, 0.0f, 0.0f, 1.0f);
+    CubeMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::Red);
 
     // ========================================
     // Entity Setup
@@ -161,6 +165,10 @@ int main() {
     auto cube = gameWorld.add<GameObjectHandle>();
     cube.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
     cube.add<WorldBoundsComponent<GameObjectHandle>>();
+
+    auto* wbc = cube.get<WorldBoundsComponent<GameObjectHandle>>();
+    wbc->setValue(helios::math::aabbf{-.5f, -.5f, 0.0f, .5f, .5f, 0.0f});
+
     cube.add<WorldMatrixComponent<GameObjectHandle>>(1.0f);
     cube.add<RenderPrototypeComponent<GameObjectHandle>>(CubeShader, CubeMaterial, CubeMesh);
 
@@ -169,7 +177,7 @@ int main() {
     // Map Scenes to Viewports, Cameras with Viewports.
     // ==============================================
     //auto mainViewportEntity = gameWorld.addGameObject();
-    //mainViewportEntity.add<ViewportComponent>(MainViewportHandle, MainSceneHandle, camera.entityHandle());
+    //mainViewportEntity.add<ViewportComponent>(CullingViewportHandle, MainSceneHandle, camera.entityHandle());
     // entities are described through the sum of their parts.
     // if we have a ViewportComponent and a UniformValueMapComponent, those values are treated per frame.
 
@@ -252,13 +260,38 @@ int main() {
                 // this will produce render commands after scenes have been culled according to
                 // their active viewports
                 .addSystem<
-                    SceneMemberRenderContextExtractionSystem<
+                    SceneRenderSystem<
                         ViewportHandle,
                         GameObjectHandle,
-                        NoCullingStrategy<GameObjectHandle>,
+                        AABBCullingStrategy<GameObjectHandle>,
                         RenderCommandBuffer
                     >
-                >(NoCullingStrategy<GameObjectHandle>())
+                >(AABBCullingStrategy<GameObjectHandle>(), sceneMemberVisibilityRegistry)
+                .addSystem<LambdaSystem<GameObjectHandle>>(
+                    [&sceneMemberVisibilityRegistry, &CullingViewport](UpdateContext& updateContext) {
+                        const auto viewport = CullingViewport.handle();
+
+                        auto setMemberColor = [&](auto memberRange, const helios::math::vec4f& color) {
+                            for (const auto goHandle : memberRange) {
+                                auto go = updateContext.find<GameObjectHandle>(goHandle);
+                                if (!go) {
+                                    continue;
+                                }
+
+                                auto* rpc = go->template get<RenderPrototypeComponent<GameObjectHandle>>();
+                                auto material = updateContext.find<MaterialHandle>(rpc->materialHandle());
+                                if (material) {
+                                    auto* cc = material->template get<ColorComponent<MaterialHandle>>();
+                                    cc->setValue(color);
+                                }
+                            }
+                        };
+
+                        setMemberColor(sceneMemberVisibilityRegistry.culledMembers(viewport), helios::engine::util::Colors::White);
+                        setMemberColor(sceneMemberVisibilityRegistry.visibleMembers(viewport), helios::engine::util::Colors::Red);
+
+                    }
+                )
                 .addCommitPoint(CommitPoint::Structural)
 
                  // Clear, bufferswapping
@@ -278,6 +311,7 @@ int main() {
                     Direction3DComponent,
                     UpVector3DComponent>
                 >()
+                .addSystem<SceneMemberVisibilityRegistryClearSystem<GameObjectHandle>>(sceneMemberVisibilityRegistry)
                 .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                 .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addCommitPoint(CommitPoint::Structural)
