@@ -42,6 +42,7 @@ using namespace helios::math;
 using namespace helios::engine::scene;
 using namespace helios::engine::scene::types;
 using namespace helios::engine::core::units;
+using namespace helios::engine::core::types;
 using namespace helios::engine::core;
 using namespace helios::engine::core::container;
 using namespace helios::engine::core::components;
