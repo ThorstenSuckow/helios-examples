@@ -90,7 +90,7 @@ int main() {
     CullingViewport.add<ColorComponent<ViewportHandle>>(helios::engine::util::Colors::LightGray);
     // RenderTarget : Viewport (1:N)
     CullingViewport.add<RenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
-    CullingViewport.add<BoundsComponent<ViewportHandle>>(helios::math::vec4f{0.0f, .5f, 1.0f, 0.5f});
+    CullingViewport.add<RectComponent<ViewportHandle>>(helios::math::vec4f{0.0f, .5f, 1.0f, 0.5f});
 
     auto CullingViewport_bottom = gameWorld.add<ViewportHandle>(ViewportId{"CullingViewport_bottom"});
     CullingViewport_bottom.add<DebugNameComponent<ViewportHandle>>("CullingViewport_bottom");
@@ -98,7 +98,7 @@ int main() {
     CullingViewport_bottom.add<ColorComponent<ViewportHandle>>(helios::engine::util::Colors::Gray);
     // RenderTarget : Viewport (1:N)
     CullingViewport_bottom.add<RenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
-    CullingViewport_bottom.add<BoundsComponent<ViewportHandle>>(helios::math::vec4f{0.0f, .0f, 1.0f, 0.5f});
+    CullingViewport_bottom.add<RectComponent<ViewportHandle>>(helios::math::vec4f{0.0f, .0f, 1.0f, 0.5f});
 
     auto MainScene = gameWorld.add<SceneHandle>(SceneId("MainScene"));
     MainWindow.add<RenderTargetBindingComponent<WindowHandle>>(MainRenderTarget);
@@ -112,9 +112,10 @@ int main() {
     CullingCamera.add<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
     CullingCamera.add<ProjectionMatrixComponent<GameObjectHandle>>();
     CullingCamera.add<ViewMatrixComponent<GameObjectHandle>>();
-    CullingCamera.add<UpVector3DComponent<GameObjectHandle>>(0.0f, 1.0f, 0.0f);
-    CullingCamera.add<TargetPosition3DComponent<GameObjectHandle>>(0.0f, 0.0f, 0.0f);
-    CullingCamera.add<Position3DComponent<GameObjectHandle>>(0.0f, 0.0f, 10.0f);
+    CullingCamera.add<YawPitchRollComponent<GameObjectHandle>>();
+    CullingCamera.add<Rotation3DComponent<GameObjectHandle, Local>>();
+    CullingCamera.add<TransformComponent<GameObjectHandle, World>>(1.0f);
+    CullingCamera.add<Position3DComponent<GameObjectHandle, Local>>(0.0f, 0.0f, -50.0f);
     CullingCamera.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
     // later on: rebuildHandleMultiMapFromSceneMembership(). SSoT w/ components, but systems get the
     // multimaps for faster access / querying?
@@ -127,9 +128,10 @@ int main() {
     CullingCamera_bottom.add<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
     CullingCamera_bottom.add<ProjectionMatrixComponent<GameObjectHandle>>();
     CullingCamera_bottom.add<ViewMatrixComponent<GameObjectHandle>>();
-    CullingCamera_bottom.add<UpVector3DComponent<GameObjectHandle>>(0.0f, 1.0f, 0.0f);
-    CullingCamera_bottom.add<TargetPosition3DComponent<GameObjectHandle>>(0.0f, 0.0f, 0.0f);
-    CullingCamera_bottom.add<Position3DComponent<GameObjectHandle>>(0.0f, 0.0f, 10.0f);
+    CullingCamera_bottom.add<YawPitchRollComponent<GameObjectHandle>>();
+    CullingCamera_bottom.add<Rotation3DComponent<GameObjectHandle, Local>>();
+    CullingCamera_bottom.add<Position3DComponent<GameObjectHandle, Local>>(0.0f, 0.0f, -110.0f);
+    CullingCamera_bottom.add<TransformComponent<GameObjectHandle, World>>(1.0f);
     CullingCamera_bottom.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
     CullingViewport_bottom.add<CameraBindingComponent<ViewportHandle>>(CullingCamera_bottom);
 
@@ -158,19 +160,29 @@ int main() {
     auto CubeMaterial = gameWorld.add<MaterialHandle>(MaterialId("CubeMaterial"));
     CubeMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::Red);
 
+    auto CubeMaterialOverride = gameWorld.add<MaterialHandle>(MaterialId("CubeMaterialOverride"));
+    CubeMaterialOverride.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::White);
+
     // ========================================
     // Entity Setup
     // ========================================
-    // cube
-    auto cube = gameWorld.add<GameObjectHandle>();
-    cube.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
-    cube.add<WorldBoundsComponent<GameObjectHandle>>();
+    // cubes
+    for (int x = -242; x < 243; x+=3) {
+        for (int y = -42; y < 43 ; y+=3) {
+            auto cube = gameWorld.add<GameObjectHandle>();
+            cube.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
+            cube.add<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
+            cube.add<BoundsComponent<GameObjectHandle, World>>();
+            cube.add<Rotation3DComponent<GameObjectHandle, Local>>();
+            cube.add<Position3DComponent<GameObjectHandle, Local>>(static_cast<float>(x), static_cast<float>(y), 0.0f);
 
-    auto* wbc = cube.get<WorldBoundsComponent<GameObjectHandle>>();
-    wbc->setValue(helios::math::aabbf{-.5f, -.5f, 0.0f, .5f, .5f, 0.0f});
+            cube.add<TransformComponent<GameObjectHandle, World>>(1.0f);
+            cube.add<RenderPrototypeComponent<GameObjectHandle>>(
+                CubeShader.handle(), CubeMaterial.handle(), CubeMesh.handle()
+            );
+        }
+    }
 
-    cube.add<WorldMatrixComponent<GameObjectHandle>>(1.0f);
-    cube.add<RenderPrototypeComponent<GameObjectHandle>>(CubeShader, CubeMaterial, CubeMesh);
 
 
     // ==============================================
@@ -253,9 +265,9 @@ int main() {
             gameLoop.phase(PhaseType::Post)
                  .addPass(EngineState::Running)
 
-                 //.addSystem<LocalComposeTransformSystem>()
-                 //.addSystem<WorldTransformSystem>()
-
+                .addSystem<YawPitchRollUpdateSystem<GameObjectHandle>>()
+                .addSystem<WorldTransformSystem<GameObjectHandle>>()
+                .addSystem<WorldBoundsUpdateSystem<GameObjectHandle>>()
                 .addSystem<PerspectiveCameraUpdateSystem<GameObjectHandle>>()
                 // this will produce render commands after scenes have been culled according to
                 // their active viewports
@@ -268,10 +280,10 @@ int main() {
                     >
                 >(AABBCullingStrategy<GameObjectHandle>(), sceneMemberVisibilityRegistry)
                 .addSystem<LambdaSystem<GameObjectHandle>>(
-                    [&sceneMemberVisibilityRegistry, &CullingViewport](UpdateContext& updateContext) {
+                    [&](UpdateContext& updateContext) {
                         const auto viewport = CullingViewport.handle();
 
-                        auto setMemberColor = [&](auto memberRange, const helios::math::vec4f& color) {
+                        auto enableMemberMaterialOverride = [&](auto memberRange, const bool enable) {
                             for (const auto goHandle : memberRange) {
                                 auto go = updateContext.find<GameObjectHandle>(goHandle);
                                 if (!go) {
@@ -279,16 +291,12 @@ int main() {
                                 }
 
                                 auto* rpc = go->template get<RenderPrototypeComponent<GameObjectHandle>>();
-                                auto material = updateContext.find<MaterialHandle>(rpc->materialHandle());
-                                if (material) {
-                                    auto* cc = material->template get<ColorComponent<MaterialHandle>>();
-                                    cc->setValue(color);
-                                }
+                                rpc->setMaterialHandle(enable ? CubeMaterialOverride.handle() : CubeMaterial.handle());
                             }
                         };
 
-                        setMemberColor(sceneMemberVisibilityRegistry.culledMembers(viewport), helios::engine::util::Colors::White);
-                        setMemberColor(sceneMemberVisibilityRegistry.visibleMembers(viewport), helios::engine::util::Colors::Red);
+                        enableMemberMaterialOverride(sceneMemberVisibilityRegistry.visibleMembers(viewport), false);
+                        enableMemberMaterialOverride(sceneMemberVisibilityRegistry.culledMembers(viewport), true);
 
                     }
                 )
@@ -305,12 +313,14 @@ int main() {
                 .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addSystem<ClearDirtySystem<
                     GameObjectHandle,
-                    PerspectiveCameraComponent,
-                    TargetPosition3DComponent,
-                    Position3DComponent,
-                    Direction3DComponent,
-                    UpVector3DComponent>
-                >()
+                    DirtyComponentSpec<PerspectiveCameraComponent>,
+                    DirtyComponentSpec<Position3DComponent, Local>,
+                    DirtyComponentSpec<TransformComponent, World>,
+                    DirtyComponentSpec<BoundsComponent, Local>,
+                    DirtyComponentSpec<BoundsComponent, World>,
+                    DirtyComponentSpec<Rotation3DComponent, Local>,
+                    DirtyComponentSpec<Direction3DComponent>
+                >>()
                 .addSystem<SceneMemberVisibilityRegistryClearSystem<GameObjectHandle>>(sceneMemberVisibilityRegistry)
                 .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                 .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
