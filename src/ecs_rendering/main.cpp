@@ -13,7 +13,6 @@ import helios.imgui;
 
 
 int main() {
-
     auto& logger = helios::engine::util::log::LogManager::loggerForScope("main");
 
     // ========================================
@@ -104,7 +103,7 @@ int main() {
     MainWindow.add<RenderTargetBindingComponent<WindowHandle>>(MainRenderTarget);
 
     // Viewport : Scene (N:1)
-        CullingViewport.add<SceneBindingComponent<ViewportHandle>>(MainScene);
+    CullingViewport.add<SceneBindingComponent<ViewportHandle>>(MainScene);
     CullingViewport_bottom.add<SceneBindingComponent<ViewportHandle>>(MainScene);
 
     auto CullingCamera = gameWorld.add<GameObjectHandle>(GameObjectId("CullingCamera"));
@@ -143,11 +142,15 @@ int main() {
     // shader, mesh, material for cube
     auto CubeShader = gameWorld.add<ShaderHandle>(ShaderId("CubeShader"));
     CubeShader.add<ShaderSourceComponent<ShaderHandle>>("./resources/cube.vert", "./resources/cube.frag");
-
     CubeShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Pass>>(
         UniformMapping{UniformSemantics::ProjectionMatrix, "projectionMatrix"},
         UniformMapping{UniformSemantics::ViewMatrix, "viewMatrix"}
     );
+    /*
+    CubeShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Material>>(
+        UniformMapping{UniformSemantics::ModelMatrix, "modelMatrix"},
+        UniformMapping{UniformSemantics::MaterialBaseColor, "color"}
+    );*/
     CubeShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Draw>>(
         UniformMapping{UniformSemantics::ModelMatrix, "modelMatrix"},
         UniformMapping{UniformSemantics::MaterialBaseColor, "color"}
@@ -156,6 +159,18 @@ int main() {
     auto CubeMesh = gameWorld.add<MeshHandle>(MeshId("CubeMesh"));
     CubeMesh.add<MeshDataComponent<MeshHandle>>(Triangle::meshData());
     CubeMesh.add<MeshUploadRequestComponent<MeshHandle>>();
+    CubeMesh.add<VertexAttributeLayoutComponent<MeshHandle, PerVertex>>(
+        VertexAttributeLayout{
+            VertexAttribute{VertexAttributeSemantics::Position,  VertexAttributeType::Vec3f},
+            0, sizeof(Vertex), offsetof(Vertex, position),0
+        }
+
+    );
+    CubeMesh.add<VertexAttributeLayoutComponent<MeshHandle, PerInstance>>(
+    VertexAttributeLayout{
+        VertexAttribute{VertexAttributeSemantics::InstancedModelMatrix, VertexAttributeType::Mat4f},
+        4, sizeof(InstanceData), offsetof(InstanceData, modelMatrix),1}
+    );
 
     auto CubeMaterial = gameWorld.add<MaterialHandle>(MaterialId("CubeMaterial"));
     CubeMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::Red);
@@ -167,8 +182,8 @@ int main() {
     // Entity Setup
     // ========================================
     // cubes
-    for (int x = -242; x < 243; x+=3) {
-        for (int y = -42; y < 43 ; y+=3) {
+    for (int x = -142; x < 143; x+=3) {
+        for (int y = -142; y < 143 ; y+=3) {
             auto cube = gameWorld.add<GameObjectHandle>();
             cube.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
             cube.add<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
@@ -177,7 +192,7 @@ int main() {
             cube.add<Position3DComponent<GameObjectHandle, Local>>(static_cast<float>(x), static_cast<float>(y), 0.0f);
 
             cube.add<TransformComponent<GameObjectHandle, World>>(1.0f);
-            cube.add<RenderPrototypeComponent<GameObjectHandle>>(
+            cube.add<RenderPrototypeComponent<GameObjectHandle, Instanced>>(
                 CubeShader.handle(), CubeMaterial.handle(), CubeMesh.handle()
             );
         }
@@ -290,7 +305,7 @@ int main() {
                                     continue;
                                 }
 
-                                auto* rpc = go->template get<RenderPrototypeComponent<GameObjectHandle>>();
+                                auto* rpc = go->template get<RenderPrototypeComponent<GameObjectHandle, Instanced>>();
                                 rpc->setMaterialHandle(enable ? CubeMaterialOverride.handle() : CubeMaterial.handle());
                             }
                         };
