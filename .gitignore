@@ -2,3 +2,4 @@
 /build/
 /build-unified
 /.idea/
+/cmake-build-release/
