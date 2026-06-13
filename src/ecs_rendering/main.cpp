@@ -146,14 +146,11 @@ int main() {
         UniformMapping{UniformSemantics::ProjectionMatrix, "projectionMatrix"},
         UniformMapping{UniformSemantics::ViewMatrix, "viewMatrix"}
     );
-    /*
     CubeShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Material>>(
-        UniformMapping{UniformSemantics::ModelMatrix, "modelMatrix"},
         UniformMapping{UniformSemantics::MaterialBaseColor, "color"}
-    );*/
+    );
     CubeShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Draw>>(
-        UniformMapping{UniformSemantics::ModelMatrix, "modelMatrix"},
-        UniformMapping{UniformSemantics::MaterialBaseColor, "color"}
+        UniformMapping{UniformSemantics::ModelMatrix, "modelMatrix"}
     );
 
     auto CubeMesh = gameWorld.add<MeshHandle>(MeshId("CubeMesh"));
