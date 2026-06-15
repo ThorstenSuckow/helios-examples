@@ -166,7 +166,7 @@ int main() {
     CubeMesh.add<VertexAttributeLayoutComponent<MeshHandle, PerInstance>>(
     VertexAttributeLayout{
         VertexAttribute{VertexAttributeSemantics::InstancedModelMatrix, VertexAttributeType::Mat4f},
-        4, sizeof(InstanceData), offsetof(InstanceData, modelMatrix),1}
+        4, sizeof(InstanceData<GameObjectHandle>), offsetof(InstanceData<GameObjectHandle>, modelMatrix),1}
     );
 
     auto CubeMaterial = gameWorld.add<MaterialHandle>(MaterialId("CubeMaterial"));
@@ -284,20 +284,19 @@ int main() {
                 // this will produce render commands after scenes have been culled according to
                 // their active viewports
                 .addSystem<
-                    SceneRenderSystem<
+                    SceneMemberVisibilitySystem<
                         ViewportHandle,
                         GameObjectHandle,
-                        AABBCullingStrategy<GameObjectHandle>,
-                        RenderCommandBuffer
+                        AABBCullingStrategy<GameObjectHandle>
                     >
                 >(AABBCullingStrategy<GameObjectHandle>(), sceneMemberVisibilityRegistry)
                 .addSystem<LambdaSystem<GameObjectHandle>>(
                     [&](UpdateContext& updateContext) {
                         const auto viewport = CullingViewport.handle();
 
-                        auto enableMemberMaterialOverride = [&](auto memberRange, const bool enable) {
-                            for (const auto goHandle : memberRange) {
-                                auto go = updateContext.find<GameObjectHandle>(goHandle);
+                        auto enableMemberMaterialOverride = [&](auto memberContexts, const bool enable) {
+                            for (const auto member : memberContexts) {
+                                auto go = updateContext.find<GameObjectHandle>(member.memberHandle);
                                 if (!go) {
                                     continue;
                                 }
@@ -307,11 +306,18 @@ int main() {
                             }
                         };
 
-                        enableMemberMaterialOverride(sceneMemberVisibilityRegistry.visibleMembers(viewport), false);
-                        enableMemberMaterialOverride(sceneMemberVisibilityRegistry.culledMembers(viewport), true);
+                        enableMemberMaterialOverride(sceneMemberVisibilityRegistry.visibleMembers<Instanced>(viewport), false);
+                        enableMemberMaterialOverride(sceneMemberVisibilityRegistry.culledMembers<Instanced>(viewport), true);
 
                     }
                 )
+                .addSystem<
+                    SceneRenderSystem<
+                        ViewportHandle,
+                        GameObjectHandle,
+                        RenderCommandBuffer
+                    >
+                >(sceneMemberVisibilityRegistry)
                 .addCommitPoint(CommitPoint::Structural)
 
                  // Clear, bufferswapping
@@ -333,7 +339,6 @@ int main() {
                     DirtyComponentSpec<Rotation3DComponent, Local>,
                     DirtyComponentSpec<Direction3DComponent>
                 >>()
-                .addSystem<SceneMemberVisibilityRegistryClearSystem<GameObjectHandle>>(sceneMemberVisibilityRegistry)
                 .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                 .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addCommitPoint(CommitPoint::Structural)
