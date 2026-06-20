@@ -24,6 +24,7 @@ set(HELIOS_ENGINE_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-engine" CACHE 
 set(HELIOS_OPENGL_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-opengl" CACHE PATH "Local path to helios-opengl")
 set(HELIOS_GLFW_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-glfw" CACHE PATH "Local path to helios-glfw")
 set(HELIOS_IMGUI_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-imgui" CACHE PATH "Local path to helios-imgui")
+set(HELIOS_PHYSICS_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-physics" CACHE PATH "Local path to helios-physics")
 
 if(NOT TARGET helios::engine)
     if(EXISTS "${HELIOS_ENGINE_LOCAL_PATH}/CMakeLists.txt")
@@ -73,6 +74,18 @@ if(NOT TARGET helios::imgui)
     endif()
 endif()
 
+if(NOT TARGET helios::physics)
+    if(EXISTS "${HELIOS_PHYSICS_LOCAL_PATH}/CMakeLists.txt")
+        add_subdirectory("${HELIOS_PHYSICS_LOCAL_PATH}" "${CMAKE_BINARY_DIR}/_deps/helios-physics-build")
+    else()
+        FetchContent_Declare(helios_physics
+                GIT_REPOSITORY https://github.com/thorstensuckow/helios-physics.git
+                GIT_TAG main
+        )
+        FetchContent_MakeAvailable(helios_physics)
+    endif()
+endif()
+
 file(GLOB_RECURSE EXAMPLE_FILES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
@@ -97,6 +110,7 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
             helios::opengl
             helios::glfw
             helios::imgui
+            helios::physics
     )
 
     target_compile_definitions(${UNIQUE_TARGET} PRIVATE GLFW_INCLUDE_NONE)
