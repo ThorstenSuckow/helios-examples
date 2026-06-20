@@ -1,15 +1,28 @@
 
 #include <utility>
 #include <functional>
+
+import helios.ecs;
 import helios.engine;
 import helios.math;
+import helios.physics;
 import helios.opengl;
 import helios.glfw;
-import helios.ecs;
 import helios.imgui;
 
 
 #include "Namespaces.h"
+
+helios::math::vec3f randomVec3f(const std::uint32_t seed) {
+
+    auto rand = helios::engine::util::Random(seed);
+
+    return {
+        rand.randomFloat(-1.0f, 1.0f),
+        rand.randomFloat(-1.0f, 1.0f),
+        rand.randomFloat(-1.0f, 1.0f)
+    };
+}
 
 
 int main() {
@@ -186,7 +199,15 @@ int main() {
             cube.add<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
             cube.add<BoundsComponent<GameObjectHandle, World>>();
             cube.add<Rotation3DComponent<GameObjectHandle, Local>>();
+
             cube.add<Position3DComponent<GameObjectHandle, Local>>(static_cast<float>(x), static_cast<float>(y), 0.0f);
+            cube.add<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
+            cube.add<helios::physics::motion::components::Velocity3DComponent<
+                GameObjectHandle, Intent>
+            >(randomVec3f(x * y).withZ(0.0f).normalize());
+            cube.add<helios::physics::motion::components::Velocity3DComponent<
+                GameObjectHandle, Local>
+            >();
 
             cube.add<TransformComponent<GameObjectHandle, World>>(1.0f);
             cube.add<RenderPrototypeComponent<GameObjectHandle, Instanced>>(
@@ -278,6 +299,27 @@ int main() {
                  .addPass(EngineState::Running)
 
                 .addSystem<YawPitchRollUpdateSystem<GameObjectHandle>>()
+                .addSystem(callableSystemForLambda<GameObjectHandle>(
+                    // replacement for systems that compute the local velocity from intended velocity,
+                    // such as component systems
+                    [&](UpdateContext& updateContext) {
+                        for (auto [
+                            entity,
+                            intendedVelocity,
+                            localVelocity,
+                            active
+                        ] : updateContext.view<
+                            GameObjectHandle,
+                            helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Intent>,
+                            helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Local>,
+                            Active<GameObjectHandle>
+                        >().whereEnabled()) {
+                            localVelocity->setValue(intendedVelocity->value());
+                          //  intendedVelocity->setValue({0.0f, 0.0f, 0.0f});
+                        }
+                    }
+                ))
+                .addSystem<helios::physics::motion::systems::MotionIntegrationSystem<GameObjectHandle>>()
                 .addSystem<WorldTransformSystem<GameObjectHandle>>()
                 .addSystem<WorldBoundsUpdateSystem<GameObjectHandle>>()
                 .addSystem<PerspectiveCameraUpdateSystem<GameObjectHandle>>()
@@ -290,7 +332,7 @@ int main() {
                         AABBCullingStrategy<GameObjectHandle>
                     >
                 >(AABBCullingStrategy<GameObjectHandle>(), sceneMemberVisibilityRegistry)
-                .addSystem<LambdaSystem<GameObjectHandle>>(
+                .addSystem(callableSystemForLambda<GameObjectHandle>(
                     [&](UpdateContext& updateContext) {
                         const auto viewport = CullingViewport.handle();
 
@@ -310,7 +352,7 @@ int main() {
                         enableMemberMaterialOverride(sceneMemberVisibilityRegistry.culledMembers<Instanced>(viewport), true);
 
                     }
-                )
+                ))
                 .addSystem<
                     SceneRenderSystem<
                         ViewportHandle,
@@ -337,7 +379,8 @@ int main() {
                     DirtyComponentSpec<BoundsComponent, Local>,
                     DirtyComponentSpec<BoundsComponent, World>,
                     DirtyComponentSpec<Rotation3DComponent, Local>,
-                    DirtyComponentSpec<Direction3DComponent>
+                    DirtyComponentSpec<Direction3DComponent>,
+                    DirtyComponentSpec<helios::physics::motion::components::Velocity3DComponent>
                 >>()
                 .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                 .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
