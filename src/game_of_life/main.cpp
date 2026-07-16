@@ -159,7 +159,7 @@ int main() {
     CellCamera.add<YawPitchRollComponent<GameObjectHandle>>();
     CellCamera.add<Rotation3DComponent<GameObjectHandle, Local>>();
     CellCamera.add<TransformComponent<GameObjectHandle, World>>(1.0f);
-    CellCamera.add<Position3DComponent<GameObjectHandle, Local>>(0.0f, 0.0f, -50.0f);
+    CellCamera.add<Position3DComponent<GameObjectHandle, Local>>(84.0f, 70.0f, -120.0f);
     CellCamera.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
     CellViewport.add<CameraBindingComponent<ViewportHandle>>(CellCamera);
 
