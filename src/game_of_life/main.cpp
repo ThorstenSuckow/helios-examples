@@ -2,6 +2,8 @@
 #include <utility>
 #include <functional>
 #include <format>
+#include <cassert>
+#include <algorithm>
 
 import helios.ecs;
 import helios.engine;
@@ -12,6 +14,26 @@ import helios.glfw;
 import helios.imgui;
 
 #include "Namespaces.h"
+
+template<typename T>
+struct CellAliveComponent {};
+
+template<typename T>
+struct CellDeadComponent {};
+
+template<typename T>
+struct CellNeighborComponent {
+    std::array<GameObjectHandle, 8> neighbors = {};
+
+    explicit CellNeighborComponent(const std::array<GameObjectHandle, 8> &n) :
+    neighbors(n)
+    {}
+
+    CellNeighborComponent() {
+        std::fill(neighbors.begin(), neighbors.end(), GameObjectHandle{});
+    }
+};
+
 
 
 
@@ -29,23 +51,32 @@ int main() {
 
     constexpr int GRID_WIDTH = 150;
     constexpr int GRID_HEIGHT = 150;
+    constexpr int CELL_COUNT = GRID_WIDTH * GRID_HEIGHT;
 
     constexpr uint32_t SEED = 1234;
 
     auto RAND = helios::engine::util::Random(SEED);
 
 
-    std::array<GameObjectHandle, GRID_WIDTH * GRID_HEIGHT> CELLS;
-    std::array<bool, GRID_WIDTH * GRID_HEIGHT> CELL_GEN_CURRENT;
-    std::array<bool, GRID_WIDTH * GRID_HEIGHT> CELL_GEN_NEXT;
+    std::array<GameObjectHandle, CELL_COUNT> CELLS;
+    std::vector<GameObjectHandle> CELLS_DEAD;
+    std::vector<GameObjectHandle> CELLS_ALIVE;
+    CELLS_DEAD.reserve(CELL_COUNT);
+    CELLS_ALIVE.reserve(CELL_COUNT);
 
-    auto toGridIndex = [&](int x, int y)-> unsigned int {
-
+    auto toWrappedPosition = [&](int x, int y)-> unsigned int {
         x = (x % GRID_WIDTH + GRID_WIDTH) % GRID_WIDTH;
         y = (y % GRID_HEIGHT + GRID_HEIGHT) % GRID_HEIGHT;
 
         return y * GRID_WIDTH + x;
     };
+
+    auto toGridXY = [&](const int position) -> std::pair<int, int> {
+        const int x = position % GRID_WIDTH;
+        const int y = position / GRID_WIDTH;
+        return {x, y};
+    };
+
 
     // ==========================================================
     // Infrastructure init / GameWorld / GameLoop / InputManager
@@ -174,31 +205,61 @@ int main() {
     // ========================================
     // Entity Setup
     // ========================================
-    // cubes
-    for (int x = 0; x < GRID_WIDTH; x++) {
-        for (int y = 0; y < GRID_HEIGHT ; y++) {
+    // cells
+    auto makeCell = [&](const int position)-> GameObject {
 
-            const bool isAlive = RAND.randomInt(0, 2) == 1;
+        const auto [x, y] = toGridXY(position);
 
-            const auto cellIdx = toGridIndex(x, y);
+        auto cell = gameWorld.add<GameObjectHandle>(
+            GameObjectId(std::format("{0}", position)), false
+        );
+        cell.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
+        cell.add<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
+        cell.add<BoundsComponent<GameObjectHandle, World>>();
+        cell.add<Rotation3DComponent<GameObjectHandle, Local>>();
 
-            auto cell = gameWorld.add<GameObjectHandle>(
-                GameObjectId(std::format("({0},{1})", x, y)), isAlive
-            );
-            cell.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
-            cell.add<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
-            cell.add<BoundsComponent<GameObjectHandle, World>>();
-            cell.add<Rotation3DComponent<GameObjectHandle, Local>>();
+        cell.add<Position3DComponent<GameObjectHandle, Local>>(static_cast<float>(x), static_cast<float>(y), 0.0f);
+        cell.add<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
+        cell.add<TransformComponent<GameObjectHandle, World>>(1.0f);
+        cell.add<RenderPrototypeComponent<GameObjectHandle, Instanced>>(
+            CellShader.handle(), CellMaterial.handle(), CellMesh.handle()
+        );
 
-            cell.add<Position3DComponent<GameObjectHandle, Local>>(static_cast<float>(x), static_cast<float>(y), 0.0f);
-            cell.add<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
-            cell.add<TransformComponent<GameObjectHandle, World>>(1.0f);
-            cell.add<RenderPrototypeComponent<GameObjectHandle, Instanced>>(
-                CellShader.handle(), CellMaterial.handle(), CellMesh.handle()
-            );
+        cell.add<CellNeighborComponent<GameObjectHandle>>();
 
-            CELLS[cellIdx]            = cell.handle();
-            CELL_GEN_CURRENT[cellIdx] = CELL_GEN_NEXT[cellIdx]    = isAlive;
+        return cell;
+    };
+
+    for (int position = 0; position < CELL_COUNT ; position++) {
+        const bool isAlive = RAND.randomInt(0, 10) == 1;
+        auto cell = makeCell(position);
+
+        if (isAlive) {
+            cell.add<CellAliveComponent<GameObjectHandle>>();
+            cell.remove<CellDeadComponent<GameObjectHandle>>();
+        } else {
+            cell.add<CellDeadComponent<GameObjectHandle>>();
+            cell.remove<CellAliveComponent<GameObjectHandle>>();
+        }
+
+        CELLS[position] = cell.handle();
+    }
+
+    for (int position = 0; position < CELL_COUNT ; position++) {
+        auto go = gameWorld.find(CELLS[position]);
+
+        auto& neighbors = go->get<CellNeighborComponent<GameObjectHandle>>()->neighbors;
+
+        auto[x, y] = toGridXY(position);
+
+        int neighborIdx = 0;
+        for (int i = x-1; i <= x+1; i++) {
+            for (int j = y-1; j <= y+1; j++) {
+                if (i == x && j == y) {
+                    continue;
+                }
+                neighbors[neighborIdx++] = CELLS[toWrappedPosition(i, j)];
+            }
         }
     }
 
@@ -270,47 +331,57 @@ int main() {
                 //.addSystem<CameraLookAtSystem<GameObjectHandle>>()
                 //.addSystem<ViewMatrixUpdateSystem<GameObjectHandle>>()
                 .addSystem(callableSystemForLambda<GameObject>([&](UpdateContext& updateContext) {
+                    CELLS_DEAD.clear();
+                    CELLS_ALIVE.clear();
 
-                    for (int i = 0; i < GRID_WIDTH; i++) {
-                        for (int j = 0; j < GRID_HEIGHT; j++) {
-
-                            const auto refCellIdx = toGridIndex(i, j);
-                            const bool isAlive = CELL_GEN_CURRENT[refCellIdx];
-
-                            int aliveNeighbors = 0;
-
-                            for (int a = i-1; a <= i+1 ; a++) {
-                                for (int b = j-1; b <= j+1; b++) {
-
-                                    if (a == i && b == j) {
-                                        continue;
-                                    }
-
-                                    const auto neighborCellIdx = toGridIndex(a, b);
-
-                                    if (CELL_GEN_CURRENT[neighborCellIdx]) {
-                                        aliveNeighbors++;
-                                    }
-                                }
+                    for (auto [entity, neighbor, aliveCmp] : updateContext.view<
+                        GameObjectHandle,
+                        CellNeighborComponent<GameObjectHandle>,
+                        CellAliveComponent<GameObjectHandle>
+                    >()) {
+                        int alive = 0;
+                        for (int i = 0; i < 8; i++) {
+                            const auto handle = neighbor->neighbors[i];
+                            if (auto go = updateContext.find(handle)) {
+                                alive += go->get<CellAliveComponent<GameObjectHandle>>() ? 1 : 0;
                             }
-
-                            CELL_GEN_NEXT[refCellIdx] = aliveNeighbors == 3 || (isAlive && aliveNeighbors == 2);
-
+                        }
+                        if (alive < 2 || alive > 3) {
+                            CELLS_DEAD.push_back(entity.handle());
+                        }
+                    }
+                    for (auto [entity, neighbor, deadCmp] : updateContext.view<
+                        GameObjectHandle,
+                        CellNeighborComponent<GameObjectHandle>,
+                        CellDeadComponent<GameObjectHandle>
+                    >()) {
+                        int alive = 0;
+                        for (int i = 0; i < 8; i++) {
+                            const auto handle = neighbor->neighbors[i];
+                            if (auto go = updateContext.find(handle)) {
+                                alive += go->get<CellAliveComponent<GameObjectHandle>>() ? 1 : 0;
+                            }
+                        }
+                        if (alive == 3) {
+                            CELLS_ALIVE.push_back(entity.handle());
                         }
                     }
 
-
-                    CELL_GEN_CURRENT.swap(CELL_GEN_NEXT);
-
-                    for (int refCellIdx = 0; refCellIdx < GRID_WIDTH * GRID_HEIGHT; refCellIdx++) {
-                        auto cell = updateContext.find<GameObjectHandle>(CELLS[refCellIdx]);
-                        if (CELL_GEN_CURRENT[refCellIdx]) {
-                            cell->add<Active<GameObjectHandle>>();
-                        } else {
-                            cell->remove<Active<GameObjectHandle>>();
+                    for (auto handle : CELLS_DEAD) {
+                        if (auto go = updateContext.find(handle)) {
+                            go->add<CellDeadComponent<GameObjectHandle>>();
+                            go->remove<Active<GameObjectHandle>>();
+                            go->remove<CellAliveComponent<GameObjectHandle>>();
                         }
                     }
 
+                    for (auto handle : CELLS_ALIVE) {
+                        if (auto go = updateContext.find(handle)) {
+                            go->remove<CellDeadComponent<GameObjectHandle>>();
+                            go->add<Active<GameObjectHandle>>();
+                            go->add<CellAliveComponent<GameObjectHandle>>();
+                        }
+                    }
                 }));
 
             gameLoop.phase(PhaseType::Post)
