@@ -46,7 +46,6 @@ using namespace helios::engine::core::types;
 using namespace helios::engine::core;
 using namespace helios::engine::core::container;
 using namespace helios::engine::core::components;
-using namespace helios::engine::core::concepts;
 using namespace helios::engine::core::systems;
 using namespace helios::engine::util::io;
 using namespace helios::engine::util::time;
