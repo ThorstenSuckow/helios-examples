@@ -419,16 +419,16 @@ int main() {
                 //.addSystem<WindowSizeDirtyClearSystem<WindowHandle>>()
                 .addSystem<GLFWWindowCloseSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
-                .addSystem<ClearDirtySystem<
+                .addSystem<VersioningCommitSystem<
                     GameObjectHandle,
-                    DirtyComponentSpec<PerspectiveCameraComponent>,
-                    DirtyComponentSpec<Position3DComponent, Local>,
-                    DirtyComponentSpec<TransformComponent, World>,
-                    DirtyComponentSpec<BoundsComponent, Local>,
-                    DirtyComponentSpec<BoundsComponent, World>,
-                    DirtyComponentSpec<Rotation3DComponent, Local>,
-                    DirtyComponentSpec<Direction3DComponent>,
-                    DirtyComponentSpec<helios::physics::motion::components::Velocity3DComponent>
+                    VersionedComponentSpec<PerspectiveCameraComponent>,
+                    VersionedComponentSpec<Position3DComponent, Local>,
+                    VersionedComponentSpec<TransformComponent, World>,
+                    VersionedComponentSpec<BoundsComponent, Local>,
+                    VersionedComponentSpec<BoundsComponent, World>,
+                    VersionedComponentSpec<Rotation3DComponent, Local>,
+                    VersionedComponentSpec<Direction3DComponent>,
+                    VersionedComponentSpec<helios::physics::motion::components::Velocity3DComponent>
                 >>()
                 .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                 .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
