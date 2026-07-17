@@ -306,14 +306,12 @@ int main() {
                         for (auto [
                             entity,
                             intendedVelocity,
-                            localVelocity,
-                            active
+                            localVelocity
                         ] : updateContext.view<
                             GameObjectHandle,
                             helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Intent>,
-                            helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Local>,
-                            Active<GameObjectHandle>
-                        >().whereEnabled()) {
+                            helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Local>
+                        >().withActive().whereAllEnabled().whereAnyChanged()) {
                             localVelocity->setValue(intendedVelocity->value());
                           //  intendedVelocity->setValue({0.0f, 0.0f, 0.0f});
                         }
