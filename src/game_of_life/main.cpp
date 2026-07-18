@@ -153,13 +153,15 @@ int main() {
 
     auto CellCamera = gameWorld.add<GameObjectHandle>(GameObjectId("CellCamera"));
     CellCamera.add<DebugNameComponent<GameObjectHandle>>("CellCamera");
-    CellCamera.add<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / WINDOW_ASPECT_RATIO_DENOM);
-    CellCamera.add<ProjectionMatrixComponent<GameObjectHandle>>();
-    CellCamera.add<ViewMatrixComponent<GameObjectHandle>>();
-    CellCamera.add<YawPitchRollComponent<GameObjectHandle>>();
-    CellCamera.add<Rotation3DComponent<GameObjectHandle, Local>>();
-    CellCamera.add<TransformComponent<GameObjectHandle, World>>(1.0f);
-    CellCamera.add<Position3DComponent<GameObjectHandle, Local>>(84.0f, 70.0f, -120.0f);
+
+    CellCamera.track<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / WINDOW_ASPECT_RATIO_DENOM);
+    CellCamera.track<ProjectionMatrixComponent<GameObjectHandle>>();
+    CellCamera.track<ViewMatrixComponent<GameObjectHandle>>();
+    CellCamera.track<YawPitchRollComponent<GameObjectHandle>>();
+    CellCamera.track<Rotation3DComponent<GameObjectHandle, Local>>();
+    CellCamera.track<TransformComponent<GameObjectHandle, World>>(1.0f);
+    CellCamera.track<Position3DComponent<GameObjectHandle, Local>>(GRID_WIDTH / 2.0f, GRID_HEIGHT / 2.0f, -120.0f);
+
     CellCamera.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
     CellViewport.add<CameraBindingComponent<ViewportHandle>>(CellCamera);
 
@@ -214,13 +216,14 @@ int main() {
             GameObjectId(std::format("{0}", position)), false
         );
         cell.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
-        cell.add<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
-        cell.add<BoundsComponent<GameObjectHandle, World>>();
-        cell.add<Rotation3DComponent<GameObjectHandle, Local>>();
 
-        cell.add<Position3DComponent<GameObjectHandle, Local>>(static_cast<float>(x), static_cast<float>(y), 0.0f);
-        cell.add<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
-        cell.add<TransformComponent<GameObjectHandle, World>>(1.0f);
+        cell.track<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
+        cell.track<BoundsComponent<GameObjectHandle, World>>();
+        cell.track<Rotation3DComponent<GameObjectHandle, Local>>();
+        cell.track<Position3DComponent<GameObjectHandle, Local>>(static_cast<float>(x), static_cast<float>(y), 0.0f);
+        cell.track<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
+        cell.track<TransformComponent<GameObjectHandle, World>>(1.0f);
+
         cell.add<RenderPrototypeComponent<GameObjectHandle, Instanced>>(
             CellShader.handle(), CellMaterial.handle(), CellMesh.handle()
         );
@@ -370,7 +373,7 @@ int main() {
                     for (auto handle : CELLS_DEAD) {
                         if (auto go = updateContext.find(handle)) {
                             go->add<CellDeadComponent<GameObjectHandle>>();
-                            go->remove<Active<GameObjectHandle>>();
+                            go->setActive(false);
                             go->remove<CellAliveComponent<GameObjectHandle>>();
                         }
                     }
@@ -378,7 +381,7 @@ int main() {
                     for (auto handle : CELLS_ALIVE) {
                         if (auto go = updateContext.find(handle)) {
                             go->remove<CellDeadComponent<GameObjectHandle>>();
-                            go->add<Active<GameObjectHandle>>();
+                            go->setActive(true);
                             go->add<CellAliveComponent<GameObjectHandle>>();
                         }
                     }
@@ -391,6 +394,7 @@ int main() {
                 .addSystem<WorldTransformSystem<GameObjectHandle>>()
                 .addSystem<WorldBoundsUpdateSystem<GameObjectHandle>>()
                 .addSystem<PerspectiveCameraUpdateSystem<GameObjectHandle>>()
+
                 // this will produce render commands after scenes have been culled according to
                 // their active viewports
                 .addSystem<
@@ -419,16 +423,21 @@ int main() {
                 //.addSystem<WindowSizeDirtyClearSystem<WindowHandle>>()
                 .addSystem<GLFWWindowCloseSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
-                .addSystem<VersioningCommitSystem<
+                .addSystem<ClearDirtySetsSystem<
                     GameObjectHandle,
-                    VersionedComponentSpec<PerspectiveCameraComponent>,
-                    VersionedComponentSpec<Position3DComponent, Local>,
-                    VersionedComponentSpec<TransformComponent, World>,
-                    VersionedComponentSpec<BoundsComponent, Local>,
-                    VersionedComponentSpec<BoundsComponent, World>,
-                    VersionedComponentSpec<Rotation3DComponent, Local>,
-                    VersionedComponentSpec<Direction3DComponent>,
-                    VersionedComponentSpec<helios::physics::motion::components::Velocity3DComponent>
+                    PerspectiveCameraComponent<GameObjectHandle>,
+                    Position3DComponent<GameObjectHandle, Local>,
+                    Position3DComponent<GameObjectHandle, World>,
+                    TransformComponent<GameObjectHandle, World>,
+                    BoundsComponent<GameObjectHandle, Local>,
+                    BoundsComponent<GameObjectHandle, World>,
+                    Rotation3DComponent<GameObjectHandle, Local>,
+                    Direction3DComponent<GameObjectHandle>,
+                    YawPitchRollComponent<GameObjectHandle>,
+                    Active<GameObjectHandle>,
+                    Inactive<GameObjectHandle>,
+                    helios::physics::motion::components::Velocity3DComponent<GameObjectHandle>
+
                 >>()
                 .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                 .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
