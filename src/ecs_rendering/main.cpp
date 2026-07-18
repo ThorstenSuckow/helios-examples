@@ -121,13 +121,13 @@ int main() {
 
     auto CullingCamera = gameWorld.add<GameObjectHandle>(GameObjectId("CullingCamera"));
     CullingCamera.add<DebugNameComponent<GameObjectHandle>>("CullingCamera");
-    CullingCamera.add<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
-    CullingCamera.add<ProjectionMatrixComponent<GameObjectHandle>>();
-    CullingCamera.add<ViewMatrixComponent<GameObjectHandle>>();
-    CullingCamera.add<YawPitchRollComponent<GameObjectHandle>>();
-    CullingCamera.add<Rotation3DComponent<GameObjectHandle, Local>>();
-    CullingCamera.add<TransformComponent<GameObjectHandle, World>>(1.0f);
-    CullingCamera.add<Position3DComponent<GameObjectHandle, Local>>(0.0f, 0.0f, -50.0f);
+    CullingCamera.track<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
+    CullingCamera.track<ProjectionMatrixComponent<GameObjectHandle>>();
+    CullingCamera.track<ViewMatrixComponent<GameObjectHandle>>();
+    CullingCamera.track<YawPitchRollComponent<GameObjectHandle>>();
+    CullingCamera.track<Rotation3DComponent<GameObjectHandle, Local>>();
+    CullingCamera.track<TransformComponent<GameObjectHandle, World>>(1.0f);
+    CullingCamera.track<Position3DComponent<GameObjectHandle, Local>>(0.0f, 0.0f, -50.0f);
     CullingCamera.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
     // later on: rebuildHandleMultiMapFromSceneMembership(). SSoT w/ components, but systems get the
     // multimaps for faster access / querying?
@@ -137,13 +137,13 @@ int main() {
 
     auto CullingCamera_bottom = gameWorld.add<GameObjectHandle>(GameObjectId("CullingCamera_bottom"));
     CullingCamera_bottom.add<DebugNameComponent<GameObjectHandle>>("CullingCamera_bottom");
-    CullingCamera_bottom.add<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
-    CullingCamera_bottom.add<ProjectionMatrixComponent<GameObjectHandle>>();
-    CullingCamera_bottom.add<ViewMatrixComponent<GameObjectHandle>>();
-    CullingCamera_bottom.add<YawPitchRollComponent<GameObjectHandle>>();
-    CullingCamera_bottom.add<Rotation3DComponent<GameObjectHandle, Local>>();
-    CullingCamera_bottom.add<Position3DComponent<GameObjectHandle, Local>>(0.0f, 0.0f, -110.0f);
-    CullingCamera_bottom.add<TransformComponent<GameObjectHandle, World>>(1.0f);
+    CullingCamera_bottom.track<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
+    CullingCamera_bottom.track<ProjectionMatrixComponent<GameObjectHandle>>();
+    CullingCamera_bottom.track<ViewMatrixComponent<GameObjectHandle>>();
+    CullingCamera_bottom.track<YawPitchRollComponent<GameObjectHandle>>();
+    CullingCamera_bottom.track<Rotation3DComponent<GameObjectHandle, Local>>();
+    CullingCamera_bottom.track<Position3DComponent<GameObjectHandle, Local>>(0.0f, 0.0f, -110.0f);
+    CullingCamera_bottom.track<TransformComponent<GameObjectHandle, World>>(1.0f);
     CullingCamera_bottom.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
     CullingViewport_bottom.add<CameraBindingComponent<ViewportHandle>>(CullingCamera_bottom);
 
@@ -196,20 +196,20 @@ int main() {
         for (int y = -142; y < 143 ; y+=3) {
             auto cube = gameWorld.add<GameObjectHandle>();
             cube.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
-            cube.add<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
-            cube.add<BoundsComponent<GameObjectHandle, World>>();
-            cube.add<Rotation3DComponent<GameObjectHandle, Local>>();
+            cube.track<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
+            cube.track<BoundsComponent<GameObjectHandle, World>>();
+            cube.track<Rotation3DComponent<GameObjectHandle, Local>>();
 
-            cube.add<Position3DComponent<GameObjectHandle, Local>>(static_cast<float>(x), static_cast<float>(y), 0.0f);
-            cube.add<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
-            cube.add<helios::physics::motion::components::Velocity3DComponent<
+            cube.track<Position3DComponent<GameObjectHandle, Local>>(static_cast<float>(x), static_cast<float>(y), 0.0f);
+            cube.track<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
+            cube.track<helios::physics::motion::components::Velocity3DComponent<
                 GameObjectHandle, Intent>
             >(randomVec3f(x * y).withZ(0.0f).normalize());
-            cube.add<helios::physics::motion::components::Velocity3DComponent<
+            cube.track<helios::physics::motion::components::Velocity3DComponent<
                 GameObjectHandle, Local>
             >();
 
-            cube.add<TransformComponent<GameObjectHandle, World>>(1.0f);
+            cube.track<TransformComponent<GameObjectHandle, World>>(1.0f);
             cube.add<RenderPrototypeComponent<GameObjectHandle, Instanced>>(
                 CubeShader.handle(), CubeMaterial.handle(), CubeMesh.handle()
             );
@@ -289,11 +289,7 @@ int main() {
                 .addPass<EngineState>(EngineState::Running);
 
             gameLoop.phase(PhaseType::Main)
-                .addPass(EngineState::Running)
-                //.addSystem<PerspectiveProjectionUpdateSystem<GameObjectHandle>>()
-                //.addSystem<CameraLookAtSystem<GameObjectHandle>>()
-                //.addSystem<ViewMatrixUpdateSystem<GameObjectHandle>>()
-                ;
+                .addPass(EngineState::Running);
 
             gameLoop.phase(PhaseType::Post)
                  .addPass(EngineState::Running)
@@ -311,8 +307,15 @@ int main() {
                             GameObjectHandle,
                             helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Intent>,
                             helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Local>
-                        >().withActive().whereAllEnabled().whereAnyChanged()) {
+                        >()
+                            .withActive()
+                           .whereAllEnabled()
+                           .template whereAnyDirty<
+                               Active<GameObjectHandle>,
+                               helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Intent>
+                           >()) {
                             localVelocity->setValue(intendedVelocity->value());
+                            entity.template markDirty<helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Local>>();
                           //  intendedVelocity->setValue({0.0f, 0.0f, 0.0f});
                         }
                     }
@@ -369,16 +372,22 @@ int main() {
                 //.addSystem<WindowSizeDirtyClearSystem<WindowHandle>>()
                 .addSystem<GLFWWindowCloseSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
-                .addSystem<VersioningCommitSystem<
+                .addSystem<ClearDirtySetsSystem<
                     GameObjectHandle,
-                    VersionedComponentSpec<PerspectiveCameraComponent>,
-                    VersionedComponentSpec<Position3DComponent, Local>,
-                    VersionedComponentSpec<TransformComponent, World>,
-                    VersionedComponentSpec<BoundsComponent, Local>,
-                    VersionedComponentSpec<BoundsComponent, World>,
-                    VersionedComponentSpec<Rotation3DComponent, Local>,
-                    VersionedComponentSpec<Direction3DComponent>,
-                    VersionedComponentSpec<helios::physics::motion::components::Velocity3DComponent>
+                    PerspectiveCameraComponent<GameObjectHandle>,
+                    Position3DComponent<GameObjectHandle, Local>,
+                    Position3DComponent<GameObjectHandle, World>,
+                    TransformComponent<GameObjectHandle, World>,
+                    BoundsComponent<GameObjectHandle, Local>,
+                    BoundsComponent<GameObjectHandle, World>,
+                    Rotation3DComponent<GameObjectHandle, Local>,
+                    Direction3DComponent<GameObjectHandle>,
+                    YawPitchRollComponent<GameObjectHandle>,
+                    Active<GameObjectHandle>,
+                    Inactive<GameObjectHandle>,
+                    helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Intent>,
+                    helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Local>
+
                 >>()
                 .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                 .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
