@@ -435,9 +435,7 @@ int main() {
                     Direction3DComponent<GameObjectHandle>,
                     YawPitchRollComponent<GameObjectHandle>,
                     Active<GameObjectHandle>,
-                    Inactive<GameObjectHandle>,
-                    helios::physics::motion::components::Velocity3DComponent<GameObjectHandle>
-
+                    Inactive<GameObjectHandle>
                 >>()
                 .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                 .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
