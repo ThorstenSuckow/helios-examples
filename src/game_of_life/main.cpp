@@ -132,7 +132,7 @@ int main() {
 
     auto MainRenderTarget = gameWorld.add<RenderTargetHandle>(RenderTargetId{"MainRenderTarget"});
     MainRenderTarget.add<OpenGLRenderTargetIdComponent<RenderTargetHandle>>(0);
-    MainRenderTarget.add<Size2DComponent<RenderTargetHandle>>();
+    MainRenderTarget.trackDirty<Size2DComponent<RenderTargetHandle>>();
     MainRenderTarget.add<ClearComponent<RenderTargetHandle>>(ClearFlags::Color);
     MainRenderTarget.add<ColorComponent<RenderTargetHandle>>(helios::engine::util::Colors::Black);
 
@@ -154,13 +154,13 @@ int main() {
     auto CellCamera = gameWorld.add<GameObjectHandle>(GameObjectId("CellCamera"));
     CellCamera.add<DebugNameComponent<GameObjectHandle>>("CellCamera");
 
-    CellCamera.track<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / WINDOW_ASPECT_RATIO_DENOM);
-    CellCamera.track<ProjectionMatrixComponent<GameObjectHandle>>();
-    CellCamera.track<ViewMatrixComponent<GameObjectHandle>>();
-    CellCamera.track<YawPitchRollComponent<GameObjectHandle>>();
-    CellCamera.track<Rotation3DComponent<GameObjectHandle, Local>>();
-    CellCamera.track<TransformComponent<GameObjectHandle, World>>(1.0f);
-    CellCamera.track<Position3DComponent<GameObjectHandle, Local>>(GRID_WIDTH / 2.0f, GRID_HEIGHT / 2.0f, -120.0f);
+    CellCamera.trackDirty<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / WINDOW_ASPECT_RATIO_DENOM);
+    CellCamera.trackDirty<ProjectionMatrixComponent<GameObjectHandle>>();
+    CellCamera.trackDirty<ViewMatrixComponent<GameObjectHandle>>();
+    CellCamera.trackDirty<YawPitchRollComponent<GameObjectHandle>>();
+    CellCamera.trackDirty<Rotation3DComponent<GameObjectHandle, Local>>();
+    CellCamera.trackDirty<TransformComponent<GameObjectHandle, World>>(1.0f);
+    CellCamera.trackDirty<Position3DComponent<GameObjectHandle, Local>>(GRID_WIDTH / 2.0f, GRID_HEIGHT / 2.0f, -120.0f);
 
     CellCamera.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
     CellViewport.add<CameraBindingComponent<ViewportHandle>>(CellCamera);
@@ -217,12 +217,12 @@ int main() {
         );
         cell.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
 
-        cell.track<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
-        cell.track<BoundsComponent<GameObjectHandle, World>>();
-        cell.track<Rotation3DComponent<GameObjectHandle, Local>>();
-        cell.track<Position3DComponent<GameObjectHandle, Local>>(static_cast<float>(x), static_cast<float>(y), 0.0f);
-        cell.track<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
-        cell.track<TransformComponent<GameObjectHandle, World>>(1.0f);
+        cell.trackDirty<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
+        cell.trackDirty<BoundsComponent<GameObjectHandle, World>>();
+        cell.trackDirty<Rotation3DComponent<GameObjectHandle, Local>>();
+        cell.trackDirty<Position3DComponent<GameObjectHandle, Local>>(static_cast<float>(x), static_cast<float>(y), 0.0f);
+        cell.trackDirty<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
+        cell.trackDirty<TransformComponent<GameObjectHandle, World>>(1.0f);
 
         cell.add<RenderPrototypeComponent<GameObjectHandle, Instanced>>(
             CellShader.handle(), CellMaterial.handle(), CellMesh.handle()
@@ -416,27 +416,9 @@ int main() {
 
                  // Clear, bufferswapping
                 .addPass<EngineState>(EngineState::Running)
-                // WindowSizeUpdateSystem is not used right now:
-                // it was mainly used for framebufefr resizing, which is now handled
-                // directly in the GLFWPlatformManager
-                //.addSystem<WindowSizeUpdateSystem<WindowHandle>>()
-                //.addSystem<WindowSizeDirtyClearSystem<WindowHandle>>()
                 .addSystem<GLFWWindowCloseSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
-                .addSystem<ClearDirtySetsSystem<
-                    GameObjectHandle,
-                    PerspectiveCameraComponent<GameObjectHandle>,
-                    Position3DComponent<GameObjectHandle, Local>,
-                    Position3DComponent<GameObjectHandle, World>,
-                    TransformComponent<GameObjectHandle, World>,
-                    BoundsComponent<GameObjectHandle, Local>,
-                    BoundsComponent<GameObjectHandle, World>,
-                    Rotation3DComponent<GameObjectHandle, Local>,
-                    Direction3DComponent<GameObjectHandle>,
-                    YawPitchRollComponent<GameObjectHandle>,
-                    Active<GameObjectHandle>,
-                    Inactive<GameObjectHandle>
-                >>()
+                .addSystem<ClearAllDirtySetsSystem>()
                 .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                 .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
                 .addCommitPoint(CommitPoint::Structural)
