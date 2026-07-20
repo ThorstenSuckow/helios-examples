@@ -1,6 +1,7 @@
 
 #include <utility>
 #include <functional>
+#include <thread>
 
 import helios.ecs;
 import helios.engine;
@@ -43,8 +44,9 @@ int main() {
     // ==========================================================
 
 
+    JobSystem jobSystem{std::max(1u, std::thread::hardware_concurrency() - 1)};
     // gameworld
-    auto [gameWorldPtr, gameLoopPtr] = bootstrapGameWorld();
+    auto [gameWorldPtr, gameLoopPtr] = bootstrapGameWorld(jobSystem);
     auto& gameWorld = *gameWorldPtr;
     auto& gameLoop = *gameLoopPtr;
 
