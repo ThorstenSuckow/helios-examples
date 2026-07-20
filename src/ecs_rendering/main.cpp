@@ -267,112 +267,142 @@ int main() {
     // GameLoop Config
     // ----------------------------------------
     gameLoop.phase(PhaseType::Pre)
-                .addPass<EngineState>(EngineState::Any)
-                .addSystem<EngineFlowSystem<EngineCommandBuffer>>()
-                .addCommitPoint(CommitPoint::Structural)
+                .beginPass<EngineState>(EngineState::Any)
+                    .addSystem<EngineFlowSystem<EngineCommandBuffer>>()
+                .submit<EngineCommandBuffer>()
+                .flush<EngineStateManager>()
+                .endPass()
 
-                .addPass<EngineState>(EngineState::Booting)
-                .addSystem<PlatformInitSystem<PlatformCommandBuffer>>()
-                .addCommitPoint(CommitPoint::Structural)
+                .beginPass<EngineState>(EngineState::Booting)
+                    .addSystem<PlatformInitSystem<PlatformCommandBuffer>>()
+                .submit<PlatformCommandBuffer>()
+                .flush<GLFWPlatformManager<
+                    OpenGLBackend,
+                    WindowHandle,
+                    EngineCommandBuffer,
+                    PlatformCommandBuffer>>()
+                .endPass()
 
-                .addPass<EngineState>(EngineState::Booted | EngineState::Running)
-                .addSystem<PollEventsSystem<PlatformCommandBuffer>>()
-                .addSystem<WindowCreateSystem<WindowHandle, PlatformCommandBuffer>>()
-                .addCommitPoint(CommitPoint::Structural)
+                .beginPass<EngineState>(EngineState::Booted | EngineState::Running)
+                    .addSystem<PollEventsSystem<PlatformCommandBuffer>>()
+                    .addSystem<WindowCreateSystem<WindowHandle, PlatformCommandBuffer>>()
+                .submit<PlatformCommandBuffer>()
+                .flush<GLFWPlatformManager<
+                    OpenGLBackend,
+                    WindowHandle,
+                    EngineCommandBuffer,
+                    PlatformCommandBuffer>>()
+                .endPass()
 
-                .addPass<EngineState>(EngineState::Warmup)
-                .addSystem<MeshUploadSystem<MeshHandle, RenderCommandBuffer>>()
-                .addSystem<ShaderCompileSystem<ShaderHandle, RenderCommandBuffer>>()
-                .addSystem<WarmupDoneSystem<ShaderHandle, EngineCommandBuffer>>()
-                .addCommitPoint(CommitPoint::Structural)
+                .beginPass<EngineState>(EngineState::Warmup)
+                    .addSystem<MeshUploadSystem<MeshHandle, RenderCommandBuffer>>()
+                    .addSystem<ShaderCompileSystem<ShaderHandle, RenderCommandBuffer>>()
+                    .addSystem<WarmupDoneSystem<ShaderHandle, EngineCommandBuffer>>()
+                .submit<RenderCommandBuffer, EngineCommandBuffer>()
+                .flush<
+                    OpenGLMeshUploadManager<MeshHandle>,
+                    OpenGLShaderCompileManager<ShaderHandle, OpenGLUniformLocationCacheStrategy<ShaderHandle>>,
+                    EngineStateManager
+                >()
+                .endPass();
 
-                .addPass<EngineState>(EngineState::Running);
 
             gameLoop.phase(PhaseType::Main)
-                .addPass(EngineState::Running);
+                .beginPass(EngineState::Running)
+                .endPass();
 
             gameLoop.phase(PhaseType::Post)
-                 .addPass(EngineState::Running)
+                 .beginPass(EngineState::Running)
 
-                .addSystem<YawPitchRollUpdateSystem<GameObjectHandle>>()
-                .addSystem(callableSystemForLambda<GameObjectHandle>(
-                    // replacement for systems that compute the local velocity from intended velocity,
-                    // such as component systems
-                    [&](UpdateContext& updateContext) {
-                        for (auto [
-                            entity,
-                            intendedVelocity,
-                            localVelocity
-                        ] : updateContext.view<
-                            GameObjectHandle,
-                            helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Intent>,
-                            helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Local>
-                        >()
-                            .withActive()
-                           .template whereAnyDirty<
-                               Active<GameObjectHandle>,
-                               helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Intent>
-                           >()) {
-                            localVelocity->setValue(intendedVelocity->value());
-                            entity.template trackDirty<helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Local>>();
-                          //  intendedVelocity->setValue({0.0f, 0.0f, 0.0f});
-                        }
-                    }
-                ))
-                .addSystem<helios::physics::motion::systems::MotionIntegrationSystem<GameObjectHandle>>()
-                .addSystem<WorldTransformSystem<GameObjectHandle>>()
-                .addSystem<WorldBoundsUpdateSystem<GameObjectHandle>>()
-                .addSystem<PerspectiveCameraUpdateSystem<GameObjectHandle>>()
-                // this will produce render commands after scenes have been culled according to
-                // their active viewports
-                .addSystem<
-                    SceneMemberVisibilitySystem<
-                        ViewportHandle,
-                        GameObjectHandle,
-                        AABBCullingStrategy<GameObjectHandle>
-                    >
-                >(AABBCullingStrategy<GameObjectHandle>(), sceneMemberVisibilityRegistry)
-                .addSystem(callableSystemForLambda<GameObjectHandle>(
-                    [&](UpdateContext& updateContext) {
-                        const auto viewport = CullingViewport.handle();
-
-                        auto enableMemberMaterialOverride = [&](auto memberContexts, const bool enable) {
-                            for (const auto member : memberContexts) {
-                                auto go = updateContext.find<GameObjectHandle>(member.memberHandle);
-                                if (!go) {
-                                    continue;
-                                }
-
-                                auto* rpc = go->template get<RenderPrototypeComponent<GameObjectHandle, Instanced>>();
-                                rpc->setMaterialHandle(enable ? CubeMaterialOverride.handle() : CubeMaterial.handle());
+                    .addSystem<YawPitchRollUpdateSystem<GameObjectHandle>>()
+                    .addSystem(callableSystemForLambda<GameObjectHandle>(
+                        // replacement for systems that compute the local velocity from intended velocity,
+                        // such as component systems
+                        [&](UpdateContext& updateContext) {
+                            for (auto [
+                                entity,
+                                intendedVelocity,
+                                localVelocity
+                            ] : updateContext.view<
+                                GameObjectHandle,
+                                helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Intent>,
+                                helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Local>
+                            >()
+                                .withActive()
+                               .template whereAnyDirty<
+                                   Active<GameObjectHandle>,
+                                   helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Intent>
+                               >()) {
+                                localVelocity->setValue(intendedVelocity->value());
+                                entity.template trackDirty<helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Local>>();
+                              //  intendedVelocity->setValue({0.0f, 0.0f, 0.0f});
                             }
-                        };
+                        }
+                    ))
+                    .addSystem<helios::physics::motion::systems::MotionIntegrationSystem<GameObjectHandle>>()
+                    .addSystem<WorldTransformSystem<GameObjectHandle>>()
+                    .addSystem<WorldBoundsUpdateSystem<GameObjectHandle>>()
+                    .addSystem<PerspectiveCameraUpdateSystem<GameObjectHandle>>()
+                    // this will produce render commands after scenes have been culled according to
+                    // their active viewports
+                    .addSystem<
+                        SceneMemberVisibilitySystem<
+                            ViewportHandle,
+                            GameObjectHandle,
+                            AABBCullingStrategy<GameObjectHandle>
+                        >
+                    >(AABBCullingStrategy<GameObjectHandle>(), sceneMemberVisibilityRegistry)
+                    .addSystem(callableSystemForLambda<GameObjectHandle>(
+                        [&](UpdateContext& updateContext) {
+                            const auto viewport = CullingViewport.handle();
 
-                        enableMemberMaterialOverride(sceneMemberVisibilityRegistry.visibleMembers<Instanced>(viewport), false);
-                        enableMemberMaterialOverride(sceneMemberVisibilityRegistry.culledMembers<Instanced>(viewport), true);
+                            auto enableMemberMaterialOverride = [&](auto memberContexts, const bool enable) {
+                                for (const auto member : memberContexts) {
+                                    auto go = updateContext.find<GameObjectHandle>(member.memberHandle);
+                                    if (!go) {
+                                        continue;
+                                    }
 
-                    }
-                ))
-                .addSystem<
-                    SceneRenderSystem<
-                        ViewportHandle,
-                        GameObjectHandle,
-                        RenderCommandBuffer
-                    >
-                >(sceneMemberVisibilityRegistry)
-                .addCommitPoint(CommitPoint::Structural)
+                                    auto* rpc = go->template get<RenderPrototypeComponent<GameObjectHandle, Instanced>>();
+                                    rpc->setMaterialHandle(enable ? CubeMaterialOverride.handle() : CubeMaterial.handle());
+                                }
+                            };
+
+                            enableMemberMaterialOverride(sceneMemberVisibilityRegistry.visibleMembers<Instanced>(viewport), false);
+                            enableMemberMaterialOverride(sceneMemberVisibilityRegistry.culledMembers<Instanced>(viewport), true);
+
+                        }
+                    ))
+                    .addSystem<
+                        SceneRenderSystem<
+                            ViewportHandle,
+                            GameObjectHandle,
+                            RenderCommandBuffer
+                        >
+                    >(sceneMemberVisibilityRegistry)
+                .submit<RenderCommandBuffer>()
+                .flush<RenderManager<OpenGLBackend, GameObjectHandle>>()// buffer -> manager
+                .endPass()
+
 
                  // Clear, bufferswapping
-                .addPass<EngineState>(EngineState::Running)
-                .addSystem<GLFWWindowCloseSystem<WindowHandle, PlatformCommandBuffer>>()
-                .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
-                .addSystem<ClearAllDirtySetsSystem>()
-                .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
-                .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
-                .addCommitPoint(CommitPoint::Structural)
+                .beginPass<EngineState>(EngineState::Running)
+                    .addSystem<GLFWWindowCloseSystem<WindowHandle, PlatformCommandBuffer>>()
+                    .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
+                    .addSystem<ClearAllDirtySetsSystem>()
+                    .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
+                    .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
+                .submit<PlatformCommandBuffer>()
+                .flush<GLFWPlatformManager<
+                    OpenGLBackend,
+                    WindowHandle,
+                    EngineCommandBuffer,
+                    PlatformCommandBuffer>>()
+                .endPass()
 
-                .addPass<EngineState>(EngineState::Shutdown)
-                .addSystem<DestroySessionSystem>()
+                .beginPass<EngineState>(EngineState::Shutdown)
+                    .addSystem<DestroySessionSystem>()
+                .endPass()
             ;
 
 
