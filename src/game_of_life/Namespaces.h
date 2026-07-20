@@ -44,6 +44,7 @@ using namespace helios::engine::scene::types;
 using namespace helios::engine::core::units;
 using namespace helios::engine::core::types;
 using namespace helios::engine::core;
+using namespace helios::engine::core::thread;
 using namespace helios::engine::core::container;
 using namespace helios::engine::core::components;
 using namespace helios::engine::core::systems;

@@ -4,6 +4,7 @@
 #include <format>
 #include <cassert>
 #include <algorithm>
+#include <thread>
 
 import helios.ecs;
 import helios.engine;
@@ -82,9 +83,11 @@ int main() {
     // Infrastructure init / GameWorld / GameLoop / InputManager
     // ==========================================================
 
+    auto maxWorker = std::max(1u, std::thread::hardware_concurrency() - 1);
+    JobSystem jobSystem(maxWorker);
 
     // gameworld
-    auto [gameWorldPtr, gameLoopPtr] = bootstrapGameWorld();
+    auto [gameWorldPtr, gameLoopPtr] = bootstrapGameWorld(jobSystem);
     auto& gameWorld = *gameWorldPtr;
     auto& gameLoop = *gameLoopPtr;
 
@@ -352,55 +355,62 @@ int main() {
                     .addSystem(callableSystemForLambda<GameObject>([&](UpdateContext& updateContext) {
                         CELLS_DEAD.clear();
                         CELLS_ALIVE.clear();
-
-                        for (auto [entity, neighbor, aliveCmp] : updateContext.view<
-                            GameObjectHandle,
-                            CellNeighborComponent<GameObjectHandle>,
-                            CellAliveComponent<GameObjectHandle>
-                        >()) {
-                            int alive = 0;
-                            for (int i = 0; i < 8; i++) {
-                                const auto handle = neighbor->neighbors[i];
-                                if (auto go = updateContext.find(handle)) {
-                                    alive += go->get<CellAliveComponent<GameObjectHandle>>() ? 1 : 0;
+                    }))
+                    .addParallelSystems(
+                        callableSystemForLambda<GameObject>([&](UpdateContext& updateContext) {
+                            for (auto [entity, neighbor, aliveCmp] : updateContext.view<
+                                GameObjectHandle,
+                                CellNeighborComponent<GameObjectHandle>,
+                                CellAliveComponent<GameObjectHandle>
+                            >()) {
+                                int alive = 0;
+                                for (int i = 0; i < 8; i++) {
+                                    const auto handle = neighbor->neighbors[i];
+                                    if (auto go = updateContext.find(handle)) {
+                                        alive += go->get<CellAliveComponent<GameObjectHandle>>() ? 1 : 0;
+                                    }
+                                }
+                                if (alive < 2 || alive > 3) {
+                                    CELLS_DEAD.push_back(entity.handle());
                                 }
                             }
-                            if (alive < 2 || alive > 3) {
-                                CELLS_DEAD.push_back(entity.handle());
-                            }
-                        }
-                        for (auto [entity, neighbor, deadCmp] : updateContext.view<
-                            GameObjectHandle,
-                            CellNeighborComponent<GameObjectHandle>,
-                            CellDeadComponent<GameObjectHandle>
-                        >()) {
-                            int alive = 0;
-                            for (int i = 0; i < 8; i++) {
-                                const auto handle = neighbor->neighbors[i];
-                                if (auto go = updateContext.find(handle)) {
-                                    alive += go->get<CellAliveComponent<GameObjectHandle>>() ? 1 : 0;
+                        }),
+                        callableSystemForLambda<GameObject>([&](UpdateContext& updateContext) {
+                            for (auto [entity, neighbor, deadCmp] : updateContext.view<
+                                GameObjectHandle,
+                                CellNeighborComponent<GameObjectHandle>,
+                                CellDeadComponent<GameObjectHandle>
+                            >()) {
+                                int alive = 0;
+                                for (int i = 0; i < 8; i++) {
+                                    const auto handle = neighbor->neighbors[i];
+                                    if (auto go = updateContext.find(handle)) {
+                                        alive += go->get<CellAliveComponent<GameObjectHandle>>() ? 1 : 0;
+                                    }
+                                }
+                                if (alive == 3) {
+                                    CELLS_ALIVE.push_back(entity.handle());
                                 }
                             }
-                            if (alive == 3) {
-                                CELLS_ALIVE.push_back(entity.handle());
+                        })
+                    )
+                    .addSystem(
+                        callableSystemForLambda<GameObject>([&](UpdateContext& updateContext) {
+                            for (auto handle : CELLS_DEAD) {
+                                if (auto go = updateContext.find(handle)) {
+                                    go->add<CellDeadComponent<GameObjectHandle>>();
+                                    go->setActive(false);
+                                    go->remove<CellAliveComponent<GameObjectHandle>>();
+                                }
                             }
-                        }
 
-                        for (auto handle : CELLS_DEAD) {
-                            if (auto go = updateContext.find(handle)) {
-                                go->add<CellDeadComponent<GameObjectHandle>>();
-                                go->setActive(false);
-                                go->remove<CellAliveComponent<GameObjectHandle>>();
+                            for (auto handle : CELLS_ALIVE) {
+                                if (auto go = updateContext.find(handle)) {
+                                    go->remove<CellDeadComponent<GameObjectHandle>>();
+                                    go->setActive(true);
+                                    go->add<CellAliveComponent<GameObjectHandle>>();
+                                }
                             }
-                        }
-
-                        for (auto handle : CELLS_ALIVE) {
-                            if (auto go = updateContext.find(handle)) {
-                                go->remove<CellDeadComponent<GameObjectHandle>>();
-                                go->setActive(true);
-                                go->add<CellAliveComponent<GameObjectHandle>>();
-                            }
-                        }
                     }))
                 .endPass();
 
