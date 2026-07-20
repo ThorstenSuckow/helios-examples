@@ -333,8 +333,7 @@ int main() {
                                    Active<GameObjectHandle>,
                                    helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Intent>
                                >()) {
-                                localVelocity->setValue(intendedVelocity->value());
-                                entity.template trackDirty<helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Local>>();
+                                entity.setTrackedValue(localVelocity, intendedVelocity->value());
                               //  intendedVelocity->setValue({0.0f, 0.0f, 0.0f});
                             }
                         }
