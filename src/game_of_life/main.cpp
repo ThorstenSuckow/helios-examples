@@ -307,124 +307,150 @@ int main() {
     // GameLoop Config
     // ----------------------------------------
     gameLoop.phase(PhaseType::Pre)
-                .addPass<EngineState>(EngineState::Any)
+
+            .beginPass<EngineState>(EngineState::Any)
                 .addSystem<EngineFlowSystem<EngineCommandBuffer>>()
-                .addCommitPoint(CommitPoint::Structural)
+            .submit<EngineCommandBuffer>()
+            .flush<EngineStateManager>()
+            .endPass()
 
-                .addPass<EngineState>(EngineState::Booting)
+            .beginPass<EngineState>(EngineState::Booting)
                 .addSystem<PlatformInitSystem<PlatformCommandBuffer>>()
-                .addCommitPoint(CommitPoint::Structural)
+            .submit<PlatformCommandBuffer>()
+            .flush<GLFWPlatformManager<
+                OpenGLBackend,
+                WindowHandle,
+                EngineCommandBuffer,
+                PlatformCommandBuffer>>()
+            .endPass()
 
-                .addPass<EngineState>(EngineState::Booted | EngineState::Running)
+            .beginPass<EngineState>(EngineState::Booted | EngineState::Running)
                 .addSystem<PollEventsSystem<PlatformCommandBuffer>>()
                 .addSystem<WindowCreateSystem<WindowHandle, PlatformCommandBuffer>>()
-                .addCommitPoint(CommitPoint::Structural)
+            .submit<PlatformCommandBuffer>()
+            .flush<GLFWPlatformManager<
+                OpenGLBackend,
+                WindowHandle,
+                EngineCommandBuffer,
+                PlatformCommandBuffer>>()
+            .endPass()
 
-                .addPass<EngineState>(EngineState::Warmup)
+            .beginPass<EngineState>(EngineState::Warmup)
                 .addSystem<MeshUploadSystem<MeshHandle, RenderCommandBuffer>>()
                 .addSystem<ShaderCompileSystem<ShaderHandle, RenderCommandBuffer>>()
                 .addSystem<WarmupDoneSystem<ShaderHandle, EngineCommandBuffer>>()
-                .addCommitPoint(CommitPoint::Structural)
-
-                .addPass<EngineState>(EngineState::Running);
+            .submit<RenderCommandBuffer, EngineCommandBuffer>()
+            .flush<
+                OpenGLMeshUploadManager<MeshHandle>,
+                OpenGLShaderCompileManager<ShaderHandle, OpenGLUniformLocationCacheStrategy<ShaderHandle>>,
+                EngineStateManager
+            >()
+            .endPass();
 
             gameLoop.phase(PhaseType::Main)
-                .addPass(EngineState::Running)
-                //.addSystem<PerspectiveProjectionUpdateSystem<GameObjectHandle>>()
-                //.addSystem<CameraLookAtSystem<GameObjectHandle>>()
-                //.addSystem<ViewMatrixUpdateSystem<GameObjectHandle>>()
-                .addSystem(callableSystemForLambda<GameObject>([&](UpdateContext& updateContext) {
-                    CELLS_DEAD.clear();
-                    CELLS_ALIVE.clear();
+                .beginPass(EngineState::Running)
+                    .addSystem(callableSystemForLambda<GameObject>([&](UpdateContext& updateContext) {
+                        CELLS_DEAD.clear();
+                        CELLS_ALIVE.clear();
 
-                    for (auto [entity, neighbor, aliveCmp] : updateContext.view<
-                        GameObjectHandle,
-                        CellNeighborComponent<GameObjectHandle>,
-                        CellAliveComponent<GameObjectHandle>
-                    >()) {
-                        int alive = 0;
-                        for (int i = 0; i < 8; i++) {
-                            const auto handle = neighbor->neighbors[i];
-                            if (auto go = updateContext.find(handle)) {
-                                alive += go->get<CellAliveComponent<GameObjectHandle>>() ? 1 : 0;
+                        for (auto [entity, neighbor, aliveCmp] : updateContext.view<
+                            GameObjectHandle,
+                            CellNeighborComponent<GameObjectHandle>,
+                            CellAliveComponent<GameObjectHandle>
+                        >()) {
+                            int alive = 0;
+                            for (int i = 0; i < 8; i++) {
+                                const auto handle = neighbor->neighbors[i];
+                                if (auto go = updateContext.find(handle)) {
+                                    alive += go->get<CellAliveComponent<GameObjectHandle>>() ? 1 : 0;
+                                }
+                            }
+                            if (alive < 2 || alive > 3) {
+                                CELLS_DEAD.push_back(entity.handle());
                             }
                         }
-                        if (alive < 2 || alive > 3) {
-                            CELLS_DEAD.push_back(entity.handle());
-                        }
-                    }
-                    for (auto [entity, neighbor, deadCmp] : updateContext.view<
-                        GameObjectHandle,
-                        CellNeighborComponent<GameObjectHandle>,
-                        CellDeadComponent<GameObjectHandle>
-                    >()) {
-                        int alive = 0;
-                        for (int i = 0; i < 8; i++) {
-                            const auto handle = neighbor->neighbors[i];
-                            if (auto go = updateContext.find(handle)) {
-                                alive += go->get<CellAliveComponent<GameObjectHandle>>() ? 1 : 0;
+                        for (auto [entity, neighbor, deadCmp] : updateContext.view<
+                            GameObjectHandle,
+                            CellNeighborComponent<GameObjectHandle>,
+                            CellDeadComponent<GameObjectHandle>
+                        >()) {
+                            int alive = 0;
+                            for (int i = 0; i < 8; i++) {
+                                const auto handle = neighbor->neighbors[i];
+                                if (auto go = updateContext.find(handle)) {
+                                    alive += go->get<CellAliveComponent<GameObjectHandle>>() ? 1 : 0;
+                                }
+                            }
+                            if (alive == 3) {
+                                CELLS_ALIVE.push_back(entity.handle());
                             }
                         }
-                        if (alive == 3) {
-                            CELLS_ALIVE.push_back(entity.handle());
-                        }
-                    }
 
-                    for (auto handle : CELLS_DEAD) {
-                        if (auto go = updateContext.find(handle)) {
-                            go->add<CellDeadComponent<GameObjectHandle>>();
-                            go->setActive(false);
-                            go->remove<CellAliveComponent<GameObjectHandle>>();
+                        for (auto handle : CELLS_DEAD) {
+                            if (auto go = updateContext.find(handle)) {
+                                go->add<CellDeadComponent<GameObjectHandle>>();
+                                go->setActive(false);
+                                go->remove<CellAliveComponent<GameObjectHandle>>();
+                            }
                         }
-                    }
 
-                    for (auto handle : CELLS_ALIVE) {
-                        if (auto go = updateContext.find(handle)) {
-                            go->remove<CellDeadComponent<GameObjectHandle>>();
-                            go->setActive(true);
-                            go->add<CellAliveComponent<GameObjectHandle>>();
+                        for (auto handle : CELLS_ALIVE) {
+                            if (auto go = updateContext.find(handle)) {
+                                go->remove<CellDeadComponent<GameObjectHandle>>();
+                                go->setActive(true);
+                                go->add<CellAliveComponent<GameObjectHandle>>();
+                            }
                         }
-                    }
-                }));
+                    }))
+                .endPass();
 
             gameLoop.phase(PhaseType::Post)
-                 .addPass(EngineState::Running)
 
-                .addSystem<YawPitchRollUpdateSystem<GameObjectHandle>>()
-                .addSystem<WorldTransformSystem<GameObjectHandle>>()
-                .addSystem<WorldBoundsUpdateSystem<GameObjectHandle>>()
-                .addSystem<PerspectiveCameraUpdateSystem<GameObjectHandle>>()
+                .beginPass(EngineState::Running)
+                    .addSystem<YawPitchRollUpdateSystem<GameObjectHandle>>()
+                    .addSystem<WorldTransformSystem<GameObjectHandle>>()
+                    .addSystem<WorldBoundsUpdateSystem<GameObjectHandle>>()
+                    .addSystem<PerspectiveCameraUpdateSystem<GameObjectHandle>>()
 
-                // this will produce render commands after scenes have been culled according to
-                // their active viewports
-                .addSystem<
-                    SceneMemberVisibilitySystem<
-                        ViewportHandle,
-                        GameObjectHandle,
-                        AABBCullingStrategy<GameObjectHandle>
-                    >
-                >(AABBCullingStrategy<GameObjectHandle>(), sceneMemberVisibilityRegistry)
+                    // this will produce render commands after scenes have been culled according to
+                    // their active viewports
+                    .addSystem<
+                        SceneMemberVisibilitySystem<
+                            ViewportHandle,
+                            GameObjectHandle,
+                            AABBCullingStrategy<GameObjectHandle>
+                        >
+                    >(AABBCullingStrategy<GameObjectHandle>(), sceneMemberVisibilityRegistry)
 
-                .addSystem<
-                    SceneRenderSystem<
-                        ViewportHandle,
-                        GameObjectHandle,
-                        RenderCommandBuffer
-                    >
-                >(sceneMemberVisibilityRegistry)
-                .addCommitPoint(CommitPoint::Structural)
+                    .addSystem<
+                        SceneRenderSystem<
+                            ViewportHandle,
+                            GameObjectHandle,
+                            RenderCommandBuffer
+                        >
+                    >(sceneMemberVisibilityRegistry)
+                .submit<RenderCommandBuffer>()
+                .flush<RenderManager<OpenGLBackend, GameObjectHandle>>()// buffer -> manager
+                .endPass()
 
                  // Clear, bufferswapping
-                .addPass<EngineState>(EngineState::Running)
-                .addSystem<GLFWWindowCloseSystem<WindowHandle, PlatformCommandBuffer>>()
-                .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
-                .addSystem<ClearAllDirtySetsSystem>()
-                .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
-                .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
-                .addCommitPoint(CommitPoint::Structural)
+                .beginPass<EngineState>(EngineState::Running)
+                    .addSystem<GLFWWindowCloseSystem<WindowHandle, PlatformCommandBuffer>>()
+                    .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
+                    .addSystem<ClearAllDirtySetsSystem>()
+                    .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
+                    .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
+                .submit<PlatformCommandBuffer>()
+                .flush<GLFWPlatformManager<
+                    OpenGLBackend,
+                    WindowHandle,
+                    EngineCommandBuffer,
+                    PlatformCommandBuffer>>()
+                .endPass()
 
-                .addPass<EngineState>(EngineState::Shutdown)
-                .addSystem<DestroySessionSystem>()
+                .beginPass<EngineState>(EngineState::Shutdown)
+                    .addSystem<DestroySessionSystem>()
+                .endPass()
             ;
 
 
