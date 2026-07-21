@@ -340,7 +340,7 @@ int main() {
                             }
                         }
                     ))
-                    .addSystem<helios::physics::motion::systems::MotionIntegrationSystem<GameObjectHandle>>()
+                    .addSystem<MotionIntegrationSystem<GameObjectHandle>>()
                     .addSystem<WorldTransformSystem<GameObjectHandle>>()
                     .addSystem<WorldBoundsUpdateSystem<GameObjectHandle>>()
                     .addSystem<PerspectiveCameraUpdateSystem<GameObjectHandle>>()
