@@ -316,7 +316,6 @@ int main() {
             gameLoop.phase(PhaseType::Post)
                  .beginPass(EngineState::Running)
 
-                    .addSystem<YawPitchRollUpdateSystem<GameObjectHandle>>()
                     .addSystem(callableSystemForLambda<GameObjectHandle>(
                         // replacement for systems that compute the local velocity from intended velocity,
                         // such as component systems
@@ -340,10 +339,16 @@ int main() {
                             }
                         }
                     ))
-                    .addSystem<MotionIntegrationSystem<GameObjectHandle>>()
+
+                    .addParallelSystems<
+                        YawPitchRollUpdateSystem<GameObjectHandle>,
+                        MotionIntegrationSystem<GameObjectHandle>
+                    >()
+
                     .addSystem<WorldTransformSystem<GameObjectHandle>>()
                     .addSystem<WorldBoundsUpdateSystem<GameObjectHandle>>()
                     .addSystem<PerspectiveCameraUpdateSystem<GameObjectHandle>>()
+
                     // this will produce render commands after scenes have been culled according to
                     // their active viewports
                     .addSystem<
