@@ -352,7 +352,7 @@ int main() {
 
             gameLoop.phase(PhaseType::Main)
                 .beginPass(EngineState::Running)
-                    .addSystem(callableSystemForLambda<GameObject>([&](UpdateContext& updateContext) {
+                    .addSystem(callableSystemForLambda<GameObject>([&]([[maybe_unused]]UpdateContext& updateContext) {
                         CELLS_DEAD.clear();
                         CELLS_ALIVE.clear();
                     }))
