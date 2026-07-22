@@ -313,13 +313,11 @@ int main() {
 
             .beginPass<EngineState>(EngineState::Any)
                 .addSystem<EngineFlowSystem<EngineCommandBuffer>>()
-            .submit<EngineCommandBuffer>()
             .flush<EngineStateManager>()
             .endPass()
 
             .beginPass<EngineState>(EngineState::Booting)
                 .addSystem<PlatformInitSystem<PlatformCommandBuffer>>()
-            .submit<PlatformCommandBuffer>()
             .flush<GLFWPlatformManager<
                 OpenGLBackend,
                 WindowHandle,
@@ -330,7 +328,6 @@ int main() {
             .beginPass<EngineState>(EngineState::Booted | EngineState::Running)
                 .addSystem<PollEventsSystem<PlatformCommandBuffer>>()
                 .addSystem<WindowCreateSystem<WindowHandle, PlatformCommandBuffer>>()
-            .submit<PlatformCommandBuffer>()
             .flush<GLFWPlatformManager<
                 OpenGLBackend,
                 WindowHandle,
@@ -342,7 +339,7 @@ int main() {
                 .addSystem<MeshUploadSystem<MeshHandle, RenderCommandBuffer>>()
                 .addSystem<ShaderCompileSystem<ShaderHandle, RenderCommandBuffer>>()
                 .addSystem<WarmupDoneSystem<ShaderHandle, EngineCommandBuffer>>()
-            .submit<RenderCommandBuffer, EngineCommandBuffer>()
+
             .flush<
                 OpenGLMeshUploadManager<MeshHandle>,
                 OpenGLShaderCompileManager<ShaderHandle, OpenGLUniformLocationCacheStrategy<ShaderHandle>>,
@@ -439,7 +436,6 @@ int main() {
                             RenderCommandBuffer
                         >
                     >(sceneMemberVisibilityRegistry)
-                .submit<RenderCommandBuffer>()
                 .flush<RenderManager<OpenGLBackend, GameObjectHandle>>()// buffer -> manager
                 .endPass()
 
@@ -450,7 +446,6 @@ int main() {
                     .addSystem<ClearAllDirtySetsSystem>()
                     .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                     .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
-                .submit<PlatformCommandBuffer>()
                 .flush<GLFWPlatformManager<
                     OpenGLBackend,
                     WindowHandle,
