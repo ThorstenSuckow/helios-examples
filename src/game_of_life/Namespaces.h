@@ -53,6 +53,7 @@ using namespace helios::engine::util::time;
 
 // ECS library
 using namespace helios::ecs;
+using namespace helios::ecs::commands;
 using namespace helios::ecs::components;
 using namespace helios::ecs::concepts;
 using namespace helios::ecs::strategies;

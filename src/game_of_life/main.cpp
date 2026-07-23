@@ -16,22 +16,30 @@ import helios.imgui;
 
 #include "Namespaces.h"
 
-template<typename T>
-struct CellAliveComponent {};
+template<typename TOwnerHandle>
+struct CellAliveComponent {
+    using Handle_type = TOwnerHandle;
 
-template<typename T>
-struct CellDeadComponent {};
+};
 
-template<typename T>
+template<typename TOwnerHandle>
+struct CellDeadComponent {
+    using Handle_type = TOwnerHandle;
+};
+
+template<typename TOwnerHandle>
 struct CellNeighborComponent {
-    std::array<GameObjectHandle, 8> neighbors = {};
 
-    explicit CellNeighborComponent(const std::array<GameObjectHandle, 8> &n) :
+    using Handle_type = TOwnerHandle;
+
+    std::array<TOwnerHandle, 8> neighbors = {};
+
+    explicit CellNeighborComponent(const std::array<TOwnerHandle, 8> &n) :
     neighbors(n)
     {}
 
     CellNeighborComponent() {
-        std::fill(neighbors.begin(), neighbors.end(), GameObjectHandle{});
+        std::fill(neighbors.begin(), neighbors.end(), TOwnerHandle{});
     }
 };
 
@@ -60,10 +68,6 @@ int main() {
 
 
     std::array<GameObjectHandle, CELL_COUNT> CELLS;
-    std::vector<GameObjectHandle> CELLS_DEAD;
-    std::vector<GameObjectHandle> CELLS_ALIVE;
-    CELLS_DEAD.reserve(CELL_COUNT);
-    CELLS_ALIVE.reserve(CELL_COUNT);
 
     auto toWrappedPosition = [&](int x, int y)-> unsigned int {
         x = (x % GRID_WIDTH + GRID_WIDTH) % GRID_WIDTH;
@@ -349,12 +353,9 @@ int main() {
 
             gameLoop.phase(PhaseType::Main)
                 .beginPass(EngineState::Running)
-                    .addSystem(callableSystemForLambda<GameObject>([&]([[maybe_unused]]UpdateContext& updateContext) {
-                        CELLS_DEAD.clear();
-                        CELLS_ALIVE.clear();
-                    }))
                     .addParallelSystems(
-                        callableSystemForLambda<GameObject>([&](UpdateContext& updateContext) {
+                        callableSystemForLambda<GameObject, EntityMutationCommandBuffer<GameObjectHandle>>(
+                            [](UpdateContext& updateContext, EntityMutationCommandBuffer<GameObjectHandle>& buffer) {
                             for (auto [entity, neighbor, aliveCmp] : updateContext.view<
                                 GameObjectHandle,
                                 CellNeighborComponent<GameObjectHandle>,
@@ -368,11 +369,15 @@ int main() {
                                     }
                                 }
                                 if (alive < 2 || alive > 3) {
-                                    CELLS_DEAD.push_back(entity.handle());
+                                    entity.deferRemove<CellAliveComponent<GameObjectHandle>>(buffer);
+                                    entity.deferAdd<CellDeadComponent<GameObjectHandle>>(buffer);
+                                    entity.deferSetInactive(buffer);
                                 }
                             }
                         }),
-                        callableSystemForLambda<GameObject>([&](UpdateContext& updateContext) {
+                        callableSystemForLambda<GameObject, EntityMutationCommandBuffer<GameObjectHandle>>(
+                            [](UpdateContext& updateContext, EntityMutationCommandBuffer<GameObjectHandle>& buffer) {
+
                             for (auto [entity, neighbor, deadCmp] : updateContext.view<
                                 GameObjectHandle,
                                 CellNeighborComponent<GameObjectHandle>,
@@ -386,29 +391,14 @@ int main() {
                                     }
                                 }
                                 if (alive == 3) {
-                                    CELLS_ALIVE.push_back(entity.handle());
+                                    entity.deferRemove<CellDeadComponent<GameObjectHandle>>(buffer);
+                                    entity.deferAdd<CellAliveComponent<GameObjectHandle>>(buffer);
+                                    entity.deferSetActive(buffer);
                                 }
                             }
                         })
                     )
-                    .addSystem(
-                        callableSystemForLambda<GameObject>([&](UpdateContext& updateContext) {
-                            for (auto handle : CELLS_DEAD) {
-                                if (auto go = updateContext.find(handle)) {
-                                    go->add<CellDeadComponent<GameObjectHandle>>();
-                                    go->setActive(false);
-                                    go->remove<CellAliveComponent<GameObjectHandle>>();
-                                }
-                            }
-
-                            for (auto handle : CELLS_ALIVE) {
-                                if (auto go = updateContext.find(handle)) {
-                                    go->remove<CellDeadComponent<GameObjectHandle>>();
-                                    go->setActive(true);
-                                    go->add<CellAliveComponent<GameObjectHandle>>();
-                                }
-                            }
-                    }))
+                .flush<EntityMutationManager<GameObjectHandle>>()
                 .endPass();
 
             gameLoop.phase(PhaseType::Post)
