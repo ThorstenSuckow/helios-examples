@@ -5,6 +5,7 @@
 #include <cassert>
 #include <algorithm>
 #include <thread>
+#include <array>
 
 import helios.ecs;
 import helios.engine;
