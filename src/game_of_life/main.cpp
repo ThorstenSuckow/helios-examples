@@ -32,14 +32,14 @@ struct CellNeighborComponent {
 
     using Handle_type = TOwnerHandle;
 
-    std::array<TOwnerHandle, 8> neighbors = {};
+    std::array<helios::ecs::types::EntityId, 8> neighbors = {};
 
-    explicit CellNeighborComponent(const std::array<TOwnerHandle, 8> &n) :
+    explicit CellNeighborComponent(const std::array<EntityId, 8> &n) :
     neighbors(n)
     {}
 
     CellNeighborComponent() {
-        std::fill(neighbors.begin(), neighbors.end(), TOwnerHandle{});
+        std::fill(neighbors.begin(), neighbors.end(), EntityId{});
     }
 };
 
@@ -268,7 +268,7 @@ int main() {
                 if (i == x && j == y) {
                     continue;
                 }
-                neighbors[neighborIdx++] = CELLS[toWrappedPosition(i, j)];
+                neighbors[neighborIdx++] = CELLS[toWrappedPosition(i, j)].entityId;
             }
         }
     }
@@ -354,8 +354,11 @@ int main() {
             gameLoop.phase(PhaseType::Main)
                 .beginPass(EngineState::Running)
                     .addParallelSystems(
-                        callableSystemForLambda<GameObject, EntityMutationCommandBuffer<GameObjectHandle>>(
-                            [](UpdateContext& updateContext, EntityMutationCommandBuffer<GameObjectHandle>& buffer) {
+                        callableSystemForLambda<GameObject, EntityMutationCommandBuffer<GameObjectEntityManager>>(
+                            [](UpdateContext& updateContext, EntityMutationCommandBuffer<GameObjectEntityManager>& buffer) {
+
+                            const auto* storage = updateContext.sparseSet<GameObjectHandle, CellAliveComponent<GameObjectHandle>>();
+
                             for (auto [entity, neighbor, aliveCmp] : updateContext.view<
                                 GameObjectHandle,
                                 CellNeighborComponent<GameObjectHandle>,
@@ -363,10 +366,7 @@ int main() {
                             >()) {
                                 int alive = 0;
                                 for (int i = 0; i < 8; i++) {
-                                    const auto handle = neighbor->neighbors[i];
-                                    if (auto go = updateContext.find(handle)) {
-                                        alive += go->get<CellAliveComponent<GameObjectHandle>>() ? 1 : 0;
-                                    }
+                                    alive += storage->contains(neighbor->neighbors[i]);
                                 }
                                 if (alive < 2 || alive > 3) {
                                     entity.deferRemove<CellAliveComponent<GameObjectHandle>>(buffer);
@@ -375,8 +375,10 @@ int main() {
                                 }
                             }
                         }),
-                        callableSystemForLambda<GameObject, EntityMutationCommandBuffer<GameObjectHandle>>(
-                            [](UpdateContext& updateContext, EntityMutationCommandBuffer<GameObjectHandle>& buffer) {
+                        callableSystemForLambda<GameObject, EntityMutationCommandBuffer<GameObjectEntityManager>>(
+                            [](UpdateContext& updateContext, EntityMutationCommandBuffer<GameObjectEntityManager>& buffer) {
+
+                            const auto* storage = updateContext.sparseSet<GameObjectHandle, CellAliveComponent<GameObjectHandle>>();
 
                             for (auto [entity, neighbor, deadCmp] : updateContext.view<
                                 GameObjectHandle,
@@ -385,10 +387,7 @@ int main() {
                             >()) {
                                 int alive = 0;
                                 for (int i = 0; i < 8; i++) {
-                                    const auto handle = neighbor->neighbors[i];
-                                    if (auto go = updateContext.find(handle)) {
-                                        alive += go->get<CellAliveComponent<GameObjectHandle>>() ? 1 : 0;
-                                    }
+                                    alive += storage->contains(neighbor->neighbors[i]);
                                 }
                                 if (alive == 3) {
                                     entity.deferRemove<CellDeadComponent<GameObjectHandle>>(buffer);
@@ -398,7 +397,7 @@ int main() {
                             }
                         })
                     )
-                .flush<EntityMutationManager<GameObjectHandle>>()
+                .flushParallel<EntityMutationManager<GameObjectEntityManager>>()
                 .endPass();
 
             gameLoop.phase(PhaseType::Post)
