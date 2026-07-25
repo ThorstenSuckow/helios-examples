@@ -68,7 +68,7 @@ int main() {
     auto RAND = helios::engine::util::Random(SEED);
 
 
-    std::array<GameObjectHandle, CELL_COUNT> CELLS;
+    std::vector<GameObjectHandle> CELLS(CELL_COUNT);
 
     auto toWrappedPosition = [&](int x, int y)-> unsigned int {
         x = (x % GRID_WIDTH + GRID_WIDTH) % GRID_WIDTH;
