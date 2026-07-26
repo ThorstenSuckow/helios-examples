@@ -59,8 +59,10 @@ int main() {
     constexpr float WINDOW_ASPECT_RATIO_NUMER = 16.0f;
     constexpr float WINDOW_ASPECT_RATIO_DENOM = 9.0f;
 
-    constexpr int GRID_WIDTH = 150;
-    constexpr int GRID_HEIGHT = 150;
+    constexpr bool ENABLE_VSYNC = false;
+
+    constexpr int GRID_WIDTH = 500;
+    constexpr int GRID_HEIGHT = 500;
     constexpr int CELL_COUNT = GRID_WIDTH * GRID_HEIGHT;
 
     constexpr uint32_t SEED = 1234;
@@ -130,7 +132,8 @@ int main() {
         "helios - Game of Life",
         {SCREEN_WIDTH, SCREEN_HEIGHT},
         WINDOW_ASPECT_RATIO_NUMER,
-        WINDOW_ASPECT_RATIO_DENOM
+        WINDOW_ASPECT_RATIO_DENOM,
+        ENABLE_VSYNC
     });
 
     
@@ -193,7 +196,7 @@ int main() {
     );
 
     auto CellMesh = gameWorld.add<MeshHandle>(MeshId("CellMesh"));
-    CellMesh.add<MeshDataComponent<MeshHandle>>(WireframeSphere::meshData());
+    CellMesh.add<MeshDataComponent<MeshHandle>>(Triangle::meshData());
     CellMesh.add<MeshUploadRequestComponent<MeshHandle>>();
     CellMesh.add<VertexAttributeLayoutComponent<MeshHandle, PerVertex>>(
         VertexAttributeLayout{
@@ -221,7 +224,7 @@ int main() {
         const auto [x, y] = toGridXY(position);
 
         auto cell = gameWorld.add<GameObjectHandle>(
-            GameObjectId(std::format("{0}", position)), false
+            GameObjectId{}, false
         );
         cell.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
 
