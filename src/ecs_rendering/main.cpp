@@ -38,7 +38,7 @@ int main() {
     constexpr float WINDOW_ASPECT_RATIO_NUMER = 16.0f;
     constexpr float WINDOW_ASPECT_RATIO_DENOM = 9.0f;
 
-    constexpr int OBJECT_COUNT = 750; // per axis
+    constexpr int OBJECT_COUNT = 143; // per axis
     constexpr std::size_t OBJECT_DISTANCE = 3;
 
     // ==========================================================
@@ -68,7 +68,8 @@ int main() {
         gameWorld.platformWorld(), gameWorld.resourceRegistry().commandBufferRegistry()
     );
 
-    SceneMemberVisibilityRegistry<GameObjectHandle> sceneMemberVisibilityRegistry{};
+    SceneMemberVisibilityRegistry<GameObjectHandle, Instanced> sceneMemberInstancedRegistry{};
+    SceneMemberVisibilityRegistry<GameObjectHandle, NonInstanced> sceneMemberNonInstancedRegistry{};
 
 
     gameWorld.registerManager<OpenGLMeshUploadManager<MeshHandle>>(gameWorld.renderResourceWorld());
@@ -335,22 +336,15 @@ int main() {
                         // replacement for systems that compute the local velocity from intended velocity,
                         // such as component systems
                         [&](UpdateContext& updateContext) {
-                            for (auto [
-                                entity,
-                                intendedVelocity,
-                                localVelocity
-                            ] : updateContext.view<
+                            for (auto [entity, intendedVelocity, localVelocity] : updateContext.view<
                                 GameObjectHandle,
-                                helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Intent>,
-                                helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Local>
+                                Velocity3DComponent<GameObjectHandle, Intent>,
+                                Velocity3DComponent<GameObjectHandle, Local>
                             >()
                                 .withActive()
-                               .template whereAnyDirty<
-                                   Active<GameObjectHandle>,
-                                   helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Intent>
-                               >()) {
-                                entity.setTrackedValue(localVelocity, intendedVelocity->value());
-                              //  intendedVelocity->setValue({0.0f, 0.0f, 0.0f});
+                               .template whereAnyDirty<Active<GameObjectHandle>, Velocity3DComponent<GameObjectHandle, Intent>>()) {
+                                    entity.setTrackedValue(localVelocity, intendedVelocity->value());
+                                //  intendedVelocity->setValue({0.0f, 0.0f, 0.0f});
                             }
                         }
                     ))
@@ -370,31 +364,25 @@ int main() {
                         SceneMemberVisibilitySystem<
                             ViewportHandle,
                             GameObjectHandle,
+                            Instanced,
                             AABBCullingStrategy<GameObjectHandle>
-                        >
-                    >(AABBCullingStrategy<GameObjectHandle>(), sceneMemberVisibilityRegistry)
+                        >>(AABBCullingStrategy<GameObjectHandle>(), sceneMemberInstancedRegistry)
                     .addParallelSystems(
                         Lambda<GameObjectHandle>(
                         [&](UpdateContext& updateContext) {
                             const auto viewport = CullingViewport.handle();
                             enableMemberMaterialOverride(
-                                updateContext, sceneMemberVisibilityRegistry.culledMembers<Instanced>(viewport), true);
-                        }
-                    ),
-                    Lambda<GameObjectHandle>(
-                        [&](UpdateContext& updateContext) {
-                            const auto viewport = CullingViewport.handle();
-                            enableMemberMaterialOverride(
-                                updateContext, sceneMemberVisibilityRegistry.visibleMembers<Instanced>(viewport), false);
-                        }
+                                updateContext, sceneMemberInstancedRegistry.culledMembers(viewport), true);
+                        }),
+                        Lambda<GameObjectHandle>(
+                            [&](UpdateContext& updateContext) {
+                                const auto viewport = CullingViewport.handle();
+                                enableMemberMaterialOverride(
+                                    updateContext, sceneMemberInstancedRegistry.visibleMembers(viewport), false);
+                            }
                     ))
-                    .addSystem<
-                        SceneRenderSystem<
-                            ViewportHandle,
-                            GameObjectHandle,
-                            RenderCommandBuffer
-                        >
-                    >(sceneMemberVisibilityRegistry)
+                    // consume the scenemember-registry
+                    .addSystem<SceneRenderSystem<ViewportHandle, GameObjectHandle, Instanced, RenderCommandBuffer>>(sceneMemberInstancedRegistry)
                 .flush<RenderManager<OpenGLBackend, GameObjectHandle>>()// buffer -> manager
                 .endPass()
 
