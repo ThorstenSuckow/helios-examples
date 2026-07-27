@@ -61,8 +61,8 @@ int main() {
 
     constexpr bool ENABLE_VSYNC = false;
 
-    constexpr int GRID_WIDTH = 500;
-    constexpr int GRID_HEIGHT = 500;
+    constexpr int GRID_WIDTH = 750;
+    constexpr int GRID_HEIGHT = 750;
     constexpr int CELL_COUNT = GRID_WIDTH * GRID_HEIGHT;
 
     constexpr uint32_t SEED = 1234;
@@ -358,7 +358,7 @@ int main() {
             gameLoop.phase(PhaseType::Main)
                 .beginPass(EngineState::Running)
                     .addParallelSystems(
-                        callableSystemForLambda<GameObject, EntityMutationCommandBuffer<GameObjectEntityManager>>(
+                        Lambda<GameObject, EntityMutationCommandBuffer<GameObjectEntityManager>>(
                             [](UpdateContext& updateContext, EntityMutationCommandBuffer<GameObjectEntityManager>& buffer) {
 
                             const auto* storage = updateContext.sparseSet<GameObjectHandle, CellAliveComponent<GameObjectHandle>>();
@@ -379,7 +379,7 @@ int main() {
                                 }
                             }
                         }),
-                        callableSystemForLambda<GameObject, EntityMutationCommandBuffer<GameObjectEntityManager>>(
+                        Lambda<GameObject, EntityMutationCommandBuffer<GameObjectEntityManager>>(
                             [](UpdateContext& updateContext, EntityMutationCommandBuffer<GameObjectEntityManager>& buffer) {
 
                             const auto* storage = updateContext.sparseSet<GameObjectHandle, CellAliveComponent<GameObjectHandle>>();
