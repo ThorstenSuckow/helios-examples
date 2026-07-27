@@ -38,6 +38,8 @@ int main() {
     constexpr float WINDOW_ASPECT_RATIO_NUMER = 16.0f;
     constexpr float WINDOW_ASPECT_RATIO_DENOM = 9.0f;
 
+    constexpr int OBJECT_COUNT = 750; // per axis
+    constexpr std::size_t OBJECT_DISTANCE = 3;
 
     // ==========================================================
     // Infrastructure init / GameWorld / GameLoop / InputManager
@@ -84,7 +86,8 @@ int main() {
         "helios - ECS Rendering Demo",
         {SCREEN_WIDTH, SCREEN_HEIGHT},
         WINDOW_ASPECT_RATIO_NUMER,
-        WINDOW_ASPECT_RATIO_DENOM
+        WINDOW_ASPECT_RATIO_DENOM,
+        false
     });
 
     
@@ -194,8 +197,8 @@ int main() {
     // Entity Setup
     // ========================================
     // cubes
-    for (int x = -142; x < 143; x+=3) {
-        for (int y = -142; y < 143 ; y+=3) {
+    for (int x = -OBJECT_COUNT/2; x < OBJECT_COUNT/2; x+=OBJECT_DISTANCE) {
+        for (int y = -OBJECT_COUNT/2; y < OBJECT_COUNT/2 ; y+=OBJECT_DISTANCE) {
             auto cube = gameWorld.add<GameObjectHandle>();
             cube.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
             cube.trackDirty<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
@@ -263,7 +266,23 @@ int main() {
     // ========================================
     float DELTA_TIME = 0.0f;
 
+    // painting function
+    auto enableMemberMaterialOverride = [&](UpdateContext& updateContext, auto memberContexts, const bool enable) {
 
+        auto* renderPrototypeSet = updateContext.sparseSet<GameObjectHandle, RenderPrototypeComponent<GameObjectHandle, Instanced>>();
+
+        auto handle = enable ? CubeMaterialOverride.handle() : CubeMaterial.handle();
+        for (const auto member : memberContexts) {
+            if (!updateContext.isValid(member.memberHandle)) {
+                continue;
+            }
+
+            if (auto* rpc = renderPrototypeSet->get(member.memberHandle.entityId)) {
+                rpc->setMaterialHandle(handle);
+            }
+
+        }
+    };
 
     // ----------------------------------------
     // GameLoop Config
@@ -312,7 +331,7 @@ int main() {
             gameLoop.phase(PhaseType::Post)
                  .beginPass(EngineState::Running)
 
-                    .addSystem(callableSystemForLambda<GameObjectHandle>(
+                    .addSystem(Lambda<GameObjectHandle>(
                         // replacement for systems that compute the local velocity from intended velocity,
                         // such as component systems
                         [&](UpdateContext& updateContext) {
@@ -354,25 +373,19 @@ int main() {
                             AABBCullingStrategy<GameObjectHandle>
                         >
                     >(AABBCullingStrategy<GameObjectHandle>(), sceneMemberVisibilityRegistry)
-                    .addSystem(callableSystemForLambda<GameObjectHandle>(
+                    .addParallelSystems(
+                        Lambda<GameObjectHandle>(
                         [&](UpdateContext& updateContext) {
                             const auto viewport = CullingViewport.handle();
-
-                            auto enableMemberMaterialOverride = [&](auto memberContexts, const bool enable) {
-                                for (const auto member : memberContexts) {
-                                    auto go = updateContext.find<GameObjectHandle>(member.memberHandle);
-                                    if (!go) {
-                                        continue;
-                                    }
-
-                                    auto* rpc = go->template get<RenderPrototypeComponent<GameObjectHandle, Instanced>>();
-                                    rpc->setMaterialHandle(enable ? CubeMaterialOverride.handle() : CubeMaterial.handle());
-                                }
-                            };
-
-                            enableMemberMaterialOverride(sceneMemberVisibilityRegistry.visibleMembers<Instanced>(viewport), false);
-                            enableMemberMaterialOverride(sceneMemberVisibilityRegistry.culledMembers<Instanced>(viewport), true);
-
+                            enableMemberMaterialOverride(
+                                updateContext, sceneMemberVisibilityRegistry.culledMembers<Instanced>(viewport), true);
+                        }
+                    ),
+                    Lambda<GameObjectHandle>(
+                        [&](UpdateContext& updateContext) {
+                            const auto viewport = CullingViewport.handle();
+                            enableMemberMaterialOverride(
+                                updateContext, sceneMemberVisibilityRegistry.visibleMembers<Instanced>(viewport), false);
                         }
                     ))
                     .addSystem<
