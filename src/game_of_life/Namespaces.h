@@ -117,3 +117,6 @@ using namespace helios::engine::rendering::common::components;
 using namespace helios::engine::rendering::common::types;
 using namespace helios::engine::rendering::common::commands;
 
+
+using namespace helios::physics::motion::components;
+using namespace helios::physics::motion::systems;

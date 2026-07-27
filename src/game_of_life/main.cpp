@@ -114,7 +114,7 @@ int main() {
         gameWorld.platformWorld(), gameWorld.resourceRegistry().commandBufferRegistry()
     );
 
-    SceneMemberVisibilityRegistry<GameObjectHandle> sceneMemberVisibilityRegistry{};
+    SceneMemberVisibilityRegistry<GameObjectHandle, Instanced> sceneMemberVisibilityRegistry{};
 
 
     gameWorld.registerManager<OpenGLMeshUploadManager<MeshHandle>>(gameWorld.renderResourceWorld());
@@ -418,6 +418,7 @@ int main() {
                         SceneMemberVisibilitySystem<
                             ViewportHandle,
                             GameObjectHandle,
+                            Instanced,
                             AABBCullingStrategy<GameObjectHandle>
                         >
                     >(AABBCullingStrategy<GameObjectHandle>(), sceneMemberVisibilityRegistry)
@@ -426,6 +427,7 @@ int main() {
                         SceneRenderSystem<
                             ViewportHandle,
                             GameObjectHandle,
+                            Instanced,
                             RenderCommandBuffer
                         >
                     >(sceneMemberVisibilityRegistry)
