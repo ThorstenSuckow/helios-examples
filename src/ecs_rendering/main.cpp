@@ -35,6 +35,8 @@ int main() {
     constexpr unsigned int SCREEN_WIDTH  = 1280;
     constexpr unsigned int SCREEN_HEIGHT = 720;
 
+    constexpr bool ENABLE_VSYNC = false;
+
     constexpr float WINDOW_ASPECT_RATIO_NUMER = 16.0f;
     constexpr float WINDOW_ASPECT_RATIO_DENOM = 9.0f;
 
@@ -68,9 +70,11 @@ int main() {
         gameWorld.platformWorld(), gameWorld.resourceRegistry().commandBufferRegistry()
     );
 
+    /**
+     * The SceneMemberVisibilityRegistry is required since differnet viewports show the same entity,
+     * whereas the visibility state of this entity differs per Viewport, but not globally.
+     */
     SceneMemberVisibilityRegistry<GameObjectHandle, Instanced> sceneMemberInstancedRegistry{};
-    SceneMemberVisibilityRegistry<GameObjectHandle, NonInstanced> sceneMemberNonInstancedRegistry{};
-
 
     gameWorld.registerManager<OpenGLMeshUploadManager<MeshHandle>>(gameWorld.renderResourceWorld());
     gameWorld.registerManager<OpenGLShaderCompileManager<ShaderHandle, OpenGLUniformLocationCacheStrategy<ShaderHandle>>>(
@@ -88,7 +92,7 @@ int main() {
         {SCREEN_WIDTH, SCREEN_HEIGHT},
         WINDOW_ASPECT_RATIO_NUMER,
         WINDOW_ASPECT_RATIO_DENOM,
-        false
+        ENABLE_VSYNC
     });
 
     
@@ -125,32 +129,32 @@ int main() {
     CullingViewport.add<SceneBindingComponent<ViewportHandle>>(MainScene);
     CullingViewport_bottom.add<SceneBindingComponent<ViewportHandle>>(MainScene);
 
-    auto CullingCamera = gameWorld.add<GameObjectHandle>(GameObjectId("CullingCamera"));
-    CullingCamera.add<DebugNameComponent<GameObjectHandle>>("CullingCamera");
-    CullingCamera.trackDirty<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
-    CullingCamera.trackDirty<ProjectionMatrixComponent<GameObjectHandle>>();
-    CullingCamera.trackDirty<ViewMatrixComponent<GameObjectHandle>>();
-    CullingCamera.trackDirty<YawPitchRollComponent<GameObjectHandle>>();
-    CullingCamera.trackDirty<Rotation3DComponent<GameObjectHandle, Local>>();
-    CullingCamera.trackDirty<TransformComponent<GameObjectHandle, World>>(1.0f);
-    CullingCamera.trackDirty<Position3DComponent<GameObjectHandle, Local>>(0.0f, 0.0f, -50.0f);
-    CullingCamera.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
+    auto CullingCamera = gameWorld.add<CameraHandle>(CameraId("CullingCamera"));
+    CullingCamera.add<DebugNameComponent<CameraHandle>>("CullingCamera");
+    CullingCamera.trackDirty<PerspectiveCameraComponent<CameraHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
+    CullingCamera.trackDirty<ProjectionMatrixComponent<CameraHandle>>();
+    CullingCamera.trackDirty<ViewMatrixComponent<CameraHandle>>();
+    CullingCamera.trackDirty<YawPitchRollComponent<CameraHandle>>();
+    CullingCamera.trackDirty<Rotation3DComponent<CameraHandle, Local>>();
+    CullingCamera.trackDirty<TransformComponent<CameraHandle, World>>(1.0f);
+    CullingCamera.trackDirty<Position3DComponent<CameraHandle, Local>>(0.0f, 0.0f, -50.0f);
+    CullingCamera.add<SceneMemberComponent<CameraHandle>>(MainScene);
     // later on: rebuildHandleMultiMapFromSceneMembership(). SSoT w/ components, but systems get the
     // multimaps for faster access / querying?
     // or the view gets extended internally that it can fall back to a multimap, e.g. filter<> instead of view<>
     // or some other adequate semantic name
     CullingViewport.add<CameraBindingComponent<ViewportHandle>>(CullingCamera);
 
-    auto CullingCamera_bottom = gameWorld.add<GameObjectHandle>(GameObjectId("CullingCamera_bottom"));
-    CullingCamera_bottom.add<DebugNameComponent<GameObjectHandle>>("CullingCamera_bottom");
-    CullingCamera_bottom.trackDirty<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
-    CullingCamera_bottom.trackDirty<ProjectionMatrixComponent<GameObjectHandle>>();
-    CullingCamera_bottom.trackDirty<ViewMatrixComponent<GameObjectHandle>>();
-    CullingCamera_bottom.trackDirty<YawPitchRollComponent<GameObjectHandle>>();
-    CullingCamera_bottom.trackDirty<Rotation3DComponent<GameObjectHandle, Local>>();
-    CullingCamera_bottom.trackDirty<Position3DComponent<GameObjectHandle, Local>>(0.0f, 0.0f, -110.0f);
-    CullingCamera_bottom.trackDirty<TransformComponent<GameObjectHandle, World>>(1.0f);
-    CullingCamera_bottom.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
+    auto CullingCamera_bottom = gameWorld.add<CameraHandle>(CameraId("CullingCamera_bottom"));
+    CullingCamera_bottom.add<DebugNameComponent<CameraHandle>>("CullingCamera_bottom");
+    CullingCamera_bottom.trackDirty<PerspectiveCameraComponent<CameraHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
+    CullingCamera_bottom.trackDirty<ProjectionMatrixComponent<CameraHandle>>();
+    CullingCamera_bottom.trackDirty<ViewMatrixComponent<CameraHandle>>();
+    CullingCamera_bottom.trackDirty<YawPitchRollComponent<CameraHandle>>();
+    CullingCamera_bottom.trackDirty<Rotation3DComponent<CameraHandle, Local>>();
+    CullingCamera_bottom.trackDirty<Position3DComponent<CameraHandle, Local>>(0.0f, 0.0f, -110.0f);
+    CullingCamera_bottom.trackDirty<TransformComponent<CameraHandle, World>>(1.0f);
+    CullingCamera_bottom.add<SceneMemberComponent<CameraHandle>>(MainScene);
     CullingViewport_bottom.add<CameraBindingComponent<ViewportHandle>>(CullingCamera_bottom);
 
 
@@ -180,12 +184,11 @@ int main() {
             VertexAttribute{VertexAttributeSemantics::Position,  VertexAttributeType::Vec3f},
             0, sizeof(Vertex), offsetof(Vertex, position),0
         }
-
     );
     CubeMesh.add<VertexAttributeLayoutComponent<MeshHandle, PerInstance>>(
     VertexAttributeLayout{
         VertexAttribute{VertexAttributeSemantics::InstancedModelMatrix, VertexAttributeType::Mat4f},
-        4, sizeof(InstanceData<GameObjectHandle>), offsetof(InstanceData<GameObjectHandle>, modelMatrix),1}
+        4, sizeof(InstanceData), offsetof(InstanceData, modelMatrix),1}
     );
 
     auto CubeMaterial = gameWorld.add<MaterialHandle>(MaterialId("CubeMaterial"));
@@ -350,24 +353,27 @@ int main() {
                     ))
 
                     .addParallelSystems<
-                        YawPitchRollUpdateSystem<GameObjectHandle>,
-                        MotionIntegrationSystem<GameObjectHandle>
+                        Serial<
+                            YawPitchRollUpdateSystem<CameraHandle>,
+                            WorldTransformSystem<CameraHandle>,
+                            PerspectiveCameraUpdateSystem<CameraHandle>
+                        >,
+                        Serial<
+                            MotionIntegrationSystem<GameObjectHandle>,
+                            WorldTransformSystem<GameObjectHandle>,
+                            WorldBoundsUpdateSystem<GameObjectHandle>
+                        >
                     >()
-
-                    .addSystem<WorldTransformSystem<GameObjectHandle>>()
-                    .addSystem<WorldBoundsUpdateSystem<GameObjectHandle>>()
-                    .addSystem<PerspectiveCameraUpdateSystem<GameObjectHandle>>()
 
                     // this will produce render commands after scenes have been culled according to
                     // their active viewports
                     .addSystem<
                         SceneMemberVisibilitySystem<
-                            ViewportHandle,
                             GameObjectHandle,
                             Instanced,
                             AABBCullingStrategy<GameObjectHandle>
                         >>(AABBCullingStrategy<GameObjectHandle>(), sceneMemberInstancedRegistry)
-                    .addParallelSystems(
+                   .addParallelSystems(
                         Lambda<GameObjectHandle>(
                         [&](UpdateContext& updateContext) {
                             const auto viewport = CullingViewport.handle();
@@ -382,7 +388,7 @@ int main() {
                             }
                     ))
                     // consume the scenemember-registry
-                    .addSystem<SceneRenderSystem<ViewportHandle, GameObjectHandle, Instanced, RenderCommandBuffer>>(sceneMemberInstancedRegistry)
+                    .addSystem<SceneRenderSystem<GameObjectHandle, Instanced, RenderCommandBuffer>>(sceneMemberInstancedRegistry)
                 .flush<RenderManager<OpenGLBackend, GameObjectHandle>>()// buffer -> manager
                 .endPass()
 
