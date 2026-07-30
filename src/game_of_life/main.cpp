@@ -162,18 +162,18 @@ int main() {
     // Viewport : Scene (N:1)
     CellViewport.add<SceneBindingComponent<ViewportHandle>>(MainScene);
 
-    auto CellCamera = gameWorld.add<GameObjectHandle>(GameObjectId("CellCamera"));
-    CellCamera.add<DebugNameComponent<GameObjectHandle>>("CellCamera");
+    auto CellCamera = gameWorld.add<CameraHandle>(CameraId("CellCamera"));
+    CellCamera.add<DebugNameComponent<CameraHandle>>("CellCamera");
 
-    CellCamera.trackDirty<PerspectiveCameraComponent<GameObjectHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / WINDOW_ASPECT_RATIO_DENOM);
-    CellCamera.trackDirty<ProjectionMatrixComponent<GameObjectHandle>>();
-    CellCamera.trackDirty<ViewMatrixComponent<GameObjectHandle>>();
-    CellCamera.trackDirty<YawPitchRollComponent<GameObjectHandle>>();
-    CellCamera.trackDirty<Rotation3DComponent<GameObjectHandle, Local>>();
-    CellCamera.trackDirty<TransformComponent<GameObjectHandle, World>>(1.0f);
-    CellCamera.trackDirty<Position3DComponent<GameObjectHandle, Local>>(GRID_WIDTH / 2.0f, GRID_HEIGHT / 2.0f, -120.0f);
+    CellCamera.trackDirty<PerspectiveCameraComponent<CameraHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / WINDOW_ASPECT_RATIO_DENOM);
+    CellCamera.trackDirty<ProjectionMatrixComponent<CameraHandle>>();
+    CellCamera.trackDirty<ViewMatrixComponent<CameraHandle>>();
+    CellCamera.trackDirty<YawPitchRollComponent<CameraHandle>>();
+    CellCamera.trackDirty<Rotation3DComponent<CameraHandle, Local>>();
+    CellCamera.trackDirty<TransformComponent<CameraHandle, World>>(1.0f);
+    CellCamera.trackDirty<Position3DComponent<CameraHandle, Local>>(GRID_WIDTH / 2.0f, GRID_HEIGHT / 2.0f, -120.0f);
 
-    CellCamera.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
+    CellCamera.add<SceneMemberComponent<CameraHandle>>(MainScene);
     CellViewport.add<CameraBindingComponent<ViewportHandle>>(CellCamera);
 
 
@@ -208,7 +208,7 @@ int main() {
     CellMesh.add<VertexAttributeLayoutComponent<MeshHandle, PerInstance>>(
     VertexAttributeLayout{
         VertexAttribute{VertexAttributeSemantics::InstancedModelMatrix, VertexAttributeType::Mat4f},
-        4, sizeof(InstanceData<GameObjectHandle>), offsetof(InstanceData<GameObjectHandle>, modelMatrix),1}
+        4, sizeof(InstanceData), offsetof(InstanceData, modelMatrix),1}
     );
 
     auto CellMaterial = gameWorld.add<MaterialHandle>(MaterialId("CellMaterial"));
@@ -407,16 +407,24 @@ int main() {
             gameLoop.phase(PhaseType::Post)
 
                 .beginPass(EngineState::Running)
-                    .addSystem<YawPitchRollUpdateSystem<GameObjectHandle>>()
-                    .addSystem<WorldTransformSystem<GameObjectHandle>>()
-                    .addSystem<WorldBoundsUpdateSystem<GameObjectHandle>>()
-                    .addSystem<PerspectiveCameraUpdateSystem<GameObjectHandle>>()
+
+
+                    .addParallelSystems<
+                        Serial<
+                            YawPitchRollUpdateSystem<CameraHandle>,
+                            WorldTransformSystem<CameraHandle>,
+                            PerspectiveCameraUpdateSystem<CameraHandle>
+                        >,
+                        Serial<
+                            WorldTransformSystem<GameObjectHandle>,
+                            WorldBoundsUpdateSystem<GameObjectHandle>
+                        >
+                    >()
 
                     // this will produce render commands after scenes have been culled according to
                     // their active viewports
                     .addSystem<
                         SceneMemberVisibilitySystem<
-                            ViewportHandle,
                             GameObjectHandle,
                             Instanced,
                             AABBCullingStrategy<GameObjectHandle>
@@ -425,7 +433,6 @@ int main() {
 
                     .addSystem<
                         SceneRenderSystem<
-                            ViewportHandle,
                             GameObjectHandle,
                             Instanced,
                             RenderCommandBuffer
