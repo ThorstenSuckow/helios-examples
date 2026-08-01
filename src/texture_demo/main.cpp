@@ -126,23 +126,25 @@ int main() {
     // Rendering Management setup
     // ========================================
 
-    // shader, mesh, material for cell
-    auto DefaultShader = gameWorld.add<ShaderHandle>(ShaderId("DefaultShader"));
-    DefaultShader.add<ShaderSourceComponent<ShaderHandle>>("./resources/shader/cell.vert", "./resources/shader/cell.frag");
-    DefaultShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Pass>>(
+    // Texture Setup
+    auto TextureShader = gameWorld.add<ShaderHandle>(ShaderId("TextureShader"));
+    TextureShader.add<ShaderSourceComponent<ShaderHandle>>("./resources/shader/texture.vert", "./resources/shader/texture.frag");
+    TextureShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Pass>>(
         UniformMapping{UniformSemantics::ProjectionMatrix, "projectionMatrix"},
         UniformMapping{UniformSemantics::ViewMatrix, "viewMatrix"}
     );
-    DefaultShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Material>>(
+    TextureShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Material>>(
         UniformMapping{UniformSemantics::MaterialBaseColor, "color"}
     );
-    DefaultShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Draw>>(
+    TextureShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Draw>>(
         UniformMapping{UniformSemantics::ModelMatrix, "modelMatrix"}
     );
 
+    // define Texture Entity
     auto Texture = gameWorld.add<TextureHandle>(TextureId{"Texture"});
     Texture.add<TextureSourceComponent<TextureHandle>>("./resources/textures/garagecraft_games.png");
 
+    // TextureObject uses a Rect
     auto TextureMesh = gameWorld.add<MeshHandle>(MeshId("TextureMesh"));
     TextureMesh.add<MeshDataComponent<MeshHandle>>(Rect::meshData());
     TextureMesh.add<MeshUploadRequestComponent<MeshHandle>>();
@@ -155,25 +157,65 @@ int main() {
             VertexAttribute{VertexAttributeSemantics::TextureCoordinates, VertexAttributeType::Vec2f},
             2, sizeof(Vertex), offsetof(Vertex, texCoords),0}
         );
+    auto TextureMaterial = gameWorld.add<MaterialHandle>(MaterialId("TextureMaterial"));
+    TextureMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::Blue);
 
-    auto TriangleMaterial = gameWorld.add<MaterialHandle>(MaterialId("TriangleMaterial"));
-    TriangleMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::Blue);
-    TriangleMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::Blue);
+    // Plain Mesh
+    // Texture Setup
+    auto PlainShader = gameWorld.add<ShaderHandle>(ShaderId("PlainShader"));
+    PlainShader.add<ShaderSourceComponent<ShaderHandle>>("./resources/shader/mesh.vert", "./resources/shader/mesh.frag");
+    PlainShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Pass>>(
+        UniformMapping{UniformSemantics::ProjectionMatrix, "projectionMatrix"},
+        UniformMapping{UniformSemantics::ViewMatrix, "viewMatrix"}
+    );
+    PlainShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Material>>(
+        UniformMapping{UniformSemantics::MaterialBaseColor, "color"}
+    );
+    PlainShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Draw>>(
+        UniformMapping{UniformSemantics::ModelMatrix, "modelMatrix"}
+    );
+
+    auto PlainMesh = gameWorld.add<MeshHandle>(MeshId("PlainMesh"));
+    PlainMesh.add<MeshDataComponent<MeshHandle>>(WireframeSphere::meshData());
+    PlainMesh.add<MeshUploadRequestComponent<MeshHandle>>();
+    PlainMesh.add<VertexAttributeLayoutComponent<MeshHandle, PerVertex>>(
+        VertexAttributeLayout{
+            VertexAttribute{VertexAttributeSemantics::Position,  VertexAttributeType::Vec3f},
+            0, sizeof(Vertex), offsetof(Vertex, position),0
+        },
+        VertexAttributeLayout{
+            VertexAttribute{VertexAttributeSemantics::TextureCoordinates, VertexAttributeType::Vec2f},
+            2, sizeof(Vertex), offsetof(Vertex, texCoords),0}
+        );
+    auto PlainMaterial = gameWorld.add<MaterialHandle>(MaterialId("PlainMaterial"));
+    PlainMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::Red);
 
 
     // ========================================
     // Entity Setup
     // ========================================
-    auto triangle = gameWorld.add<GameObjectHandle>(GameObjectId{}, true);
-    triangle.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
-    triangle.trackDirty<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
-    triangle.trackDirty<BoundsComponent<GameObjectHandle, World>>();
-    triangle.trackDirty<Rotation3DComponent<GameObjectHandle, Local>>();
-    triangle.trackDirty<Position3DComponent<GameObjectHandle, Local>>(0.0f, 0.0f, 0.0f);
-    triangle.trackDirty<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
-    triangle.trackDirty<TransformComponent<GameObjectHandle, World>>(1.0f);
-    triangle.add<RenderPrototypeComponent<GameObjectHandle, NonInstanced>>(
-        DefaultShader.handle(), TriangleMaterial.handle(), TextureMesh.handle(), Texture.handle()
+    auto texturedObject = gameWorld.add<GameObjectHandle>(GameObjectId{}, true);
+    texturedObject.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
+    texturedObject.trackDirty<BoundsComponent<GameObjectHandle, Local>>(Rect::boundsData());
+    texturedObject.trackDirty<BoundsComponent<GameObjectHandle, World>>();
+    texturedObject.trackDirty<Rotation3DComponent<GameObjectHandle, Local>>();
+    texturedObject.trackDirty<Position3DComponent<GameObjectHandle, Local>>(1.0f, 0.0f, 0.0f);
+    texturedObject.trackDirty<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
+    texturedObject.trackDirty<TransformComponent<GameObjectHandle, World>>(1.0f);
+    texturedObject.add<RenderPrototypeComponent<GameObjectHandle, NonInstanced>>(
+        TextureShader.handle(), TextureMaterial.handle(), TextureMesh.handle(), Texture.handle()
+    );
+
+    auto plainObject = gameWorld.add<GameObjectHandle>(GameObjectId{}, true);
+    plainObject.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
+    plainObject.trackDirty<BoundsComponent<GameObjectHandle, Local>>(WireframeCube::boundsData());
+    plainObject.trackDirty<BoundsComponent<GameObjectHandle, World>>();
+    plainObject.trackDirty<Rotation3DComponent<GameObjectHandle, Local>>();
+    plainObject.trackDirty<Position3DComponent<GameObjectHandle, Local>>(-1.0f, 0.0f, 0.0f);
+    plainObject.trackDirty<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
+    plainObject.trackDirty<TransformComponent<GameObjectHandle, World>>(1.0f);
+    plainObject.add<RenderPrototypeComponent<GameObjectHandle, NonInstanced>>(
+        PlainShader.handle(), PlainMaterial.handle(), PlainMesh.handle()
     );
 
     // ----------------------------------------
@@ -200,8 +242,8 @@ int main() {
     // ----------------------------------------
     // Logger Configuration
     // ----------------------------------------
-    LogManager::getInstance().enableLogging(false);
-    LogManager::getInstance().enableSink<ImGuiLogSink>(logWidget);
+    LogManager::getInstance().enableLogging(true);
+    //LogManager::getInstance().enableSink<ImGuiLogSink>(logWidget);
 
 
     // ========================================
