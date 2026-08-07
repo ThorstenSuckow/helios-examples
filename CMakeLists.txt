@@ -25,6 +25,7 @@ set(HELIOS_OPENGL_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-opengl" CACHE 
 set(HELIOS_GLFW_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-glfw" CACHE PATH "Local path to helios-glfw")
 set(HELIOS_IMGUI_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-imgui" CACHE PATH "Local path to helios-imgui")
 set(HELIOS_PHYSICS_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-physics" CACHE PATH "Local path to helios-physics")
+set(HELIOS_GAMEPLAY_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-gameplay" CACHE PATH "Local path to helios-gameplay")
 
 if(NOT TARGET helios::engine)
     if(EXISTS "${HELIOS_ENGINE_LOCAL_PATH}/CMakeLists.txt")
@@ -62,6 +63,18 @@ if(NOT TARGET helios::glfw)
     endif()
 endif()
 
+if(NOT TARGET helios::gameplay)
+    if(EXISTS "${HELIOS_GAMEPLAY_LOCAL_PATH}/CMakeLists.txt")
+        add_subdirectory("${HELIOS_GAMEPLAY_LOCAL_PATH}" "${CMAKE_BINARY_DIR}/_deps/helios-gameplay-build")
+    else()
+        FetchContent_Declare(helios_gameplay
+                GIT_REPOSITORY https://github.com/thorstensuckow/helios-gameplay.git
+                GIT_TAG main
+        )
+        FetchContent_MakeAvailable(helios_gameplay)
+    endif()
+endif()
+
 if(NOT TARGET helios::imgui)
     if(EXISTS "${HELIOS_IMGUI_LOCAL_PATH}/CMakeLists.txt")
         add_subdirectory("${HELIOS_IMGUI_LOCAL_PATH}" "${CMAKE_BINARY_DIR}/_deps/helios-imgui-build")
@@ -86,6 +99,23 @@ if(NOT TARGET helios::physics)
     endif()
 endif()
 
+add_library(helios_examples_bootstrap STATIC)
+
+target_sources(helios_examples_bootstrap
+        PUBLIC
+        FILE_SET cxx_modules TYPE CXX_MODULES FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/bootstrap.ixx"
+)
+
+target_link_libraries(helios_examples_bootstrap PUBLIC
+        helios::engine
+        helios::opengl
+        helios::glfw
+        helios::imgui
+        helios::gameplay
+        helios::physics
+)
+
 file(GLOB_RECURSE EXAMPLE_FILES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
@@ -106,10 +136,12 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
     endif()
 
     target_link_libraries(${UNIQUE_TARGET} PRIVATE
+            helios_examples_bootstrap
             helios::engine
             helios::opengl
             helios::glfw
             helios::imgui
+            helios::gameplay
             helios::physics
     )
 
