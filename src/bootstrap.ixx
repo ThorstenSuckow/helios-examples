@@ -11,32 +11,20 @@ module;
 
 export module helios.engine.bootstrap;
 
-import helios.engine.runtime.gameloop;
+import helios.engine.runtime;
 import helios.engine.runtime.world;
-
-import helios.engine.state.types.StateTransitionContext;
-import helios.engine.runtime.messaging.command;
-
-import helios.engine.runtime.world.types.GameObjectHandle;
-import helios.engine.runtime.world.EntityMutationManager;
-
-import helios.engine.platform;
-import helios.engine.core.thread;
-
-import helios.engine.rendering.RenderManager;
-
-import helios.engine.runtime.lifecycle;
-import helios.engine.runtime.pooling;
-import helios.engine.runtime.particle;
-import helios.engine.runtime.timing;
-import helios.gameplay.spawning;
-import helios.engine.runtime.enginestate;
-
-import helios.engine.platform.window.types;
-import helios.engine.runtime.pooling;
+import helios.engine.runtime.messaging;
 
 import helios.engine.rendering;
 import helios.engine.state;
+
+import helios.engine.platform;
+import helios.engine.core;
+
+import helios.gameplay;
+
+import helios.glfw;
+import helios.opengl;
 
 using namespace helios::engine::core::thread;
 using namespace helios::engine::state::types;
@@ -107,6 +95,9 @@ export namespace helios::engine::bootstrap {
         PrefabComponentPoolCommand<ParticleHandle>
     >;
 
+    using EngineGLFWPlatformManager = helios::glfw::GLFWPlatformManager<
+        helios::opengl::OpenGLBackend, WindowHandle, EngineCommandBuffer, PlatformCommandBuffer>;
+
 
     /**
      * @brief Creates a pre-configured GameWorld and GameLoop pair.
@@ -149,10 +140,6 @@ export namespace helios::engine::bootstrap {
             gameWorld->entityManager<ParticleHandle>(),
             jobSystem
         );
-        gameWorld->registerManager<helios::engine::runtime::pooling::EntityPoolManager<
-            GameObjectHandle, ParticleHandle>
-        >(gameWorld->entityPoolRegistry(), gameWorld->engineWorld(), jobSystem);
-
 
         gameWorld->session().trackState<helios::engine::runtime::enginestate::types::EngineState>();
 
