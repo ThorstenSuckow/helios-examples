@@ -104,6 +104,10 @@ export namespace helios::engine::bootstrap {
         helios::ecs::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
     >;
 
+    using EngineSpawnPolicyRegistry = gameplay::spawning::TypedSpawnPolicyRegistry<
+        helios::ecs::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
+    >;
+
     /**
      * @brief Creates a pre-configured GameWorld and GameLoop pair.
      *
