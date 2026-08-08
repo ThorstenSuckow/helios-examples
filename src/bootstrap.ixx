@@ -11,6 +11,8 @@ module;
 
 export module helios.engine.bootstrap;
 
+import helios.ecs;
+
 import helios.engine.runtime;
 import helios.engine.runtime.world;
 import helios.engine.runtime.messaging;
@@ -91,13 +93,16 @@ export namespace helios::engine::bootstrap {
         >;
 
     using EntityPoolCommandBuffer = TypedCommandBuffer<
-        PrefabComponentPoolCommand<GameObjectHandle>,
-        PrefabComponentPoolCommand<ParticleHandle>
+        PrefabEntityPoolCommand<GameObjectHandle>,
+        PrefabEntityPoolCommand<ParticleHandle>
     >;
 
     using EngineGLFWPlatformManager = helios::glfw::GLFWPlatformManager<
         helios::opengl::OpenGLBackend, WindowHandle, EngineCommandBuffer, PlatformCommandBuffer>;
 
+    using EngineEntityPoolRegistry = runtime::pooling::TypedEntityPoolRegistry<
+        helios::ecs::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
+    >;
 
     /**
      * @brief Creates a pre-configured GameWorld and GameLoop pair.
