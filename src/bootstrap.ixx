@@ -17,6 +17,7 @@ import helios.engine.runtime;
 import helios.engine.runtime.world;
 import helios.engine.runtime.messaging;
 
+import helios.engine.scene;
 import helios.engine.rendering;
 import helios.engine.state;
 
@@ -94,7 +95,8 @@ export namespace helios::engine::bootstrap {
 
     using EntityPoolCommandBuffer = TypedCommandBuffer<
         PrefabEntityPoolCommand<GameObjectHandle>,
-        PrefabEntityPoolCommand<ParticleHandle>
+        PrefabEntityPoolCommand<ParticleHandle>,
+        ReleaseEntityCommand<ParticleHandle>
     >;
 
     using EngineGLFWPlatformManager = helios::glfw::GLFWPlatformManager<
@@ -107,6 +109,25 @@ export namespace helios::engine::bootstrap {
     using EngineSpawnPolicyRegistry = gameplay::spawning::TypedSpawnPolicyRegistry<
         helios::ecs::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
     >;
+
+    using EngineEntityPoolManager = runtime::pooling::EntityPoolManager<EngineEntityPoolRegistry>;
+
+    using EngineWorld = helios::ecs::TypedHandleWorld<
+        GameObjectHandle, ParticleHandle,
+        scene::types::SceneHandle, rendering::texture::types::TextureHandle,
+        rendering::shader::types::ShaderHandle,
+        rendering::material::types::MaterialHandle,
+        rendering::mesh::types::MeshHandle,
+        WindowHandle,
+        platform::environment::types::PlatformHandle,
+        rendering::renderTarget::types::RenderTargetHandle,
+        scene::types::SceneHandle,
+        scene::types::CameraHandle, rendering::viewport::types::ViewportHandle
+    >;
+
+
+    using GameObjectEntityManager = ecs::EntityManager<GameObjectHandle>;
+    using ParticleEntityManager = ecs::EntityManager<ParticleHandle>;
 
     /**
      * @brief Creates a pre-configured GameWorld and GameLoop pair.
