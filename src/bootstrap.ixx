@@ -8,13 +8,23 @@ module;
 #include <cstddef>
 #include <memory>
 #include <utility>
+#include <vector>
+#include <iostream>
 
 export module helios.engine.bootstrap;
 
 import helios.ecs;
+import helios.core.thread;
+import helios.core.container;
+
+import helios.core.io;
 
 import helios.engine.runtime;
-import helios.engine.runtime.world;
+import helios.engine.runtime.world.UpdateContext;
+import helios.engine.runtime.world.ContextProvider;
+
+import helios.engine.runtime.world.types.Contexts;
+
 import helios.engine.runtime.messaging;
 
 import helios.engine.scene;
@@ -29,7 +39,7 @@ import helios.gameplay;
 import helios.glfw;
 import helios.opengl;
 
-using namespace helios::engine::core::thread;
+using namespace helios::core::thread;
 using namespace helios::engine::state::types;
 using namespace helios::engine::runtime::enginestate::types;
 using namespace helios::engine::platform::environment;
@@ -42,7 +52,8 @@ using namespace helios::engine::runtime::world::types;
 using namespace helios::engine::runtime::particle;
 using namespace helios::engine::runtime::particle::types;
 using namespace helios::engine::runtime::gameloop;
-using namespace helios::engine::runtime::messaging::command;
+using namespace helios::ecs;
+using namespace helios::ecs::command;
 using namespace helios::engine::runtime::pooling::commands;
 using namespace helios::engine::runtime::pooling::types;
 
@@ -51,146 +62,223 @@ using namespace helios::engine::runtime::pooling::types;
 
 export namespace helios::engine::bootstrap {
 
-    using RenderCommandBuffer  = runtime::messaging::command::TypedCommandBuffer<
-            rendering::common::commands::RenderSceneCommand<GameObjectHandle>,
-            rendering::common::commands::RenderSceneMemberCommand<GameObjectHandle>,
-            rendering::common::commands::RenderInstanceBatchCommand<GameObjectHandle>,
-            rendering::common::commands::RenderSceneCommand<ParticleHandle>,
-            rendering::common::commands::RenderSceneMemberCommand<ParticleHandle>,
-            rendering::common::commands::RenderInstanceBatchCommand<ParticleHandle>,
-            rendering::shader::commands::ShaderCompileCommand<rendering::shader::types::ShaderHandle>,
-            rendering::shader::commands::ShaderBatchCompileCommand<rendering::shader::types::ShaderHandle>,
-            rendering::texture::commands::TextureBatchUploadCommand<rendering::texture::types::TextureHandle>,
-            rendering::mesh::commands::MeshBatchUploadCommand<rendering::mesh::types::MeshHandle>
-        >;
 
-    using EngineCommandBuffer = helios::engine::runtime::messaging::command::TypedCommandBuffer<
+    using CommandBufferFlushContext = helios::engine::runtime::world::types::CommandBufferFlushContext;
+    using DefaultInitContext = helios::engine::runtime::world::types::DefaultInitContext;
+    using ManagerExecutionContext = helios::engine::runtime::world::types::ManagerExecutionContext;
+
+    using EngineCommandBuffer  = helios::ecs::command::TypedCommandBuffer<
+        DefaultInitContext, CommandBufferFlushContext,
+        rendering::common::commands::RenderSceneCommand<GameObjectHandle>,
+        rendering::common::commands::RenderSceneMemberCommand<GameObjectHandle>,
+        rendering::common::commands::RenderInstanceBatchCommand<GameObjectHandle>,
+        rendering::common::commands::RenderSceneCommand<ParticleHandle>,
+        rendering::common::commands::RenderSceneMemberCommand<ParticleHandle>,
+        rendering::common::commands::RenderInstanceBatchCommand<ParticleHandle>,
+        rendering::shader::commands::ShaderCompileCommand<rendering::shader::types::ShaderHandle>,
+        rendering::shader::commands::ShaderBatchCompileCommand<rendering::shader::types::ShaderHandle>,
+        rendering::texture::commands::TextureBatchUploadCommand<rendering::texture::types::TextureHandle>,
+        rendering::mesh::commands::MeshBatchUploadCommand<rendering::mesh::types::MeshHandle>,
         helios::engine::runtime::timing::commands::TimerControlCommand,
-        helios::engine::runtime::lifecycle::commands::WorldLifecycleCommand,
         helios::engine::state::commands::StateCommand<helios::engine::runtime::enginestate::types::EngineState>,
-        helios::engine::state::commands::DelayedStateCommand<helios::engine::runtime::enginestate::types::EngineState>
-    >;
-
-    using SpawnCommandBuffer  = helios::engine::runtime::messaging::command::TypedCommandBuffer<
+        helios::engine::state::commands::DelayedStateCommand<helios::engine::runtime::enginestate::types::EngineState>,
         helios::gameplay::spawning::commands::SpawnCommand<helios::engine::runtime::particle::types::ParticleHandle>,
         helios::gameplay::spawning::commands::SpawnCommand<helios::engine::runtime::world::types::GameObjectHandle>,
         helios::gameplay::spawning::commands::SpawnCommand<
             helios::engine::runtime::world::types::GameObjectHandle,
             helios::engine::runtime::particle::types::ParticleHandle
-        >
-    >;
+        >,
+        // window
+        helios::engine::platform::window::commands::WindowCreateCommand<WindowHandle>,
+        helios::engine::platform::window::commands::WindowResizeCommand<WindowHandle>,
+        helios::engine::platform::window::commands::SwapBuffersCommand<WindowHandle>,
+        helios::engine::platform::window::commands::WindowCloseCommand<WindowHandle>,
 
-    using PlatformCommandBuffer = helios::engine::runtime::messaging::command::TypedCommandBuffer<
-            // window
-            helios::engine::platform::window::commands::WindowCreateCommand<WindowHandle>,
-            helios::engine::platform::window::commands::WindowResizeCommand<WindowHandle>,
-            helios::engine::platform::window::commands::SwapBuffersCommand<WindowHandle>,
-            helios::engine::platform::window::commands::WindowCloseCommand<WindowHandle>,
-
-            // runtime platform
-            helios::engine::platform::lifecycle::commands::PlatformInitCommand,
-            helios::engine::platform::environment::commands::PollEventsCommand,
-            helios::engine::platform::lifecycle::commands::ShutdownCommand
-        >;
-
-    using EntityPoolCommandBuffer = TypedCommandBuffer<
+        // runtime platform
+        helios::engine::platform::lifecycle::commands::PlatformInitCommand,
+        helios::engine::platform::environment::commands::PollEventsCommand,
+        helios::engine::platform::lifecycle::commands::ShutdownCommand,
         PrefabEntityPoolCommand<GameObjectHandle>,
         PrefabEntityPoolCommand<ParticleHandle>,
         ReleaseEntityCommand<ParticleHandle>
     >;
 
-    using EngineGLFWPlatformManager = helios::glfw::GLFWPlatformManager<
-        helios::opengl::OpenGLBackend, WindowHandle, EngineCommandBuffer, PlatformCommandBuffer>;
-
-    using EngineEntityPoolRegistry = runtime::pooling::TypedEntityPoolRegistry<
-        helios::ecs::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
+    using DefaultEntityPoolRegistry = runtime::pooling::TypedEntityPoolRegistry<
+        helios::core::container::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
     >;
 
-    using EngineSpawnPolicyRegistry = gameplay::spawning::TypedSpawnPolicyRegistry<
-        helios::ecs::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
+    using DefaultSpawnPolicyRegistry = gameplay::spawning::TypedSpawnPolicyRegistry<
+        helios::core::container::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
     >;
 
-    using EngineEntityPoolManager = runtime::pooling::EntityPoolManager<EngineEntityPoolRegistry>;
 
-    using EngineWorld = helios::ecs::TypedHandleWorld<
-        GameObjectHandle, ParticleHandle,
-        scene::types::SceneHandle, rendering::texture::types::TextureHandle,
+    auto EngineEcsWorld = helios::ecs::EcsWorld::make<
+        GameObjectHandle,
+        ParticleHandle,
+
+        scene::types::SceneHandle,
+        rendering::renderTarget::types::RenderTargetHandle,
+        scene::types::CameraHandle,
+        rendering::viewport::types::ViewportHandle,
+
+        rendering::texture::types::TextureHandle,
         rendering::shader::types::ShaderHandle,
         rendering::material::types::MaterialHandle,
         rendering::mesh::types::MeshHandle,
+
         WindowHandle,
-        platform::environment::types::PlatformHandle,
-        rendering::renderTarget::types::RenderTargetHandle,
-        scene::types::SceneHandle,
-        scene::types::CameraHandle, rendering::viewport::types::ViewportHandle
+        platform::environment::types::PlatformHandle
+    >();
+
+
+
+    using DefaultEngineStateManager = helios::engine::runtime::enginestate::EngineStateManager<DefaultInitContext, ManagerExecutionContext>;
+    using DefaultTimerManager = helios::engine::runtime::timing::TimerManager<DefaultInitContext, ManagerExecutionContext>;
+    using DefaultGLFWPlatformManager = helios::glfw::GLFWPlatformManager<
+        helios::opengl::OpenGLBackend, WindowHandle, DefaultInitContext, ManagerExecutionContext, EngineCommandBuffer>;
+    using DefaultEntityPoolManager = runtime::pooling::EntityPoolManager<DefaultEntityPoolRegistry, DefaultInitContext, ManagerExecutionContext>;
+    using DefaultGameObjectMutationManager = helios::ecs::manager::EntityMutationManager<
+            GameObjectHandle, DefaultInitContext, ManagerExecutionContext
+    >;
+    using DefaultParticleMutationManager = helios::ecs::manager::EntityMutationManager<
+            ParticleHandle, DefaultInitContext, ManagerExecutionContext
+    >;
+    using DefaultSpawnManager = SpawnManager<DefaultSpawnPolicyRegistry, DefaultEntityPoolRegistry, DefaultInitContext,
+        ManagerExecutionContext
+    >;
+    using DefaultRenderManager = helios::engine::rendering::RenderManager<
+        helios::opengl::OpenGLBackend, DefaultInitContext, ManagerExecutionContext,
+        ParticleHandle
+    >;
+    using DefaultTextureUploadManager = helios::opengl::OpenGLTextureUploadManager<DefaultInitContext, ManagerExecutionContext>;
+    using DefaultMeshUploadManager = helios::opengl::OpenGLMeshUploadManager<DefaultInitContext, ManagerExecutionContext>;
+    using DefaultShaderCompileManager = helios::opengl::OpenGLShaderCompileManager<DefaultInitContext, ManagerExecutionContext,
+        helios::opengl::OpenGLUniformLocationCacheStrategy<>
     >;
 
 
-    using GameObjectEntityManager = ecs::EntityManager<GameObjectHandle>;
-    using ParticleEntityManager = ecs::EntityManager<ParticleHandle>;
+    class DefaultContextProvider {
+        GameWorld& gameWorld_;
+
+        helios::core::container::TypeMap<ecs::common::types::ContextTypeId::DomainType> typeMap_;
+
+        [[nodiscard]] ecs::common::types::ContextRef getImpl(const ecs::common::types::ContextTypeId typeId, UpdateContext* updateContext) {
+            const auto idx = typeId.value();
+
+            if (typeId == ecs::common::types::ContextTypeId::template id<common::types::NullFlushContext>()) {
+                return common::types::ContextRef{typeMap_.getOrEmplace<common::types::NullFlushContext>()};
+            }
+            if (typeId == ecs::common::types::ContextTypeId::template id<common::types::NullInitContext>()) {
+                return common::types::ContextRef{typeMap_.getOrEmplace<common::types::NullInitContext>()};
+            }
+
+            if (typeId == ecs::common::types::ContextTypeId::template id<CommandBufferFlushContext>()) {
+                return common::types::ContextRef{typeMap_.getOrEmplace<CommandBufferFlushContext>(
+                    gameWorld_.commandHandlerRegistry(),
+                    gameWorld_.managerRegistry()
+                )};
+            }
+
+
+            if (!updateContext) {
+                if (typeId == ecs::common::types::ContextTypeId::template id<DefaultInitContext>()) {
+                    return common::types::ContextRef{typeMap_.getOrEmplace<DefaultInitContext>(
+                        gameWorld_.commandHandlerRegistry()
+                    )};
+                }
+            } else {
+                if (typeId == ecs::common::types::ContextTypeId::template id<ManagerExecutionContext>()) {
+                    return common::types::ContextRef{typeMap_.getOrEmplace<ManagerExecutionContext>(
+                        *updateContext,
+                       gameWorld_.ecsWorld()
+                    )};
+                }
+                if (typeId == ecs::common::types::ContextTypeId::template id<SystemUpdateContext>()) {
+                    return common::types::ContextRef{typeMap_.getOrEmplace<SystemUpdateContext>(
+                        *updateContext
+                    )};
+                }
+            }
+            #if !NDEBUG
+            std::cerr << "Requested context type not supported: " << typeid(ecs::common::types::ContextTypeId::DomainType).name() << '\n';
+            assert(false && "Requested context type is not supported by DefaultContextProvider.");
+            #endif
+            std::unreachable();
+        }
+
+
+    public:
+        explicit DefaultContextProvider(GameWorld& gameWorld): gameWorld_(gameWorld) {}
+
+
+        [[nodiscard]] ecs::common::types::ContextRef get(const ecs::common::types::ContextTypeId typeId) {
+            return getImpl(typeId, nullptr);
+        }
+
+        [[nodiscard]] ecs::common::types::ContextRef get(const ecs::common::types::ContextTypeId typeId, UpdateContext& updateContext) {
+            return getImpl(typeId, &updateContext);
+        }
+
+        bool clear() {
+            typeMap_.clear();
+            return true;
+        }
+    };
+
+    struct EngineRuntime {
+        GameWorld gameWorld;
+        ContextProvider contextProvider;
+        GameLoop gameLoop;
+
+        explicit EngineRuntime(GameWorld&& world):
+            gameWorld{std::move(world)},
+            contextProvider{ContextProvider(DefaultContextProvider(gameWorld))},
+            gameLoop{gameWorld, contextProvider}
+        {
+        }
+    };
 
     /**
      * @brief Creates a pre-configured GameWorld and GameLoop pair.
      *
-     * @param jobSystem Reference to the JobSystem used for parallel system execution.
-     * @param capacity Initial capacity for the EntityManager's SparseSets.
-     *                 Must be large enough to accommodate all entities including
-     *                 pooled clones. Defaults to ENTITY_MANAGER_DEFAULT_CAPACITY.
-     *
-     * @return A pair of (GameWorld, GameLoop) unique pointers.
-     *
-     * @see GameWorld
-     * @see GameLoop
-     * @see EngineCommandBuffer
-     * @see Session::trackState
+     * @return A EngineRuntime object.
      */
-    inline std::pair<std::unique_ptr<GameWorld>, std::unique_ptr<GameLoop>> bootstrapGameWorld(
+    [[nodiscard]] EngineRuntime bootstrapGameWorld(
         JobSystem& jobSystem,
         const size_t capacity = 1000
     ) {
-        auto gameWorld = std::make_unique<helios::engine::runtime::world::GameWorld>(jobSystem, capacity);
 
-        auto gameLoop = std::make_unique<helios::engine::runtime::gameloop::GameLoop>(*gameWorld);
+        auto engineRuntime = EngineRuntime(
+            GameWorld{std::move(EngineEcsWorld), jobSystem}
+        );
 
+        auto& gameWorld = engineRuntime.gameWorld;
 
-        // managers
-        gameWorld->registerManager<helios::engine::runtime::lifecycle::WorldLifecycleManager>();
-
-        gameWorld->registerManager<helios::engine::runtime::enginestate::EngineStateManager>(
+        gameWorld.registerManager<DefaultEngineStateManager>(
             helios::engine::runtime::enginestate::rules::DefaultEngineStateTransitionRules::rules());
+        gameWorld.template registerManager<DefaultTimerManager>();
+        gameWorld.template registerManager<DefaultGameObjectMutationManager>(jobSystem);
+        gameWorld.template registerManager<DefaultParticleMutationManager>(jobSystem);
 
-        gameWorld->registerManager<helios::engine::runtime::timing::TimerManager>();
+        auto& renderBackend = gameWorld.addResource<helios::opengl::OpenGLBackend>(gameWorld.ecsWorld());
+        auto& spawnPolicy = gameWorld.addResource<DefaultSpawnPolicyRegistry>();
+        auto& entityPoolRegistry = gameWorld.addResource<DefaultEntityPoolRegistry>();
 
-        // mutation manager
-        gameWorld->registerManager<helios::engine::runtime::world::EntityMutationManager<GameObjectEntityManager>>(
-            gameWorld->entityManager<GameObjectHandle>(),
-            jobSystem
+        gameWorld.registerManager<DefaultEntityPoolManager>(entityPoolRegistry, gameWorld.ecsWorld(), jobSystem);
+        gameWorld.registerManager<DefaultSpawnManager>(spawnPolicy, entityPoolRegistry);
+        gameWorld.registerManager<DefaultGLFWPlatformManager>(renderBackend, gameWorld.ecsWorld());
+        gameWorld.registerManager<DefaultRenderManager>(renderBackend);
+
+        gameWorld.registerManager<DefaultTextureUploadManager>(gameWorld.ecsWorld(), helios::core::io::ImageReader{});
+        gameWorld.registerManager<DefaultMeshUploadManager>(gameWorld.ecsWorld());
+
+        gameWorld.session().template trackState<helios::engine::runtime::enginestate::types::EngineState>();
+
+        gameWorld.registerManager<DefaultShaderCompileManager>(
+            gameWorld.ecsWorld(), helios::opengl::OpenGLUniformLocationCacheStrategy<>()
         );
-        gameWorld->registerManager<helios::engine::runtime::world::EntityMutationManager<ParticleEntityManager>>(
-            gameWorld->entityManager<ParticleHandle>(),
-            jobSystem
-        );
 
-        gameWorld->session().trackState<helios::engine::runtime::enginestate::types::EngineState>();
-
-        gameWorld->registerCommandBuffer<RenderCommandBuffer>();
-        gameWorld->registerCommandBuffer<PlatformCommandBuffer>();
-        gameWorld->registerCommandBuffer<EngineCommandBuffer>();
-        gameWorld->registerCommandBuffer<EntityPoolCommandBuffer>();
-        gameWorld->registerCommandBuffer<SpawnCommandBuffer>();
-
-        gameWorld->registerCommandBuffer<EntityMutationCommandBuffer<GameObjectEntityManager>>();
-        gameWorld->registerCommandBuffer<EntityMutationCommandBuffer<ParticleEntityManager>>();
-
-        gameWorld->session().setStateFrom<EngineState>(
-            StateTransitionContext<EngineState>(
-            EngineState::Undefined,
-            EngineState::Booting,
-            EngineStateTransitionId::BootRequest
-        ));
-
-
-        return std::make_pair(std::move(gameWorld), std::move(gameLoop));
+        return engineRuntime;
     }
 
 }
