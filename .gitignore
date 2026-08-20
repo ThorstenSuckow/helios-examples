@@ -3,3 +3,4 @@
 /build-unified
 /.idea/
 /cmake-build-release/
+/cmake-build-memcheck/
