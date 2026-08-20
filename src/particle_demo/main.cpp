@@ -278,35 +278,33 @@ int main() {
     // ========================================
     float DELTA_TIME = 0.0f;
 
-    EngineCommandBuffer engineCommandBuffer{};
-
     // ----------------------------------------
     // GameLoop Config
     // ----------------------------------------
     gameLoop.phase(PhaseType::Pre)
 
             .beginPass(EngineState::Any)
-                .addSystem(EngineFlowSystem{}, engineCommandBuffer)
+                .addSystem<EngineFlowSystem>()
             .executeCommands<DefaultEngineStateManager>()
             .endPass()
 
             .beginPass(EngineState::Booting)
-                .addSystem(PlatformInitSystem{}, engineCommandBuffer)
+                .addSystem<PlatformInitSystem>()
             .executeCommands<DefaultGLFWPlatformManager>()
             .endPass()
 
             .beginPass(EngineState::Booted | EngineState::Running)
-                .addSystem(PollEventsSystem{}, engineCommandBuffer)
-                .addSystem(WindowCreateSystem<WindowHandle>{}, engineCommandBuffer)
+                .addSystem<PollEventsSystem>()
+                .addSystem<WindowCreateSystem<WindowHandle>>()
             .executeCommands<DefaultGLFWPlatformManager>()
             .endPass()
 
             .beginPass(EngineState::Warmup)
-                .addSystem(TextureUploadSystem<TextureHandle>{}, engineCommandBuffer)
-                .addSystem(MeshUploadSystem<MeshHandle>{}, engineCommandBuffer)
-                .addSystem(ShaderCompileSystem<ShaderHandle>{}, engineCommandBuffer)
-                .addSystem(EntityPoolWarmupSystem<ParticleHandle>{}, engineCommandBuffer)
-                .addSystem(WarmupDoneSystem{}, engineCommandBuffer)
+                .addSystem<TextureUploadSystem<TextureHandle>>()
+                .addSystem<MeshUploadSystem<MeshHandle>>()
+                .addSystem<ShaderCompileSystem<ShaderHandle>>()
+                .addSystem<EntityPoolWarmupSystem<ParticleHandle>>()
+                .addSystem<WarmupDoneSystem>()
             .executeCommands<
                 DefaultTextureUploadManager,
                 DefaultMeshUploadManager,
@@ -319,7 +317,7 @@ int main() {
             // intentionally left empty
             gameLoop.phase(PhaseType::Main)
                 .beginPass(EngineState::Running)
-                .addSystem<EngineCommandBuffer>(Lambda<ParticleHandle>(
+                .addSystem(Lambda<ParticleHandle, SpawnCommand<ParticleHandle>>(
                     [&]<typename TUpdateContext, typename TCommandBuffer>
                     requires helios::engine::runtime::concepts::ProvidesUpdateContext<TUpdateContext, UpdateContext> &&
                     helios::ecs::command::concepts::IsCommandBufferLike<TCommandBuffer>
@@ -342,12 +340,12 @@ int main() {
 
                             return true;
 
-                        }), engineCommandBuffer)
+                        }))
                 .executeCommands<DefaultSpawnManager>()
                 .endPass()
 
                 .beginPass(EngineState::Running)
-                    .addSystem(MotionIntegrationSystem<ParticleHandle>{})
+                    .addSystem<MotionIntegrationSystem<ParticleHandle>>()
                 .endPass();
 
 
@@ -375,21 +373,19 @@ int main() {
 
                     // this will produce render commands after scenes have been culled according to
                     // their active viewports
-                    .addSystem(
-                        SceneMemberVisibilitySystem<ParticleHandle, Instanced, AABBCullingStrategy<ParticleHandle>>
+                    .addSystem<SceneMemberVisibilitySystem<ParticleHandle, Instanced, AABBCullingStrategy<ParticleHandle>>>
                         (AABBCullingStrategy<ParticleHandle>(), visibilityRegistry)
-                    )
-                    .addSystem<EngineCommandBuffer>(SceneRenderSystem<ParticleHandle, Instanced>{visibilityRegistry}, engineCommandBuffer)
+                    .addSystem<SceneRenderSystem<ParticleHandle, Instanced>>(visibilityRegistry)
 
                 .executeCommands<DefaultRenderManager>()
                 .endPass()
 
                  // Clear, bufferswapping, lifecycle
                 .beginPass(EngineState::Running)
-                    .addSystem(GLFWWindowCloseSystem<WindowHandle>{}, engineCommandBuffer)
-                    .addSystem(WindowBasedShutdownSystem<WindowHandle>{}, engineCommandBuffer)
-                    .addSystem(ClearAllDirtySetsSystem{})
-                    .addSystem(Lambda<ParticleHandle>(
+                    .addSystem<GLFWWindowCloseSystem<WindowHandle>>()
+                    .addSystem<WindowBasedShutdownSystem<WindowHandle>>()
+                    .addSystem<ClearAllDirtySetsSystem>()
+                    .addSystem(Lambda<ParticleHandle, ReleaseEntityCommand<ParticleHandle>>(
                         [&]<typename TUpdateContext, typename TCommandBuffer>
                         requires helios::engine::runtime::concepts::ProvidesUpdateContext<TUpdateContext, UpdateContext> &&
                                     helios::ecs::command::concepts::IsCommandBufferLike<TCommandBuffer>
@@ -412,15 +408,15 @@ int main() {
                             }
 
                             return true;
-                    }), engineCommandBuffer)
-                    .addSystem(ImGuiOverlayRenderSystem{imguiOverlay})
-                    .addSystem(SwapBuffersSystem<WindowHandle>{}, engineCommandBuffer)
+                    }))
+                    .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
+                    .addSystem<SwapBuffersSystem<WindowHandle>>()
                 .executeCommands<DefaultGLFWPlatformManager>()
                 .executeCommandsParallel<DefaultEntityPoolManager>()
                 .endPass()
 
                 .beginPass(EngineState::Shutdown)
-                    .addSystem(DestroySessionSystem{})
+                    .addSystem<DestroySessionSystem>()
                 .endPass()
             ;
 
