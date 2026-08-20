@@ -67,42 +67,6 @@ export namespace helios::engine::bootstrap {
     using DefaultInitContext = helios::engine::runtime::world::types::DefaultInitContext;
     using ManagerExecutionContext = helios::engine::runtime::world::types::ManagerExecutionContext;
 
-    using EngineCommandBuffer  = helios::ecs::command::TypedCommandBuffer<
-        DefaultInitContext, CommandBufferFlushContext,
-        rendering::common::commands::RenderSceneCommand<GameObjectHandle>,
-        rendering::common::commands::RenderSceneMemberCommand<GameObjectHandle>,
-        rendering::common::commands::RenderInstanceBatchCommand<GameObjectHandle>,
-        rendering::common::commands::RenderSceneCommand<ParticleHandle>,
-        rendering::common::commands::RenderSceneMemberCommand<ParticleHandle>,
-        rendering::common::commands::RenderInstanceBatchCommand<ParticleHandle>,
-        rendering::shader::commands::ShaderCompileCommand<rendering::shader::types::ShaderHandle>,
-        rendering::shader::commands::ShaderBatchCompileCommand<rendering::shader::types::ShaderHandle>,
-        rendering::texture::commands::TextureBatchUploadCommand<rendering::texture::types::TextureHandle>,
-        rendering::mesh::commands::MeshBatchUploadCommand<rendering::mesh::types::MeshHandle>,
-        helios::engine::runtime::timing::commands::TimerControlCommand,
-        helios::engine::state::commands::StateCommand<helios::engine::runtime::enginestate::types::EngineState>,
-        helios::engine::state::commands::DelayedStateCommand<helios::engine::runtime::enginestate::types::EngineState>,
-        helios::gameplay::spawning::commands::SpawnCommand<helios::engine::runtime::particle::types::ParticleHandle>,
-        helios::gameplay::spawning::commands::SpawnCommand<helios::engine::runtime::world::types::GameObjectHandle>,
-        helios::gameplay::spawning::commands::SpawnCommand<
-            helios::engine::runtime::world::types::GameObjectHandle,
-            helios::engine::runtime::particle::types::ParticleHandle
-        >,
-        // window
-        helios::engine::platform::window::commands::WindowCreateCommand<WindowHandle>,
-        helios::engine::platform::window::commands::WindowResizeCommand<WindowHandle>,
-        helios::engine::platform::window::commands::SwapBuffersCommand<WindowHandle>,
-        helios::engine::platform::window::commands::WindowCloseCommand<WindowHandle>,
-
-        // runtime platform
-        helios::engine::platform::lifecycle::commands::PlatformInitCommand,
-        helios::engine::platform::environment::commands::PollEventsCommand,
-        helios::engine::platform::lifecycle::commands::ShutdownCommand,
-        PrefabEntityPoolCommand<GameObjectHandle>,
-        PrefabEntityPoolCommand<ParticleHandle>,
-        ReleaseEntityCommand<ParticleHandle>
-    >;
-
     using DefaultEntityPoolRegistry = runtime::pooling::TypedEntityPoolRegistry<
         helios::core::container::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
     >;
@@ -132,29 +96,18 @@ export namespace helios::engine::bootstrap {
 
 
 
-    using DefaultEngineStateManager = helios::engine::runtime::enginestate::EngineStateManager<DefaultInitContext, ManagerExecutionContext>;
-    using DefaultTimerManager = helios::engine::runtime::timing::TimerManager<DefaultInitContext, ManagerExecutionContext>;
+    using DefaultEngineStateManager = helios::engine::runtime::enginestate::EngineStateManager;
+    using DefaultTimerManager = helios::engine::runtime::timing::TimerManager;
     using DefaultGLFWPlatformManager = helios::glfw::GLFWPlatformManager<
-        helios::opengl::OpenGLBackend, WindowHandle, DefaultInitContext, ManagerExecutionContext, EngineCommandBuffer>;
-    using DefaultEntityPoolManager = runtime::pooling::EntityPoolManager<DefaultEntityPoolRegistry, DefaultInitContext, ManagerExecutionContext>;
-    using DefaultGameObjectMutationManager = helios::ecs::manager::EntityMutationManager<
-            GameObjectHandle, DefaultInitContext, ManagerExecutionContext
-    >;
-    using DefaultParticleMutationManager = helios::ecs::manager::EntityMutationManager<
-            ParticleHandle, DefaultInitContext, ManagerExecutionContext
-    >;
-    using DefaultSpawnManager = SpawnManager<DefaultSpawnPolicyRegistry, DefaultEntityPoolRegistry, DefaultInitContext,
-        ManagerExecutionContext
-    >;
-    using DefaultRenderManager = helios::engine::rendering::RenderManager<
-        helios::opengl::OpenGLBackend, DefaultInitContext, ManagerExecutionContext,
-        ParticleHandle
-    >;
-    using DefaultTextureUploadManager = helios::opengl::OpenGLTextureUploadManager<DefaultInitContext, ManagerExecutionContext>;
-    using DefaultMeshUploadManager = helios::opengl::OpenGLMeshUploadManager<DefaultInitContext, ManagerExecutionContext>;
-    using DefaultShaderCompileManager = helios::opengl::OpenGLShaderCompileManager<DefaultInitContext, ManagerExecutionContext,
-        helios::opengl::OpenGLUniformLocationCacheStrategy<>
-    >;
+        helios::opengl::OpenGLBackend, WindowHandle>;
+    using DefaultEntityPoolManager = runtime::pooling::EntityPoolManager<DefaultEntityPoolRegistry>;
+    using DefaultGameObjectMutationManager = helios::ecs::manager::EntityMutationManager<GameObjectHandle>;
+    using DefaultParticleMutationManager = helios::ecs::manager::EntityMutationManager<ParticleHandle>;
+    using DefaultSpawnManager = SpawnManager<DefaultSpawnPolicyRegistry, DefaultEntityPoolRegistry>;
+    using DefaultRenderManager = helios::engine::rendering::RenderManager<helios::opengl::OpenGLBackend, ParticleHandle>;
+    using DefaultTextureUploadManager = helios::opengl::OpenGLTextureUploadManager<>;
+    using DefaultMeshUploadManager = helios::opengl::OpenGLMeshUploadManager<>;
+    using DefaultShaderCompileManager = helios::opengl::OpenGLShaderCompileManager<helios::opengl::OpenGLUniformLocationCacheStrategy<>>;
 
 
     class DefaultContextProvider {
