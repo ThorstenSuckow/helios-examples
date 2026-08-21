@@ -110,10 +110,6 @@ int main() {
     auto& contextProvider = engineRuntime.contextProvider;
     auto& gameLoop = engineRuntime.gameLoop;
 
-
-    SceneMemberVisibilityRegistry<ParticleHandle, Instanced> visibilityRegistry{};
-
-
     // ========================================
     // Window Setup
     // ========================================
@@ -374,8 +370,8 @@ int main() {
                     // this will produce render commands after scenes have been culled according to
                     // their active viewports
                     .addSystem<SceneMemberVisibilitySystem<ParticleHandle, Instanced, AABBCullingStrategy<ParticleHandle>>>
-                        (AABBCullingStrategy<ParticleHandle>(), visibilityRegistry)
-                    .addSystem<SceneRenderSystem<ParticleHandle, Instanced>>(visibilityRegistry)
+                        (AABBCullingStrategy<ParticleHandle>())
+                    .addSystem<SceneRenderSystem<ParticleHandle, Instanced>>()
 
                 .executeCommands<DefaultRenderManager>()
                 .endPass()
