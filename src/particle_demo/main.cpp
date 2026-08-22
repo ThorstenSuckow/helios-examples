@@ -225,7 +225,7 @@ int main() {
     ParticlePrefab.trackDirty<BoundsComponent<ParticleHandle, Local>>(Rect::boundsData());
     ParticlePrefab.trackDirty<BoundsComponent<ParticleHandle, World>>();
     ParticlePrefab.trackDirty<Velocity3DComponent<ParticleHandle, Local>>();
-    //ParticlePrefab.trackDirty<LifetimeComponent<ParticleHandle>>(4.0f);
+    ParticlePrefab.trackDirty<LifetimeComponent<ParticleHandle>>(4.0f);
     ParticlePrefab.trackDirty<Rotation3DComponent<ParticleHandle, Local>>();
     ParticlePrefab.trackDirty<Position3DComponent<ParticleHandle, Local>>(1.0f, 0.0f, 0.0f);
     ParticlePrefab.trackDirty<Position3DComponent<ParticleHandle, World>>(0.0f, 0.0f, 0.0f);
@@ -307,24 +307,20 @@ int main() {
                 DefaultShaderCompileManager,
                 DefaultEngineStateManager
             >()
-            .executeCommandsParallel<DefaultEntityPoolManager>()
+            .executeCommands<DefaultEntityPoolManager>()
             .endPass();
 
             // intentionally left empty
             gameLoop.phase(PhaseType::Main)
                 .beginPass(EngineState::Running)
-                .addSystem(Lambda<ParticleHandle, SpawnCommand<ParticleHandle>>(
-                    [&]<typename TUpdateContext, typename TCommandBuffer>
-                    requires helios::engine::runtime::concepts::ProvidesUpdateContext<TUpdateContext, UpdateContext> &&
-                    helios::ecs::command::concepts::IsCommandBufferLike<TCommandBuffer>
-                            (TUpdateContext& updateCtx, TCommandBuffer& cmdBuffer) {
-                            UpdateContext& updateContext = updateCtx.updateContext();
+                .addSystem([&](UpdateContext& updateContext,
+                    helios::ecs::command::TypedCommandBuffer<SpawnCommand<ParticleHandle>>& cmdBuffer) {
 
                             for (auto [entity, requestComponent] : updateContext.view<
                                 ParticleHandle,
                                 SpawnRequestComponent<ParticleHandle>
                             >().withActive()) {
-                                cmdBuffer.template add<SpawnCommand<ParticleHandle>>(
+                                cmdBuffer.add<SpawnCommand<ParticleHandle>>(
                                     entity.handle(),
                                     requestComponent->entityPoolKey,
                                     requestComponent->spawnPolicyKey,
@@ -334,9 +330,7 @@ int main() {
                                 entity.remove<SpawnRequestComponent<ParticleHandle>>();
                             }
 
-                            return true;
-
-                        }))
+                        })
                 .executeCommands<DefaultSpawnManager>()
                 .endPass()
 
@@ -381,12 +375,8 @@ int main() {
                     .addSystem<GLFWWindowCloseSystem<WindowHandle>>()
                     .addSystem<WindowBasedShutdownSystem<WindowHandle>>()
                     .addSystem<ClearAllDirtySetsSystem>()
-                    .addSystem(Lambda<ParticleHandle, ReleaseEntityCommand<ParticleHandle>>(
-                        [&]<typename TUpdateContext, typename TCommandBuffer>
-                        requires helios::engine::runtime::concepts::ProvidesUpdateContext<TUpdateContext, UpdateContext> &&
-                                    helios::ecs::command::concepts::IsCommandBufferLike<TCommandBuffer>
-                        (TUpdateContext& updateCtx, TCommandBuffer& cmdBuffer) {
-                            UpdateContext& updateContext = updateCtx.updateContext();
+                    .addSystem([&](UpdateContext& updateContext,
+                        helios::ecs::command::TypedCommandBuffer<ReleaseEntityCommand<ParticleHandle>>& cmdBuffer) {
 
                             for (auto [entity, lcc, keyCmp] : updateContext.view<
                                 ParticleHandle,
@@ -402,13 +392,11 @@ int main() {
                                 }
                                 lcc->setValue(rem);
                             }
-
-                            return true;
-                    }))
+                    })
                     .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                     .addSystem<SwapBuffersSystem<WindowHandle>>()
                 .executeCommands<DefaultGLFWPlatformManager>()
-                .executeCommandsParallel<DefaultEntityPoolManager>()
+                .executeCommands<DefaultEntityPoolManager>()
                 .endPass()
 
                 .beginPass(EngineState::Shutdown)

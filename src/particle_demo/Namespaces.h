@@ -49,7 +49,7 @@ using namespace helios::engine::core::units;
 using namespace helios::engine::core::types;
 using namespace helios::engine::core;
 using namespace helios::core::thread;
-using namespace helios::core::container;
+using namespace helios::core::common::container;
 using namespace helios::engine::core::components;
 using namespace helios::engine::core::systems;
 using namespace helios::core::io;
@@ -63,7 +63,6 @@ using namespace helios::ecs::common::concepts;
 using namespace helios::ecs::common::types;
 using namespace helios::ecs::system;
 using namespace helios::ecs::system::types;
-using namespace helios::ecs::system::tags;
 using namespace helios::ecs::system::concepts;
 
 
