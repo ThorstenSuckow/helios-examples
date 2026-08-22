@@ -15,7 +15,7 @@ export module helios.engine.bootstrap;
 
 import helios.ecs;
 import helios.core.thread;
-import helios.core.container;
+import helios.core.common.container;
 
 import helios.core.io;
 
@@ -68,11 +68,11 @@ export namespace helios::engine::bootstrap {
     using ManagerExecutionContext = helios::engine::runtime::world::types::ManagerExecutionContext;
 
     using DefaultEntityPoolRegistry = runtime::pooling::TypedEntityPoolRegistry<
-        helios::core::container::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
+        helios::core::common::container::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
     >;
 
     using DefaultSpawnPolicyRegistry = gameplay::spawning::TypedSpawnPolicyRegistry<
-        helios::core::container::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
+        helios::core::common::container::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
     >;
 
 
@@ -113,7 +113,7 @@ export namespace helios::engine::bootstrap {
     class DefaultContextProvider {
         GameWorld& gameWorld_;
 
-        helios::core::container::TypeMap<ecs::common::types::ContextTypeId::DomainType> typeMap_;
+        helios::core::common::container::TypeMap<ecs::common::types::ContextTypeId::DomainType> typeMap_;
 
         [[nodiscard]] ecs::common::types::ContextRef getImpl(const ecs::common::types::ContextTypeId typeId, UpdateContext* updateContext) {
             const auto idx = typeId.value();
@@ -213,9 +213,9 @@ export namespace helios::engine::bootstrap {
         gameWorld.template registerManager<DefaultGameObjectMutationManager>(jobSystem);
         gameWorld.template registerManager<DefaultParticleMutationManager>(jobSystem);
 
-        auto& renderBackend = gameWorld.addResource<helios::opengl::OpenGLBackend>(gameWorld.ecsWorld());
-        auto& spawnPolicy = gameWorld.addResource<DefaultSpawnPolicyRegistry>();
-        auto& entityPoolRegistry = gameWorld.addResource<DefaultEntityPoolRegistry>();
+        auto& renderBackend = gameWorld.emplaceResource<helios::opengl::OpenGLBackend>(gameWorld.ecsWorld());
+        auto& spawnPolicy = gameWorld.emplaceResource<DefaultSpawnPolicyRegistry>();
+        auto& entityPoolRegistry = gameWorld.emplaceResource<DefaultEntityPoolRegistry>();
 
         gameWorld.registerManager<DefaultEntityPoolManager>(entityPoolRegistry, gameWorld.ecsWorld(), jobSystem);
         gameWorld.registerManager<DefaultSpawnManager>(spawnPolicy, entityPoolRegistry);
