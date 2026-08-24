@@ -21,9 +21,6 @@ import helios.core.io;
 
 import helios.engine.runtime;
 import helios.engine.runtime.world.UpdateContext;
-import helios.engine.runtime.world.ContextProvider;
-
-import helios.engine.runtime.world.types.Contexts;
 
 import helios.engine.runtime.messaging;
 
@@ -62,10 +59,6 @@ using namespace helios::engine::runtime::pooling::types;
 
 export namespace helios::engine::bootstrap {
 
-
-    using CommandBufferFlushContext = helios::engine::runtime::world::types::CommandBufferFlushContext;
-    using DefaultInitContext = helios::engine::runtime::world::types::DefaultInitContext;
-    using ManagerExecutionContext = helios::engine::runtime::world::types::ManagerExecutionContext;
 
     using DefaultEntityPoolRegistry = runtime::pooling::TypedEntityPoolRegistry<
         helios::core::common::container::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
