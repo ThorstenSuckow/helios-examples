@@ -105,9 +105,8 @@ int main() {
 
     // gameworld
     auto engineRuntime = bootstrapGameWorld(jobSystem);
-    //auto& [gameWorld, contextProvider, gameLoop] = bootstrapGameWorld(jobSystem);
+
     auto& gameWorld = engineRuntime.gameWorld;
-    auto& contextProvider = engineRuntime.contextProvider;
     auto& gameLoop = engineRuntime.gameLoop;
 
     // ========================================
@@ -404,7 +403,7 @@ int main() {
                 .endPass()
             ;
 
-    gameWorld.init(contextProvider);
+    gameWorld.init();
     gameLoop.init();
 
 
