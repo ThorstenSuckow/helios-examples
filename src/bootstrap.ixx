@@ -76,23 +76,31 @@ export namespace helios::engine::bootstrap {
     >;
 
 
-    auto EngineEcsWorld = helios::ecs::EcsWorld::make<
+    template<typename ... THandles>
+    struct WorldFactory {
+        static EcsWorld makeEcsWorld() {
+            return helios::ecs::EcsWorld::make<THandles...>();
+        }
+
+        static void updateResourceRegistry(GameWorld& gameWorld) {
+            (gameWorld.resourceRegistry().bind(gameWorld.template entityManager<THandles>()), ... );
+        }
+    };
+
+    using EngineWorldFactory = WorldFactory<
         GameObjectHandle,
         ParticleHandle,
-
         scene::types::SceneHandle,
         rendering::renderTarget::types::RenderTargetHandle,
         scene::types::CameraHandle,
         rendering::viewport::types::ViewportHandle,
-
         rendering::texture::types::TextureHandle,
         rendering::shader::types::ShaderHandle,
         rendering::material::types::MaterialHandle,
         rendering::mesh::types::MeshHandle,
-
         WindowHandle,
         platform::environment::types::PlatformHandle
-    >();
+    >;
 
 
 
@@ -110,85 +118,14 @@ export namespace helios::engine::bootstrap {
     using DefaultShaderCompileManager = helios::opengl::OpenGLShaderCompileManager<helios::opengl::OpenGLUniformLocationCacheStrategy<>>;
 
 
-    class DefaultContextProvider {
-        GameWorld& gameWorld_;
-
-        helios::core::common::container::TypeMap<ecs::common::types::ContextTypeId::DomainType> typeMap_;
-
-        [[nodiscard]] ecs::common::types::ContextRef getImpl(const ecs::common::types::ContextTypeId typeId, UpdateContext* updateContext) {
-            const auto idx = typeId.value();
-
-            if (typeId == ecs::common::types::ContextTypeId::template id<common::types::NullFlushContext>()) {
-                return common::types::ContextRef{typeMap_.getOrEmplace<common::types::NullFlushContext>()};
-            }
-            if (typeId == ecs::common::types::ContextTypeId::template id<common::types::NullInitContext>()) {
-                return common::types::ContextRef{typeMap_.getOrEmplace<common::types::NullInitContext>()};
-            }
-
-            if (typeId == ecs::common::types::ContextTypeId::template id<CommandBufferFlushContext>()) {
-                return common::types::ContextRef{typeMap_.getOrEmplace<CommandBufferFlushContext>(
-                    gameWorld_.commandHandlerRegistry(),
-                    gameWorld_.managerRegistry()
-                )};
-            }
-
-
-            if (!updateContext) {
-                if (typeId == ecs::common::types::ContextTypeId::template id<DefaultInitContext>()) {
-                    return common::types::ContextRef{typeMap_.getOrEmplace<DefaultInitContext>(
-                        gameWorld_.commandHandlerRegistry()
-                    )};
-                }
-            } else {
-                if (typeId == ecs::common::types::ContextTypeId::template id<ManagerExecutionContext>()) {
-                    return common::types::ContextRef{typeMap_.getOrEmplace<ManagerExecutionContext>(
-                        *updateContext,
-                       gameWorld_.ecsWorld()
-                    )};
-                }
-                if (typeId == ecs::common::types::ContextTypeId::template id<SystemUpdateContext>()) {
-                    return common::types::ContextRef{typeMap_.getOrEmplace<SystemUpdateContext>(
-                        *updateContext
-                    )};
-                }
-            }
-            #if !NDEBUG
-            std::cerr << "Requested context type not supported: " << typeid(ecs::common::types::ContextTypeId::DomainType).name() << '\n';
-            assert(false && "Requested context type is not supported by DefaultContextProvider.");
-            #endif
-            std::unreachable();
-        }
-
-
-    public:
-        explicit DefaultContextProvider(GameWorld& gameWorld): gameWorld_(gameWorld) {}
-
-
-        [[nodiscard]] ecs::common::types::ContextRef get(const ecs::common::types::ContextTypeId typeId) {
-            return getImpl(typeId, nullptr);
-        }
-
-        [[nodiscard]] ecs::common::types::ContextRef get(const ecs::common::types::ContextTypeId typeId, UpdateContext& updateContext) {
-            return getImpl(typeId, &updateContext);
-        }
-
-        bool clear() {
-            typeMap_.clear();
-            return true;
-        }
-    };
-
     struct EngineRuntime {
         GameWorld gameWorld;
-        ContextProvider contextProvider;
         GameLoop gameLoop;
 
         explicit EngineRuntime(GameWorld&& world):
             gameWorld{std::move(world)},
-            contextProvider{ContextProvider(DefaultContextProvider(gameWorld))},
-            gameLoop{gameWorld, contextProvider}
-        {
-        }
+            gameLoop{gameWorld}
+        {}
     };
 
     /**
@@ -201,11 +138,14 @@ export namespace helios::engine::bootstrap {
         const size_t capacity = 1000
     ) {
 
+
         auto engineRuntime = EngineRuntime(
-            GameWorld{std::move(EngineEcsWorld), jobSystem}
+            GameWorld{EngineWorldFactory::makeEcsWorld(), jobSystem}
         );
 
         auto& gameWorld = engineRuntime.gameWorld;
+
+        EngineWorldFactory::updateResourceRegistry(gameWorld);
 
         gameWorld.registerManager<DefaultEngineStateManager>(
             helios::engine::runtime::enginestate::rules::DefaultEngineStateTransitionRules::rules());
