@@ -28,6 +28,8 @@ struct RadialSpawnPolicy {
     using SpawnHandle_type = TSpawnHandle;
 
     using SpawnContext = SpawnContext<TEmitterHandle, TSpawnHandle>;
+    using SpawnEntityType = Entity<EntityManager<TSpawnHandle>>;
+    using EntityPool = helios::engine::runtime::pooling::EntityPool<TSpawnHandle>;
 
     std::size_t spawnCount(UpdateContext& updateContext, const SpawnContext& spawnContext) {
 
@@ -38,27 +40,26 @@ struct RadialSpawnPolicy {
         return 0;
     }
 
-    std::size_t spawn(UpdateContext& updateContext, const SpawnContext& spawnContext, std::span<const TSpawnHandle> spawnHandles) {
+    bool onBeforeSpawn(EntityPool& pool, SpawnEntityType& entity) {
+        entity.resetTo(pool.prefab());
+        return true;
+    }
 
-        auto frac = helios::math::radians(360.0f / spawnHandles.size());
-       // assert(false && "use EntityAccessor");
+    std::size_t spawn(UpdateContext& updateContext, const SpawnContext& spawnContext, std::span<SpawnEntityType> spawnEntities) {
+
+        auto frac = helios::math::radians(360.0f / spawnEntities.size());
+
         float i = 0.0f;
         float spread = 4.0f;
-        for (auto& handle : spawnHandles) {
-
-            auto entity = updateContext.find<TSpawnHandle>(handle);
-            if (!entity) {
-                continue;
-            }
-
-            auto* cmp = entity->template get<Velocity3DComponent<TSpawnHandle, Local>>();
+        for (auto& entity : spawnEntities) {
+            auto* cmp = entity.template get<Velocity3DComponent<TSpawnHandle, Local>>();
             auto veloc = helios::math::vec3f{std::cos(frac * i) * spread, std::sin(frac * i) * spread, 0.0f}.normalize();
             cmp->setValue(veloc);
-            entity->setActive(true);
+            entity.setActive(true);
             ++i;
         }
 
-        return spawnHandles.size();
+        return spawnEntities.size();
     }
 
     bool update(UpdateContext& updateContext, SpawnContext& spawnContext) {
@@ -301,6 +302,7 @@ int main() {
             // intentionally left empty
             gameLoop.phase(PhaseType::Main)
                 .beginPass(EngineState::Running)
+
                 .addSystem([&](UpdateContext& updateContext,
                     helios::ecs::command::TypedCommandBuffer<SpawnCommand<ParticleHandle>>& cmdBuffer) {
 
