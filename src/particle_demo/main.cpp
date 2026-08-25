@@ -68,18 +68,6 @@ struct RadialSpawnPolicy {
 
 };
 
-template<typename THandle>
-class DemoPoolPolicy {
-
-    void onAcquire(UpdateContext& updateContext, std::span<THandle> handles) {
-
-    }
-
-    void onRelease(UpdateContext& updateContext, std::span<THandle> handles) {
-
-    }
-
-};
 
 
 int main() {
@@ -106,8 +94,8 @@ int main() {
     // gameworld
     auto engineRuntime = bootstrapGameWorld(jobSystem);
 
-    auto& gameWorld = engineRuntime.gameWorld;
-    auto& gameLoop = engineRuntime.gameLoop;
+    auto& gameWorld = engineRuntime->gameWorld;
+    auto& gameLoop = engineRuntime->gameLoop;
 
     // ========================================
     // Window Setup
@@ -211,16 +199,12 @@ int main() {
     // ========================================
     // Entity Setup
     // ========================================
-    auto DEMO_ENTITY_POOL_KEY = gameWorld.resource<DefaultEntityPoolRegistry>().createPool(EntityPoolId<ParticleHandle>{"DemoPool"});
-    auto DEMO_SPAWN_POLICY_KEY = gameWorld.resource<DefaultSpawnPolicyRegistry>().createPolicy<RadialSpawnPolicy<ParticleHandle>>(
-        SpawnPolicyId<ParticleHandle>{"DemoSpawnPolicy"}
-    );
+    auto* demoPoolSlot = gameWorld.resource<DefaultEntityPoolRegistry>().createPool(EntityPoolId<ParticleHandle>{"DemoPool"});
+    auto& demoPool = demoPoolSlot->pool();
 
-    auto ParticlePrefab = gameWorld.add<ParticleHandle>(true);
+    auto ParticlePrefab = demoPool.prefabEditor();
     ParticlePrefab.add<SceneMemberComponent<ParticleHandle>>(MainScene);
-    ParticlePrefab.add<PrefabEntityPoolRequestComponent<ParticleHandle>>(10);
-    ParticlePrefab.add<EntityPoolKeyComponent<ParticleHandle>>(DEMO_ENTITY_POOL_KEY);
-
+    ParticlePrefab.add<EntityPoolKeyComponent<ParticleHandle>>(demoPoolSlot->key());
     ParticlePrefab.trackDirty<BoundsComponent<ParticleHandle, Local>>(Rect::boundsData());
     ParticlePrefab.trackDirty<BoundsComponent<ParticleHandle, World>>();
     ParticlePrefab.trackDirty<Velocity3DComponent<ParticleHandle, Local>>();
@@ -229,15 +213,20 @@ int main() {
     ParticlePrefab.trackDirty<Position3DComponent<ParticleHandle, Local>>(1.0f, 0.0f, 0.0f);
     ParticlePrefab.trackDirty<Position3DComponent<ParticleHandle, World>>(0.0f, 0.0f, 0.0f);
     ParticlePrefab.trackDirty<TransformComponent<ParticleHandle, World>>(1.0f);
-
     ParticlePrefab.add<RenderPrototypeComponent<ParticleHandle, Instanced>>(
         ParticleShader.handle(), ParticleMaterial.handle(), ParticleMesh.handle(), ParticleTexture.handle()
     );
+    auto prefabRequestCmp = gameWorld.add<ParticleHandle>();
+    prefabRequestCmp.add<PrefabEntityPoolRequestComponent<ParticleHandle>>(10);
+    prefabRequestCmp.add<EntityPoolKeyComponent<ParticleHandle>>(demoPoolSlot->key());
 
+    auto DEMO_SPAWN_POLICY_KEY = gameWorld.resource<DefaultSpawnPolicyRegistry>().createPolicy<RadialSpawnPolicy<ParticleHandle>>(
+        SpawnPolicyId<ParticleHandle>{"DemoSpawnPolicy"}
+    );
 
     auto ParticleEmitter = gameWorld.add<ParticleHandle>(true);
     ParticleEmitter.add<Position3DComponent<ParticleHandle, Local>>(0.0f, 0.0f, 0.0f);
-    ParticleEmitter.add<SpawnRequestComponent<ParticleHandle>>(DEMO_ENTITY_POOL_KEY, DEMO_SPAWN_POLICY_KEY, 10);
+    ParticleEmitter.add<SpawnRequestComponent<ParticleHandle>>(demoPoolSlot->key(), DEMO_SPAWN_POLICY_KEY, 10);
     ParticleEmitter.add<SceneMemberComponent<ParticleHandle>>(MainScene);
 
     // ----------------------------------------
