@@ -115,8 +115,14 @@ export namespace helios::engine::bootstrap {
         GameWorld gameWorld;
         GameLoop gameLoop;
 
-        explicit EngineRuntime(GameWorld&& world):
-            gameWorld{std::move(world)},
+        EngineRuntime(const EngineRuntime&) = delete;
+        EngineRuntime& operator=(const EngineRuntime&) = delete;
+        EngineRuntime(EngineRuntime&&) = delete;
+        EngineRuntime& operator=(EngineRuntime&&) = delete;
+
+
+        explicit EngineRuntime(EcsWorld&& ecsWorld, JobSystem& jobSystem):
+            gameWorld{std::move(ecsWorld), jobSystem},
             gameLoop{gameWorld}
         {}
     };
@@ -126,17 +132,17 @@ export namespace helios::engine::bootstrap {
      *
      * @return A EngineRuntime object.
      */
-    [[nodiscard]] EngineRuntime bootstrapGameWorld(
+    [[nodiscard]] std::unique_ptr<EngineRuntime> bootstrapGameWorld(
         JobSystem& jobSystem,
         const size_t capacity = 1000
     ) {
 
 
-        auto engineRuntime = EngineRuntime(
-            GameWorld{EngineWorldFactory::makeEcsWorld(), jobSystem}
+        auto engineRuntime = std::make_unique<EngineRuntime>(
+            EngineWorldFactory::makeEcsWorld(), jobSystem
         );
 
-        auto& gameWorld = engineRuntime.gameWorld;
+        auto& gameWorld = engineRuntime->gameWorld;
 
         EngineWorldFactory::updateResourceRegistry(gameWorld);
 
