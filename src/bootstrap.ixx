@@ -60,15 +60,6 @@ using namespace helios::engine::runtime::pooling::types;
 export namespace helios::engine::bootstrap {
 
 
-    using DefaultEntityPoolRegistry = runtime::pooling::TypedEntityPoolRegistry<
-        helios::core::common::container::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
-    >;
-
-    using DefaultSpawnPolicyRegistry = gameplay::spawning::TypedSpawnPolicyRegistry<
-        helios::core::common::container::strategies::HashedLookupStrategy, GameObjectHandle, ParticleHandle
-    >;
-
-
     template<typename ... THandles>
     struct WorldFactory {
         static EcsWorld makeEcsWorld() {
@@ -101,10 +92,8 @@ export namespace helios::engine::bootstrap {
     using DefaultTimerManager = helios::engine::runtime::timing::TimerManager;
     using DefaultGLFWPlatformManager = helios::glfw::GLFWPlatformManager<
         helios::opengl::OpenGLBackend, WindowHandle>;
-    using DefaultEntityPoolManager = runtime::pooling::EntityPoolManager<DefaultEntityPoolRegistry>;
     using DefaultGameObjectMutationManager = helios::ecs::manager::EntityMutationManager<GameObjectHandle>;
     using DefaultParticleMutationManager = helios::ecs::manager::EntityMutationManager<ParticleHandle>;
-    using DefaultSpawnManager = SpawnManager<DefaultSpawnPolicyRegistry, DefaultEntityPoolRegistry>;
     using DefaultRenderManager = helios::engine::rendering::RenderManager<helios::opengl::OpenGLBackend, ParticleHandle>;
     using DefaultTextureUploadManager = helios::opengl::OpenGLTextureUploadManager<>;
     using DefaultMeshUploadManager = helios::opengl::OpenGLMeshUploadManager<>;
@@ -153,12 +142,9 @@ export namespace helios::engine::bootstrap {
         gameWorld.template registerManager<DefaultParticleMutationManager>(jobSystem);
 
         auto& renderBackend = gameWorld.emplaceResource<helios::opengl::OpenGLBackend>(gameWorld.ecsWorld());
-        auto& spawnPolicy = gameWorld.emplaceResource<DefaultSpawnPolicyRegistry>();
-        auto& entityPoolRegistry = gameWorld.emplaceResource<DefaultEntityPoolRegistry>();
+        std::ignore = gameWorld.emplaceResource<SpawnPolicyRegistry>();
 
-        gameWorld.registerManager<DefaultEntityPoolManager>(entityPoolRegistry, gameWorld.ecsWorld(), jobSystem);
-        gameWorld.registerManager<DefaultSpawnManager>(spawnPolicy, entityPoolRegistry);
-        gameWorld.registerManager<DefaultGLFWPlatformManager>(renderBackend, gameWorld.ecsWorld());
+           gameWorld.registerManager<DefaultGLFWPlatformManager>(renderBackend, gameWorld.ecsWorld());
         gameWorld.registerManager<DefaultRenderManager>(renderBackend);
 
         gameWorld.registerManager<DefaultTextureUploadManager>(gameWorld.ecsWorld(), helios::core::io::ImageReader{});
