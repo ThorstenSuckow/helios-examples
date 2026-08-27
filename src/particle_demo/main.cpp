@@ -24,14 +24,14 @@ import helios.engine.bootstrap;
 template<typename TEmitterHandle, typename TSpawnHandle = TEmitterHandle>
 struct RadialSpawnPolicy {
 
-    using EmitterHandle_type = TEmitterHandle;
-    using SpawnHandle_type = TSpawnHandle;
+    using EmitterHandleType = TEmitterHandle;
+    using SpawnHandleType = TSpawnHandle;
 
-    using SpawnContext = SpawnContext<TEmitterHandle, TSpawnHandle>;
+    using SpawnContext = TypedSpawnContext<TEmitterHandle, TSpawnHandle>;
     using SpawnEntityType = Entity<EntityManager<TSpawnHandle>>;
-    using EntityPool = helios::engine::runtime::pooling::EntityPool<TSpawnHandle>;
+    using EntityPool = helios::engine::runtime::pooling::EntityPool;
 
-    std::size_t spawnCount(UpdateContext& updateContext, const SpawnContext& spawnContext) {
+    std::size_t spawnCount(UpdateContext& updateContext, const SpawnContext& spawnContext) noexcept {
 
         if (spawnContext.poolSnapshot.inactiveCount >= spawnContext.requiredAmount) {
             return spawnContext.requiredAmount;
@@ -40,12 +40,12 @@ struct RadialSpawnPolicy {
         return 0;
     }
 
-    bool onBeforeSpawn(EntityPool& pool, SpawnEntityType& entity) {
-        entity.resetTo(pool.prefab());
+    bool onBeforeSpawn(EntityPool& pool, SpawnEntityType& entity) noexcept {
+        entity.resetTo(pool.prefab<SpawnHandleType>());
         return true;
     }
 
-    std::size_t spawn(UpdateContext& updateContext, const SpawnContext& spawnContext, std::span<SpawnEntityType> spawnEntities) {
+    std::size_t spawn(UpdateContext& updateContext, const SpawnContext& spawnContext, std::span<SpawnEntityType> spawnEntities) noexcept {
 
         auto frac = helios::math::radians(360.0f / spawnEntities.size());
 
@@ -54,7 +54,7 @@ struct RadialSpawnPolicy {
         for (auto& entity : spawnEntities) {
             auto* cmp = entity.template get<Velocity3DComponent<TSpawnHandle, Local>>();
             auto veloc = helios::math::vec3f{std::cos(frac * i) * spread, std::sin(frac * i) * spread, 0.0f}.normalize();
-            cmp->setValue(veloc);
+            cmp->setValue(veloc * 12.0f);
             entity.setActive(true);
             ++i;
         }
@@ -62,7 +62,7 @@ struct RadialSpawnPolicy {
         return spawnEntities.size();
     }
 
-    bool update(UpdateContext& updateContext, SpawnContext& spawnContext) {
+    bool update(UpdateContext& updateContext, SpawnContext& spawnContext) noexcept {
         return true;
     }
 
@@ -191,7 +191,12 @@ int main() {
         VertexAttributeLayout{
             VertexAttribute{VertexAttributeSemantics::InstancedModelMatrix,  VertexAttributeType::Mat4f},
             4, sizeof(InstanceData), offsetof(InstanceData, modelMatrix), 1
+        },
+        VertexAttributeLayout{
+            VertexAttribute{VertexAttributeSemantics::InstancedNormalizedAge,  VertexAttributeType::Float},
+            8, sizeof(InstanceData), offsetof(InstanceData, normalizedAge), 1
     });
+
 
     auto ParticleMaterial = gameWorld.add<MaterialHandle>();
     ParticleMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::Blue);
@@ -200,12 +205,12 @@ int main() {
     // ========================================
     // Entity Setup
     // ========================================
-    auto* demoPoolSlot = gameWorld.resource<DefaultEntityPoolRegistry>().createPool(EntityPoolId<ParticleHandle>{"DemoPool"});
-    auto& demoPool = demoPoolSlot->pool();
+    auto demoPoolKey = gameWorld.resource<EntityPoolRegistry>().add(EntityPool::make<ParticleHandle>());
+    auto& demoPool = *gameWorld.resource<EntityPoolRegistry>().item(demoPoolKey);
 
-    auto ParticlePrefab = demoPool.prefabEditor();
+    auto ParticlePrefab = demoPool.prefabEditor<ParticleHandle>();
     ParticlePrefab.add<SceneMemberComponent<ParticleHandle>>(MainScene);
-    ParticlePrefab.add<EntityPoolKeyComponent<ParticleHandle>>(demoPoolSlot->key());
+    ParticlePrefab.add<EntityPoolKeyComponent<ParticleHandle>>(demoPoolKey);
     ParticlePrefab.trackDirty<BoundsComponent<ParticleHandle, Local>>(Rect::boundsData());
     ParticlePrefab.trackDirty<BoundsComponent<ParticleHandle, World>>();
     ParticlePrefab.trackDirty<Velocity3DComponent<ParticleHandle, Local>>();
@@ -219,15 +224,13 @@ int main() {
     );
     auto prefabRequestCmp = gameWorld.add<ParticleHandle>();
     prefabRequestCmp.add<PrefabEntityPoolRequestComponent<ParticleHandle>>(10);
-    prefabRequestCmp.add<EntityPoolKeyComponent<ParticleHandle>>(demoPoolSlot->key());
+    prefabRequestCmp.add<EntityPoolKeyComponent<ParticleHandle>>(demoPoolKey);
 
-    auto DEMO_SPAWN_POLICY_KEY = gameWorld.resource<DefaultSpawnPolicyRegistry>().createPolicy<RadialSpawnPolicy<ParticleHandle>>(
-        SpawnPolicyId<ParticleHandle>{"DemoSpawnPolicy"}
-    );
+    auto DEMO_SPAWN_POLICY_KEY = gameWorld.resource<SpawnPolicyRegistry>().add<RadialSpawnPolicy<ParticleHandle>>();
 
     auto ParticleEmitter = gameWorld.add<ParticleHandle>(true);
     ParticleEmitter.add<Position3DComponent<ParticleHandle, Local>>(0.0f, 0.0f, 0.0f);
-    ParticleEmitter.add<SpawnRequestComponent<ParticleHandle>>(demoPoolSlot->key(), DEMO_SPAWN_POLICY_KEY, 10);
+    ParticleEmitter.add<SpawnRequestComponent<ParticleHandle>>(demoPoolKey, DEMO_SPAWN_POLICY_KEY, 10);
     ParticleEmitter.add<SceneMemberComponent<ParticleHandle>>(MainScene);
 
     // ----------------------------------------
@@ -296,7 +299,7 @@ int main() {
                 DefaultShaderCompileManager,
                 DefaultEngineStateManager
             >()
-            .executeCommands<DefaultEntityPoolManager>()
+            .executeCommands<EntityPoolManager<ParticleHandle>>()
             .endPass();
 
             // intentionally left empty
@@ -321,7 +324,7 @@ int main() {
                             }
 
                         })
-                .executeCommands<DefaultSpawnManager>()
+                .executeCommands<SpawnManager<ParticleHandle>>()
                 .endPass()
 
                 .beginPass(EngineState::Running)
@@ -355,6 +358,20 @@ int main() {
                     // their active viewports
                     .addSystem<SceneMemberVisibilitySystem<ParticleHandle, Instanced, AABBCullingStrategy<ParticleHandle>>>
                         (AABBCullingStrategy<ParticleHandle>())
+                    .addSystem([&](
+                        EntityManager<ParticleHandle>& entityManager,
+                        SceneMemberVisibilityRegistry<ParticleHandle, Instanced>& visibilityRegistry) {
+
+                        auto* lifetimeSparseSet = entityManager.sparseSet<LifetimeComponent<ParticleHandle>>();
+                        visibilityRegistry.forEachVisibleMember(
+                            [&lifetimeSparseSet = *lifetimeSparseSet](auto& visibleContext) {
+                                if (auto* cmp = lifetimeSparseSet.get(visibleContext.memberHandle.entityId())) {
+                                    visibleContext.normalizedAge = cmp->value() / cmp->lifetime();
+                                }
+                            });
+
+
+                    })
                     .addSystem<SceneRenderSystem<ParticleHandle, Instanced>>()
 
                 .executeCommands<DefaultRenderManager>()
@@ -372,21 +389,23 @@ int main() {
                                 ParticleHandle,
                                 LifetimeComponent<ParticleHandle>,
                                 EntityPoolKeyComponent<ParticleHandle>>().withActive()) {
-                                float rem = lcc->value() - updateContext.deltaTime();
 
-                                if (rem <= 0) {
+                                lcc->tick(updateContext.deltaTime());
+
+                                if (lcc->isExpired()) {
                                     cmdBuffer.template add<ReleaseEntityCommand<ParticleHandle>>(
                                         keyCmp->entityPoolKey,
                                         entity.handle()
                                     );
                                 }
-                                lcc->setValue(rem);
+
+
                             }
                     })
                     .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
                     .addSystem<SwapBuffersSystem<WindowHandle>>()
                 .executeCommands<DefaultGLFWPlatformManager>()
-                .executeCommands<DefaultEntityPoolManager>()
+                .executeCommands<EntityPoolManager<ParticleHandle>>()
                 .endPass()
 
                 .beginPass(EngineState::Shutdown)
