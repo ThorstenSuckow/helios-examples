@@ -71,6 +71,15 @@ export namespace helios::engine::bootstrap {
         }
     };
 
+    struct RenderHandleList {
+        using RenderTargetHandleType = rendering::renderTarget::types::RenderTargetHandle;
+        using ViewportHandleType = rendering::viewport::types::ViewportHandle;
+        using TextureHandleType = rendering::texture::types::TextureHandle;
+        using ShaderHandleType = rendering::shader::types::ShaderHandle;
+        using MaterialHandleType = rendering::material::types::MaterialHandle;
+        using MeshHandleType = rendering::mesh::types::MeshHandle;
+    };
+
     using EngineWorldFactory = WorldFactory<
         GameObjectHandle,
         ParticleHandle,
@@ -90,11 +99,10 @@ export namespace helios::engine::bootstrap {
 
     using DefaultEngineStateManager = helios::engine::runtime::enginestate::EngineStateManager;
     using DefaultTimerManager = helios::engine::runtime::timing::TimerManager;
-    using DefaultGLFWPlatformManager = helios::glfw::GLFWPlatformManager<
-        helios::opengl::OpenGLBackend, WindowHandle>;
+    using DefaultGLFWPlatformManager = helios::glfw::GLFWPlatformManager<WindowHandle>;
     using DefaultGameObjectMutationManager = helios::ecs::manager::EntityMutationManager<GameObjectHandle>;
     using DefaultParticleMutationManager = helios::ecs::manager::EntityMutationManager<ParticleHandle>;
-    using DefaultRenderManager = helios::engine::rendering::RenderManager<helios::opengl::OpenGLBackend, ParticleHandle>;
+    using DefaultRenderManager = helios::engine::rendering::RenderManager<ParticleHandle>;
     using DefaultTextureUploadManager = helios::opengl::OpenGLTextureUploadManager<>;
     using DefaultMeshUploadManager = helios::opengl::OpenGLMeshUploadManager<>;
     using DefaultShaderCompileManager = helios::opengl::OpenGLShaderCompileManager<helios::opengl::OpenGLUniformLocationCacheStrategy<>>;
@@ -137,15 +145,16 @@ export namespace helios::engine::bootstrap {
 
         gameWorld.registerManager<DefaultEngineStateManager>(
             helios::engine::runtime::enginestate::rules::DefaultEngineStateTransitionRules::rules());
-        gameWorld.template registerManager<DefaultTimerManager>();
-        gameWorld.template registerManager<DefaultGameObjectMutationManager>(jobSystem);
-        gameWorld.template registerManager<DefaultParticleMutationManager>(jobSystem);
 
-        auto& renderBackend = gameWorld.emplaceResource<helios::opengl::OpenGLBackend>(gameWorld.ecsWorld());
-        std::ignore = gameWorld.emplaceResource<SpawnPolicyRegistry>();
+        gameWorld.emplaceResource<helios::engine::rendering::RenderDataResolver>(
+            helios::engine::rendering::RenderDataResolver{
+                helios::opengl::OpenGLRenderDataResolver<RenderHandleList>{}
+        });
+        gameWorld.emplaceResource<helios::engine::rendering::RenderBackend>(
+            helios::engine::rendering::RenderBackend{helios::opengl::OpenGLBackend{}}
+        );
 
-           gameWorld.registerManager<DefaultGLFWPlatformManager>(renderBackend, gameWorld.ecsWorld());
-        gameWorld.registerManager<DefaultRenderManager>(renderBackend);
+        gameWorld.emplaceResource<SpawnPolicyRegistry>();
 
         gameWorld.registerManager<DefaultTextureUploadManager>(gameWorld.ecsWorld(), helios::core::io::ImageReader{});
         gameWorld.registerManager<DefaultMeshUploadManager>(gameWorld.ecsWorld());
