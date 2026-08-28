@@ -105,7 +105,7 @@ export namespace helios::engine::bootstrap {
     using DefaultRenderManager = helios::engine::rendering::RenderManager<ParticleHandle>;
     using DefaultTextureUploadManager = helios::opengl::OpenGLTextureUploadManager<>;
     using DefaultMeshUploadManager = helios::opengl::OpenGLMeshUploadManager<>;
-    using DefaultShaderCompileManager = helios::opengl::OpenGLShaderCompileManager<helios::opengl::OpenGLUniformLocationCacheStrategy<>>;
+    using DefaultShaderCompileManager = helios::opengl::OpenGLShaderCompileManager<rendering::shader::types::ShaderHandle>;
 
 
     struct EngineRuntime {
@@ -156,14 +156,8 @@ export namespace helios::engine::bootstrap {
 
         gameWorld.emplaceResource<SpawnPolicyRegistry>();
 
-        gameWorld.registerManager<DefaultTextureUploadManager>(gameWorld.ecsWorld(), helios::core::io::ImageReader{});
-        gameWorld.registerManager<DefaultMeshUploadManager>(gameWorld.ecsWorld());
 
         gameWorld.session().template trackState<helios::engine::runtime::enginestate::types::EngineState>();
-
-        gameWorld.registerManager<DefaultShaderCompileManager>(
-            gameWorld.ecsWorld(), helios::opengl::OpenGLUniformLocationCacheStrategy<>()
-        );
 
         return engineRuntime;
     }
