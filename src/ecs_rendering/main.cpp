@@ -3,20 +3,25 @@
 #include <functional>
 #include <thread>
 
+import helios.core;
 import helios.ecs;
 import helios.engine;
 import helios.math;
 import helios.physics;
+import helios.gameplay;
 import helios.opengl;
 import helios.glfw;
 import helios.imgui;
 
 
-#include "Namespaces.h"
+import helios.engine.bootstrap;
+
+
+#include "../Namespaces.h"
 
 helios::math::vec3f randomVec3f(const std::uint32_t seed) {
 
-    auto rand = helios::engine::util::Random(seed);
+    auto rand = helios::core::common::Random(seed);
 
     return {
         rand.randomFloat(-1.0f, 1.0f),
@@ -27,7 +32,7 @@ helios::math::vec3f randomVec3f(const std::uint32_t seed) {
 
 
 int main() {
-    auto& logger = helios::engine::util::log::LogManager::loggerForScope("main");
+    auto& logger = helios::core::log::LogManager::loggerForScope("main");
 
     // ========================================
     // Constants
@@ -50,43 +55,17 @@ int main() {
 
     JobSystem jobSystem{std::max(1u, std::thread::hardware_concurrency() - 1)};
     // gameworld
-    auto [gameWorldPtr, gameLoopPtr] = bootstrapGameWorld(jobSystem);
-    auto& gameWorld = *gameWorldPtr;
-    auto& gameLoop = *gameLoopPtr;
+    auto engineRuntime = bootstrapGameWorld(jobSystem);
 
+    auto& gameWorld = engineRuntime->gameWorld;
+    auto& gameLoop = engineRuntime->gameLoop;
 
-    // Renderbackend
-    auto renderBackend = OpenGLBackend(gameWorld.engineWorld());
-
-    // register additional managers
-    gameWorld.registerManager<helios::engine::rendering::RenderManager<OpenGLBackend, GameObjectHandle>>(renderBackend);
-
-    gameWorld.registerManager<GLFWPlatformManager<
-        OpenGLBackend,
-        WindowHandle,
-        EngineCommandBuffer,
-        PlatformCommandBuffer>>(
-        renderBackend,
-        gameWorld.platformWorld(), gameWorld.resourceRegistry().commandBufferRegistry()
-    );
-
-    /**
-     * The SceneMemberVisibilityRegistry is required since differnet viewports show the same entity,
-     * whereas the visibility state of this entity differs per Viewport, but not globally.
-     */
-    SceneMemberVisibilityRegistry<GameObjectHandle, Instanced> sceneMemberInstancedRegistry{};
-
-    gameWorld.registerManager<OpenGLMeshUploadManager<MeshHandle>>(gameWorld.renderResourceWorld());
-    gameWorld.registerManager<OpenGLShaderCompileManager<ShaderHandle, OpenGLUniformLocationCacheStrategy<ShaderHandle>>>(
-        gameWorld.renderResourceWorld(),
-        OpenGLUniformLocationCacheStrategy<ShaderHandle>()
-    );
 
 
     // ========================================
     // Window Setup
     // ========================================
-    auto MainWindow = gameWorld.add<WindowHandle>(WindowId("MainWindow"));
+    auto MainWindow = gameWorld.add<WindowHandle>();
     MainWindow.add<WindowCreateRequestComponent<WindowHandle>>(WindowConfig{
         "helios - ECS Rendering Demo",
         {SCREEN_WIDTH, SCREEN_HEIGHT},
@@ -100,36 +79,36 @@ int main() {
     // Scene and Viewport Setup
     // ========================================
 
-    auto MainRenderTarget = gameWorld.add<RenderTargetHandle>(RenderTargetId{"MainRenderTarget"});
+    auto MainRenderTarget = gameWorld.add<RenderTargetHandle>();
     MainRenderTarget.add<OpenGLRenderTargetIdComponent<RenderTargetHandle>>(0);
     MainRenderTarget.trackDirty<Size2DComponent<RenderTargetHandle>>();
     MainRenderTarget.add<ClearComponent<RenderTargetHandle>>(ClearFlags::Color);
     MainRenderTarget.add<ColorComponent<RenderTargetHandle>>(helios::engine::util::Colors::Black);
 
-    auto CullingViewport = gameWorld.add<ViewportHandle>(ViewportId{"CullingViewport"});
+    auto CullingViewport = gameWorld.add<ViewportHandle>();
     CullingViewport.add<DebugNameComponent<ViewportHandle>>("CullingViewport");
     CullingViewport.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
     CullingViewport.add<ColorComponent<ViewportHandle>>(helios::engine::util::Colors::LightGray);
     // RenderTarget : Viewport (1:N)
-    CullingViewport.add<RenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
+    CullingViewport.add<DefaultRenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
     CullingViewport.add<RectComponent<ViewportHandle>>(helios::math::vec4f{0.0f, .5f, 1.0f, 0.5f});
 
-    auto CullingViewport_bottom = gameWorld.add<ViewportHandle>(ViewportId{"CullingViewport_bottom"});
+    auto CullingViewport_bottom = gameWorld.add<ViewportHandle>();
     CullingViewport_bottom.add<DebugNameComponent<ViewportHandle>>("CullingViewport_bottom");
     CullingViewport_bottom.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
     CullingViewport_bottom.add<ColorComponent<ViewportHandle>>(helios::engine::util::Colors::Gray);
     // RenderTarget : Viewport (1:N)
-    CullingViewport_bottom.add<RenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
+    CullingViewport_bottom.add<DefaultRenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
     CullingViewport_bottom.add<RectComponent<ViewportHandle>>(helios::math::vec4f{0.0f, .0f, 1.0f, 0.5f});
 
-    auto MainScene = gameWorld.add<SceneHandle>(SceneId("MainScene"));
-    MainWindow.add<RenderTargetBindingComponent<WindowHandle>>(MainRenderTarget);
+    auto MainScene = gameWorld.add<SceneHandle>();
+    MainWindow.add<DefaultRenderTargetBindingComponent<WindowHandle>>(MainRenderTarget);
 
     // Viewport : Scene (N:1)
-    CullingViewport.add<SceneBindingComponent<ViewportHandle>>(MainScene);
-    CullingViewport_bottom.add<SceneBindingComponent<ViewportHandle>>(MainScene);
+    CullingViewport.add<DefaultSceneBindingComponent<ViewportHandle>>(MainScene);
+    CullingViewport_bottom.add<DefaultSceneBindingComponent<ViewportHandle>>(MainScene);
 
-    auto CullingCamera = gameWorld.add<CameraHandle>(CameraId("CullingCamera"));
+    auto CullingCamera = gameWorld.add<CameraHandle>();
     CullingCamera.add<DebugNameComponent<CameraHandle>>("CullingCamera");
     CullingCamera.trackDirty<PerspectiveCameraComponent<CameraHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
     CullingCamera.trackDirty<ProjectionMatrixComponent<CameraHandle>>();
@@ -138,14 +117,14 @@ int main() {
     CullingCamera.trackDirty<Rotation3DComponent<CameraHandle, Local>>();
     CullingCamera.trackDirty<TransformComponent<CameraHandle, World>>(1.0f);
     CullingCamera.trackDirty<Position3DComponent<CameraHandle, Local>>(0.0f, 0.0f, -50.0f);
-    CullingCamera.add<SceneMemberComponent<CameraHandle>>(MainScene);
+    CullingCamera.add<DefaultSceneMemberComponent<CameraHandle>>(MainScene);
     // later on: rebuildHandleMultiMapFromSceneMembership(). SSoT w/ components, but systems get the
     // multimaps for faster access / querying?
     // or the view gets extended internally that it can fall back to a multimap, e.g. filter<> instead of view<>
     // or some other adequate semantic name
-    CullingViewport.add<CameraBindingComponent<ViewportHandle>>(CullingCamera);
+    CullingViewport.add<DefaultCameraBindingComponent<ViewportHandle>>(CullingCamera);
 
-    auto CullingCamera_bottom = gameWorld.add<CameraHandle>(CameraId("CullingCamera_bottom"));
+    auto CullingCamera_bottom = gameWorld.add<CameraHandle>();
     CullingCamera_bottom.add<DebugNameComponent<CameraHandle>>("CullingCamera_bottom");
     CullingCamera_bottom.trackDirty<PerspectiveCameraComponent<CameraHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM));
     CullingCamera_bottom.trackDirty<ProjectionMatrixComponent<CameraHandle>>();
@@ -154,8 +133,8 @@ int main() {
     CullingCamera_bottom.trackDirty<Rotation3DComponent<CameraHandle, Local>>();
     CullingCamera_bottom.trackDirty<Position3DComponent<CameraHandle, Local>>(0.0f, 0.0f, -110.0f);
     CullingCamera_bottom.trackDirty<TransformComponent<CameraHandle, World>>(1.0f);
-    CullingCamera_bottom.add<SceneMemberComponent<CameraHandle>>(MainScene);
-    CullingViewport_bottom.add<CameraBindingComponent<ViewportHandle>>(CullingCamera_bottom);
+    CullingCamera_bottom.add<DefaultSceneMemberComponent<CameraHandle>>(MainScene);
+    CullingViewport_bottom.add<DefaultCameraBindingComponent<ViewportHandle>>(CullingCamera_bottom);
 
 
     // ========================================
@@ -163,7 +142,7 @@ int main() {
     // ========================================
 
     // shader, mesh, material for cube
-    auto CubeShader = gameWorld.add<ShaderHandle>(ShaderId("CubeShader"));
+    auto CubeShader = gameWorld.add<ShaderHandle>();
     CubeShader.add<ShaderSourceComponent<ShaderHandle>>("./resources/cube.vert", "./resources/cube.frag");
     CubeShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Pass>>(
         UniformMapping{UniformSemantics::ProjectionMatrix, "projectionMatrix"},
@@ -176,7 +155,7 @@ int main() {
         UniformMapping{UniformSemantics::ModelMatrix, "modelMatrix"}
     );
 
-    auto CubeMesh = gameWorld.add<MeshHandle>(MeshId("CubeMesh"));
+    auto CubeMesh = gameWorld.add<MeshHandle>();
     CubeMesh.add<MeshDataComponent<MeshHandle>>(Triangle::meshData());
     CubeMesh.add<MeshUploadRequestComponent<MeshHandle>>();
     CubeMesh.add<VertexAttributeLayoutComponent<MeshHandle, PerVertex>>(
@@ -191,10 +170,10 @@ int main() {
         4, sizeof(InstanceData), offsetof(InstanceData, modelMatrix),1}
     );
 
-    auto CubeMaterial = gameWorld.add<MaterialHandle>(MaterialId("CubeMaterial"));
+    auto CubeMaterial = gameWorld.add<MaterialHandle>();
     CubeMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::Red);
 
-    auto CubeMaterialOverride = gameWorld.add<MaterialHandle>(MaterialId("CubeMaterialOverride"));
+    auto CubeMaterialOverride = gameWorld.add<MaterialHandle>();
     CubeMaterialOverride.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::White);
 
     // ========================================
@@ -204,7 +183,7 @@ int main() {
     for (int x = -OBJECT_COUNT/2; x < OBJECT_COUNT/2; x+=OBJECT_DISTANCE) {
         for (int y = -OBJECT_COUNT/2; y < OBJECT_COUNT/2 ; y+=OBJECT_DISTANCE) {
             auto cube = gameWorld.add<GameObjectHandle>();
-            cube.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
+            cube.add<DefaultSceneMemberComponent<GameObjectHandle>>(MainScene);
             cube.trackDirty<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
             cube.trackDirty<BoundsComponent<GameObjectHandle, World>>();
             cube.trackDirty<Rotation3DComponent<GameObjectHandle, Local>>();
@@ -219,28 +198,17 @@ int main() {
             >();
 
             cube.trackDirty<TransformComponent<GameObjectHandle, World>>(1.0f);
-            cube.add<RenderPrototypeComponent<GameObjectHandle, Instanced>>(
+            cube.add<DefaultRenderPrototypeComponent<GameObjectHandle, Instanced>>(
                 CubeShader.handle(), CubeMaterial.handle(), CubeMesh.handle()
             );
         }
     }
 
 
-
-    // ==============================================
-    // Map Scenes to Viewports, Cameras with Viewports.
-    // ==============================================
-    //auto mainViewportEntity = gameWorld.addGameObject();
-    //mainViewportEntity.add<ViewportComponent>(CullingViewportHandle, MainSceneHandle, camera.entityHandle());
-    // entities are described through the sum of their parts.
-    // if we have a ViewportComponent and a UniformValueMapComponent, those values are treated per frame.
-
-
-
     // ----------------------------------------
     // ImGui and Debug Tooling
     // ----------------------------------------
-    auto imguiBackend = ImGuiGlfwOpenGLBackend(MainWindow.handle(), gameWorld.platformWorld());
+    auto imguiBackend = ImGuiGlfwOpenGLBackend(MainWindow.handle(), gameWorld.ecsWorld());
     auto imguiOverlay = ImGuiOverlay::forBackend(&imguiBackend);
     auto fpsMetrics = FpsMetrics();
     auto framePacer = FramePacer();
@@ -251,7 +219,7 @@ int main() {
     auto fpsWidget = new FpsWidget(&fpsMetrics, &framePacer);
     auto logWidget = new LogWidget();
 
-    auto cameraWidget = new CameraWidget(gameWorld);
+    auto cameraWidget = new CameraWidget<DefaultRenderHandles>(gameWorld);
 
     imguiOverlay.addWidget(menu);
     imguiOverlay.addWidget(fpsWidget);
@@ -263,6 +231,7 @@ int main() {
     // ----------------------------------------
     LogManager::getInstance().enableLogging(true);
     LogManager::getInstance().enableSink<ImGuiLogSink>(logWidget);
+    LogManager::getInstance().enableSink<helios::core::log::ConsoleSink>(); // TEMP DIAGNOSTIC
 
 
     // ========================================
@@ -271,9 +240,9 @@ int main() {
     float DELTA_TIME = 0.0f;
 
     // painting function
-    auto enableMemberMaterialOverride = [&](UpdateContext& updateContext, auto memberContexts, const bool enable) {
+    auto enableMemberMaterialOverride = [&](const UpdateContext& updateContext, auto memberContexts, const bool enable) {
 
-        auto* renderPrototypeSet = updateContext.sparseSet<GameObjectHandle, RenderPrototypeComponent<GameObjectHandle, Instanced>>();
+        auto* renderPrototypeSet = updateContext.sparseSet<GameObjectHandle, DefaultRenderPrototypeComponent<GameObjectHandle, Instanced>>();
 
         auto handle = enable ? CubeMaterialOverride.handle() : CubeMaterial.handle();
         for (const auto member : memberContexts) {
@@ -281,7 +250,7 @@ int main() {
                 continue;
             }
 
-            if (auto* rpc = renderPrototypeSet->get(member.memberHandle.entityId)) {
+            if (auto* rpc = renderPrototypeSet->get(member.memberHandle.entityId())) {
                 rpc->setMaterialHandle(handle);
             }
 
@@ -292,38 +261,30 @@ int main() {
     // GameLoop Config
     // ----------------------------------------
     gameLoop.phase(PhaseType::Pre)
-                .beginPass<EngineState>(EngineState::Any)
-                    .addSystem<EngineFlowSystem<EngineCommandBuffer>>()
-                .flush<EngineStateManager>()
+                .beginPass(EngineState::Any)
+                    .addSystem<EngineFlowSystem>()
+                .executeCommands<DefaultEngineStateManager>()
                 .endPass()
 
-                .beginPass<EngineState>(EngineState::Booting)
-                    .addSystem<PlatformInitSystem<PlatformCommandBuffer>>()
-                .flush<GLFWPlatformManager<
-                    OpenGLBackend,
-                    WindowHandle,
-                    EngineCommandBuffer,
-                    PlatformCommandBuffer>>()
+                .beginPass(EngineState::Booting)
+                    .addSystem<PlatformInitSystem>()
+                .executeCommands<DefaultGLFWPlatformManager>()
                 .endPass()
 
-                .beginPass<EngineState>(EngineState::Booted | EngineState::Running)
-                    .addSystem<PollEventsSystem<PlatformCommandBuffer>>()
-                    .addSystem<WindowCreateSystem<WindowHandle, PlatformCommandBuffer>>()
-                .flush<GLFWPlatformManager<
-                    OpenGLBackend,
-                    WindowHandle,
-                    EngineCommandBuffer,
-                    PlatformCommandBuffer>>()
+                .beginPass(EngineState::Booted | EngineState::Running)
+                    .addSystem<PollEventsSystem>()
+                    .addSystem<WindowCreateSystem<WindowHandle>>()
+                .executeCommands<DefaultGLFWPlatformManager>()
                 .endPass()
 
-                .beginPass<EngineState>(EngineState::Warmup)
-                    .addSystem<MeshUploadSystem<MeshHandle, RenderCommandBuffer>>()
-                    .addSystem<ShaderCompileSystem<ShaderHandle, RenderCommandBuffer>>()
-                    .addSystem<WarmupDoneSystem<ShaderHandle, EngineCommandBuffer>>()
-                .flush<
-                    OpenGLMeshUploadManager<MeshHandle>,
-                    OpenGLShaderCompileManager<ShaderHandle, OpenGLUniformLocationCacheStrategy<ShaderHandle>>,
-                    EngineStateManager
+                .beginPass(EngineState::Warmup)
+                    .addSystem<MeshUploadSystem<MeshHandle>>()
+                    .addSystem<ShaderCompileSystem<ShaderHandle>>()
+                    .addSystem<DefaultWarmupDoneSystem>()
+                .executeCommands<
+                    DefaultMeshUploadManager,
+                    DefaultShaderCompileManager,
+                    DefaultEngineStateManager
                 >()
                 .endPass();
 
@@ -335,7 +296,7 @@ int main() {
             gameLoop.phase(PhaseType::Post)
                  .beginPass(EngineState::Running)
 
-                    .addSystem(Lambda<GameObjectHandle>(
+                    .addSystem(
                         // replacement for systems that compute the local velocity from intended velocity,
                         // such as component systems
                         [&](UpdateContext& updateContext) {
@@ -350,7 +311,7 @@ int main() {
                                 //  intendedVelocity->setValue({0.0f, 0.0f, 0.0f});
                             }
                         }
-                    ))
+                    )
 
                     .addParallelSystems<
                         Serial<
@@ -368,55 +329,59 @@ int main() {
                     // this will produce render commands after scenes have been culled according to
                     // their active viewports
                     .addSystem<
-                        SceneMemberVisibilitySystem<
+                        DefaultSceneMemberVisibilitySystem<
                             GameObjectHandle,
                             Instanced,
                             AABBCullingStrategy<GameObjectHandle>
-                        >>(AABBCullingStrategy<GameObjectHandle>(), sceneMemberInstancedRegistry)
+                        >>(AABBCullingStrategy<GameObjectHandle>())
                    .addParallelSystems(
-                        Lambda<GameObjectHandle>(
-                        [&](UpdateContext& updateContext) {
+                        [&](UpdateContext& updateContext,
+                            DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry) {
                             const auto viewport = CullingViewport.handle();
                             enableMemberMaterialOverride(
-                                updateContext, sceneMemberInstancedRegistry.culledMembers(viewport), true);
-                        }),
-                        Lambda<GameObjectHandle>(
-                            [&](UpdateContext& updateContext) {
+                                updateContext, visibilityRegistry.culledMembers(viewport), true);
+                        },
+                        [&](UpdateContext& updateContext,
+                            DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry) {
                                 const auto viewport = CullingViewport.handle();
                                 enableMemberMaterialOverride(
-                                    updateContext, sceneMemberInstancedRegistry.visibleMembers(viewport), false);
+                                    updateContext, visibilityRegistry.visibleMembers(viewport), false);
                             }
-                    ))
+                    )
                     // consume the scenemember-registry
-                    .addSystem<SceneRenderSystem<GameObjectHandle, Instanced, RenderCommandBuffer>>(sceneMemberInstancedRegistry)
-                .flush<RenderManager<OpenGLBackend, GameObjectHandle>>()// buffer -> manager
+                    .addSystem<DefaultSceneRenderSystem<GameObjectHandle, Instanced>>()
+                .executeCommands<DefaultRenderManager>()
                 .endPass()
 
 
                  // Clear, bufferswapping
-                .beginPass<EngineState>(EngineState::Running)
-                    .addSystem<GLFWWindowCloseSystem<WindowHandle, PlatformCommandBuffer>>()
-                    .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
+                .beginPass(EngineState::Running)
+                    .addSystem<GLFWWindowCloseSystem<WindowHandle>>()
+                    .addSystem<WindowBasedShutdownSystem<WindowHandle>>()
                     .addSystem<ClearAllDirtySetsSystem>()
                     .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
-                    .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
-                .flush<GLFWPlatformManager<
-                    OpenGLBackend,
-                    WindowHandle,
-                    EngineCommandBuffer,
-                    PlatformCommandBuffer>>()
+                    .addSystem<SwapBuffersSystem<WindowHandle>>()
+                .executeCommands<DefaultGLFWPlatformManager>()
                 .endPass()
 
-                .beginPass<EngineState>(EngineState::Shutdown)
+                .beginPass(EngineState::Shutdown)
                     .addSystem<DestroySessionSystem>()
                 .endPass()
             ;
 
 
-    gameLoop.init(gameWorld.init());
+    gameWorld.init();
+    gameLoop.init();
+
+    gameWorld.session().template setStateFrom<EngineState>(
+        StateTransitionContext<EngineState>(
+        EngineState::Undefined,
+        EngineState::Booting,
+        EngineStateTransitionId::BootRequest
+    ));
 
 
-    while (gameLoop.isRunning(gameWorld)) {
+    while (gameLoop.isRunning()) {
 
         framePacer.beginFrame();
 
@@ -431,7 +396,7 @@ int main() {
 
 
         // Frame Synchronization is now done via GLFWSwapBuffersSystems
-        gameLoop.update(gameWorld, DELTA_TIME, inputSnapshot);//inputSnapshot, viewportSnapshots);;
+        gameLoop.update(DELTA_TIME, inputSnapshot);//inputSnapshot, viewportSnapshots);;
 
 
 
