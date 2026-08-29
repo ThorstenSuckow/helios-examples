@@ -137,7 +137,7 @@ export namespace helios::engine::bootstrap {
     using DefaultGLFWPlatformManager = helios::glfw::GLFWPlatformManager<WindowHandle, DefaultRenderHandles>;
     using DefaultGameObjectMutationManager = helios::ecs::manager::EntityMutationManager<GameObjectHandle>;
     using DefaultParticleMutationManager = helios::ecs::manager::EntityMutationManager<ParticleHandle>;
-    using DefaultRenderManager = helios::engine::rendering::RenderManager<DefaultRenderHandles, ParticleHandle>;
+    using DefaultRenderManager = helios::engine::rendering::RenderManager<DefaultRenderHandles, ParticleHandle, GameObjectHandle>;
     using DefaultTextureUploadManager = helios::opengl::OpenGLTextureUploadManager<TextureHandle>;
     using DefaultMeshUploadManager = helios::opengl::OpenGLMeshUploadManager<MeshHandle>;
     using DefaultShaderCompileManager = helios::opengl::OpenGLShaderCompileManager<ShaderHandle>;
