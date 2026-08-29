@@ -126,15 +126,15 @@ int main() {
     MainViewport.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
     MainViewport.add<ColorComponent<ViewportHandle>>(helios::engine::util::Colors::Black);
     // RenderTarget : Viewport (1:N)
-    MainViewport.add<RenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
+    MainViewport.add<DefaultRenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
     MainViewport.add<RectComponent<ViewportHandle>>(helios::math::vec4f{0.0f, 0.0f, 1.0f, 1.0f});
 
 
     auto MainScene = gameWorld.add<SceneHandle>();
-    MainWindow.add<RenderTargetBindingComponent<WindowHandle>>(MainRenderTarget);
+    MainWindow.add<DefaultRenderTargetBindingComponent<WindowHandle>>(MainRenderTarget);
 
     // Viewport : Scene (N:1)
-    MainViewport.add<SceneBindingComponent<ViewportHandle>>(MainScene);
+    MainViewport.add<DefaultSceneBindingComponent<ViewportHandle>>(MainScene);
 
     auto MainCamera = gameWorld.add<CameraHandle>();
     MainCamera.add<DebugNameComponent<CameraHandle>>("MainCamera");
@@ -149,7 +149,7 @@ int main() {
     // camera does not need a scene binding, since there is no camera selection
     // using scenes. The SceneMemberVisibilitySystem will directly use the Viewport's mapping
     //MainCamera.add<SceneBindingComponent<CameraHandle>>(MainScene);
-    MainViewport.add<CameraBindingComponent<ViewportHandle>>(MainCamera);
+    MainViewport.add<DefaultCameraBindingComponent<ViewportHandle>>(MainCamera);
 
 
     // ========================================
@@ -209,7 +209,7 @@ int main() {
     auto& demoPool = *gameWorld.resource<EntityPoolRegistry>().item(demoPoolKey);
 
     auto ParticlePrefab = demoPool.prefabEditor<ParticleHandle>();
-    ParticlePrefab.add<SceneMemberComponent<ParticleHandle>>(MainScene);
+    ParticlePrefab.add<DefaultSceneMemberComponent<ParticleHandle>>(MainScene);
     ParticlePrefab.add<EntityPoolKeyComponent<ParticleHandle>>(demoPoolKey);
     ParticlePrefab.trackDirty<BoundsComponent<ParticleHandle, Local>>(Rect::boundsData());
     ParticlePrefab.trackDirty<BoundsComponent<ParticleHandle, World>>();
@@ -219,7 +219,7 @@ int main() {
     ParticlePrefab.trackDirty<Position3DComponent<ParticleHandle, Local>>(1.0f, 0.0f, 0.0f);
     ParticlePrefab.trackDirty<Position3DComponent<ParticleHandle, World>>(0.0f, 0.0f, 0.0f);
     ParticlePrefab.trackDirty<TransformComponent<ParticleHandle, World>>(1.0f);
-    ParticlePrefab.add<RenderPrototypeComponent<ParticleHandle, Instanced>>(
+    ParticlePrefab.add<DefaultRenderPrototypeComponent<ParticleHandle, Instanced>>(
         ParticleShader.handle(), ParticleMaterial.handle(), ParticleMesh.handle(), ParticleTexture.handle()
     );
     auto prefabRequestCmp = gameWorld.add<ParticleHandle>();
@@ -231,7 +231,7 @@ int main() {
     auto ParticleEmitter = gameWorld.add<ParticleHandle>(true);
     ParticleEmitter.add<Position3DComponent<ParticleHandle, Local>>(0.0f, 0.0f, 0.0f);
     ParticleEmitter.add<SpawnRequestComponent<ParticleHandle>>(demoPoolKey, DEMO_SPAWN_POLICY_KEY, 10);
-    ParticleEmitter.add<SceneMemberComponent<ParticleHandle>>(MainScene);
+    ParticleEmitter.add<DefaultSceneMemberComponent<ParticleHandle>>(MainScene);
 
     // ----------------------------------------
     // ImGui and Debug Tooling
@@ -247,7 +247,7 @@ int main() {
     auto fpsWidget = new FpsWidget(&fpsMetrics, &framePacer);
     auto logWidget = new LogWidget();
 
-    auto cameraWidget = new CameraWidget(gameWorld);
+    auto cameraWidget = new CameraWidget<DefaultRenderHandles>(gameWorld);
 
     imguiOverlay.addWidget(menu);
     imguiOverlay.addWidget(fpsWidget);
@@ -292,7 +292,7 @@ int main() {
                 .addSystem<MeshUploadSystem<MeshHandle>>()
                 .addSystem<ShaderCompileSystem<ShaderHandle>>()
                 .addSystem<EntityPoolWarmupSystem<ParticleHandle>>()
-                .addSystem<WarmupDoneSystem>()
+                .addSystem<DefaultWarmupDoneSystem>()
             .executeCommands<
                 DefaultTextureUploadManager,
                 DefaultMeshUploadManager,
@@ -354,13 +354,14 @@ int main() {
                         >
                     >()
 
+
                     // this will produce render commands after scenes have been culled according to
                     // their active viewports
-                    .addSystem<SceneMemberVisibilitySystem<ParticleHandle, Instanced, AABBCullingStrategy<ParticleHandle>>>
+                    .addSystem<DefaultSceneMemberVisibilitySystem<ParticleHandle, Instanced, AABBCullingStrategy<ParticleHandle>>>
                         (AABBCullingStrategy<ParticleHandle>())
                     .addSystem([&](
                         EntityManager<ParticleHandle>& entityManager,
-                        SceneMemberVisibilityRegistry<ParticleHandle, Instanced>& visibilityRegistry) {
+                        DefaultSceneMemberVisibilityRegistry<ParticleHandle, Instanced>& visibilityRegistry) {
 
                         auto* lifetimeSparseSet = entityManager.sparseSet<LifetimeComponent<ParticleHandle>>();
                         visibilityRegistry.forEachVisibleMember(
@@ -372,7 +373,7 @@ int main() {
 
 
                     })
-                    .addSystem<SceneRenderSystem<ParticleHandle, Instanced>>()
+                    .addSystem<DefaultSceneRenderSystem<ParticleHandle, Instanced>>()
 
                 .executeCommands<DefaultRenderManager>()
                 .endPass()

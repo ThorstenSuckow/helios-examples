@@ -16,19 +16,14 @@ using namespace helios::opengl;
 // Rendering
 using namespace helios::engine::rendering;
 using namespace helios::engine::rendering::mesh;
-using namespace helios::engine::rendering::material;
 using namespace helios::engine::rendering::shader;
 using namespace helios::engine::rendering::mesh::types;
-using namespace helios::engine::rendering::material::types;
 using namespace helios::engine::rendering::shader::types;
 using namespace helios::engine::rendering::shader::components;
 using namespace helios::engine::rendering::shader::systems;
-using namespace helios::engine::rendering::viewport;
 using namespace helios::engine::rendering::texture;
-using namespace helios::engine::rendering::texture::types;
 using namespace helios::engine::rendering::texture::components;
 using namespace helios::engine::rendering::texture::systems;
-using namespace helios::engine::rendering::viewport::types;
 using namespace helios::engine::rendering::renderTarget;
 using namespace helios::engine::rendering::renderTarget::types;
 using namespace helios::engine::rendering::renderTarget::components;
@@ -88,7 +83,6 @@ using namespace helios::engine::runtime::pooling::types;
 using namespace helios::engine::runtime::lifecycle::components;
 using namespace helios::engine::runtime::particle;
 using namespace helios::engine::runtime::particle::components;
-using namespace helios::engine::runtime::particle::types;
 
 using namespace helios::gameplay::spawning;
 using namespace helios::gameplay::spawning::commands;
