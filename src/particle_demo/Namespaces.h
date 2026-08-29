@@ -102,7 +102,6 @@ using namespace helios::engine::platform::lifecycle::systems;
 using namespace helios::engine::platform::environment;
 using namespace helios::engine::platform::environment::components;
 using namespace helios::engine::platform::environment::systems;
-using namespace helios::engine::platform::environment::types;
 using namespace helios::engine::platform::window;
 using namespace helios::engine::platform::window::components;
 using namespace helios::engine::platform::window::systems;

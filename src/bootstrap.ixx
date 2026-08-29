@@ -62,6 +62,9 @@ export namespace helios::engine::bootstrap {
     struct GameObjectHandleDomain{};
     using GameObjectHandle = helios::ecs::common::types::EntityHandle<GameObjectHandleDomain>;
 
+    struct PlatformHandleDomain{};
+    using PlatformHandle = helios::ecs::common::types::EntityHandle<PlatformHandleDomain>;
+
 
     template<typename ... THandles>
     struct WorldFactory {
@@ -95,7 +98,7 @@ export namespace helios::engine::bootstrap {
         rendering::material::types::MaterialHandle,
         rendering::mesh::types::MeshHandle,
         WindowHandle,
-        platform::environment::types::PlatformHandle
+        PlatformHandle
     >;
 
 
