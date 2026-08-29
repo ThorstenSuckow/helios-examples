@@ -45,7 +45,6 @@ using namespace helios::engine::platform::window::types;
 using namespace helios::gameplay::spawning;
 using namespace helios::gameplay::spawning::types;
 using namespace helios::engine::runtime::world;
-using namespace helios::engine::runtime::world::types;
 using namespace helios::engine::runtime::particle;
 using namespace helios::engine::runtime::particle::types;
 using namespace helios::engine::runtime::gameloop;
@@ -58,6 +57,10 @@ using namespace helios::engine::runtime::pooling::types;
 
 
 export namespace helios::engine::bootstrap {
+
+
+    struct GameObjectHandleDomain{};
+    using GameObjectHandle = helios::ecs::common::types::EntityHandle<GameObjectHandleDomain>;
 
 
     template<typename ... THandles>
@@ -144,20 +147,17 @@ export namespace helios::engine::bootstrap {
         EngineWorldFactory::updateResourceRegistry(gameWorld);
 
         gameWorld.registerManager<DefaultEngineStateManager>(
-            helios::engine::runtime::enginestate::rules::DefaultEngineStateTransitionRules::rules());
+            runtime::enginestate::rules::DefaultEngineStateTransitionRules::rules());
 
-        gameWorld.emplaceResource<helios::engine::rendering::RenderDataResolver>(
-            helios::engine::rendering::RenderDataResolver{
+        gameWorld.emplaceResource<rendering::RenderDataResolver>(
+            rendering::RenderDataResolver{
                 helios::opengl::OpenGLRenderDataResolver<RenderHandleList>{}
         });
-        gameWorld.emplaceResource<helios::engine::rendering::RenderBackend>(
-            helios::engine::rendering::RenderBackend{helios::opengl::OpenGLBackend{}}
+        gameWorld.emplaceResource<rendering::RenderBackend>(
+            rendering::RenderBackend{opengl::OpenGLBackend{}}
         );
-
         gameWorld.emplaceResource<SpawnPolicyRegistry>();
 
-
-        gameWorld.session().template trackState<helios::engine::runtime::enginestate::types::EngineState>();
 
         return engineRuntime;
     }

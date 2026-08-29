@@ -79,7 +79,6 @@ using namespace helios::engine::runtime::enginestate::types;
 using namespace helios::engine::runtime::messaging::command;
 using namespace helios::engine::runtime::world::concepts;
 using namespace helios::engine::runtime::world;
-using namespace helios::engine::runtime::world::types;
 using namespace helios::engine::runtime::gameloop;
 using namespace helios::engine::runtime::pooling;
 using namespace helios::engine::runtime::pooling::systems;
