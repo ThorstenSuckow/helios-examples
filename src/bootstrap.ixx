@@ -46,7 +46,6 @@ using namespace helios::gameplay::spawning;
 using namespace helios::gameplay::spawning::types;
 using namespace helios::engine::runtime::world;
 using namespace helios::engine::runtime::particle;
-using namespace helios::engine::runtime::particle::types;
 using namespace helios::engine::runtime::gameloop;
 using namespace helios::ecs;
 using namespace helios::ecs::command;
@@ -68,6 +67,32 @@ export namespace helios::engine::bootstrap {
     struct WindowHandleDomain{};
     using WindowHandle = helios::ecs::common::types::EntityHandle<WindowHandleDomain>;
 
+    struct RenderTargetHandleDomain{};
+    using RenderTargetHandle = helios::ecs::common::types::EntityHandle<RenderTargetHandleDomain>;
+
+    struct ViewportHandleDomain{};
+    using ViewportHandle = helios::ecs::common::types::EntityHandle<ViewportHandleDomain>;
+
+    struct TextureHandleDomain{};
+    using TextureHandle = helios::ecs::common::types::EntityHandle<TextureHandleDomain>;
+
+    struct ShaderHandleDomain{};
+    using ShaderHandle = helios::ecs::common::types::EntityHandle<ShaderHandleDomain>;
+
+    struct MaterialHandleDomain{};
+    using MaterialHandle = helios::ecs::common::types::EntityHandle<MaterialHandleDomain>;
+
+    struct MeshHandleDomain{};
+    using MeshHandle = helios::ecs::common::types::EntityHandle<MeshHandleDomain>;
+
+    struct SceneHandleDomain{};
+    using SceneHandle = helios::ecs::common::types::EntityHandle<SceneHandleDomain>;
+
+    struct ParticleHandleDomain{};
+    using ParticleHandle = helios::ecs::common::types::EntityHandle<ParticleHandleDomain>;
+
+    struct CameraHandleDomain{};
+    using CameraHandle = helios::ecs::common::types::EntityHandle<CameraHandleDomain>;
 
     template<typename ... THandles>
     struct WorldFactory {
@@ -80,41 +105,68 @@ export namespace helios::engine::bootstrap {
         }
     };
 
-    struct RenderHandleList {
-        using RenderTargetHandleType = rendering::renderTarget::types::RenderTargetHandle;
-        using ViewportHandleType = rendering::viewport::types::ViewportHandle;
-        using TextureHandleType = rendering::texture::types::TextureHandle;
-        using ShaderHandleType = rendering::shader::types::ShaderHandle;
-        using MaterialHandleType = rendering::material::types::MaterialHandle;
-        using MeshHandleType = rendering::mesh::types::MeshHandle;
-    };
+    using DefaultRenderHandles = helios::engine::rendering::RenderHandles<
+        RenderTargetHandle,
+        ViewportHandle,
+        SceneHandle,
+        CameraHandle,
+        ShaderHandle,
+        MaterialHandle,
+        TextureHandle,
+        MeshHandle
+    >;
 
     using EngineWorldFactory = WorldFactory<
         GameObjectHandle,
         ParticleHandle,
-        scene::types::SceneHandle,
-        rendering::renderTarget::types::RenderTargetHandle,
-        scene::types::CameraHandle,
-        rendering::viewport::types::ViewportHandle,
-        rendering::texture::types::TextureHandle,
-        rendering::shader::types::ShaderHandle,
-        rendering::material::types::MaterialHandle,
-        rendering::mesh::types::MeshHandle,
         WindowHandle,
-        PlatformHandle
+        PlatformHandle,
+
+        SceneHandle,
+        RenderTargetHandle,
+        CameraHandle,
+        ViewportHandle,
+        TextureHandle,
+        ShaderHandle,
+        MaterialHandle,
+        MeshHandle
     >;
-
-
 
     using DefaultEngineStateManager = helios::engine::runtime::enginestate::EngineStateManager;
     using DefaultTimerManager = helios::engine::runtime::timing::TimerManager;
-    using DefaultGLFWPlatformManager = helios::glfw::GLFWPlatformManager<WindowHandle>;
+    using DefaultGLFWPlatformManager = helios::glfw::GLFWPlatformManager<WindowHandle, DefaultRenderHandles>;
     using DefaultGameObjectMutationManager = helios::ecs::manager::EntityMutationManager<GameObjectHandle>;
     using DefaultParticleMutationManager = helios::ecs::manager::EntityMutationManager<ParticleHandle>;
-    using DefaultRenderManager = helios::engine::rendering::RenderManager<ParticleHandle>;
-    using DefaultTextureUploadManager = helios::opengl::OpenGLTextureUploadManager<>;
-    using DefaultMeshUploadManager = helios::opengl::OpenGLMeshUploadManager<>;
-    using DefaultShaderCompileManager = helios::opengl::OpenGLShaderCompileManager<rendering::shader::types::ShaderHandle>;
+    using DefaultRenderManager = helios::engine::rendering::RenderManager<DefaultRenderHandles, ParticleHandle>;
+    using DefaultTextureUploadManager = helios::opengl::OpenGLTextureUploadManager<TextureHandle>;
+    using DefaultMeshUploadManager = helios::opengl::OpenGLMeshUploadManager<MeshHandle>;
+    using DefaultShaderCompileManager = helios::opengl::OpenGLShaderCompileManager<ShaderHandle>;
+
+    using DefaultWarmupDoneSystem = platform::lifecycle::systems::WarmupDoneSystem<DefaultRenderHandles>;
+
+    template<typename TMemberHandle, typename TSubmissionMode>
+    using DefaultSceneRenderSystem = scene::systems::SceneRenderSystem<TMemberHandle, TSubmissionMode, DefaultRenderHandles>;
+
+    template<typename TMemberHandle, typename TSubmissionMode, typename TCullingStrategy>
+    using DefaultSceneMemberVisibilitySystem = scene::systems::SceneMemberVisibilitySystem<TMemberHandle, TSubmissionMode, scene::AABBCullingStrategy<TMemberHandle>, DefaultRenderHandles>;
+
+    template<typename TMemberHandle, typename TSubmissionMode>
+    using DefaultSceneMemberVisibilityRegistry = scene::SceneMemberVisibilityRegistry<TMemberHandle, TSubmissionMode, DefaultRenderHandles>;
+
+    template<typename TMemberHandle, typename TSubmissionMode>
+    using DefaultRenderPrototypeComponent = rendering::common::components::RenderPrototypeComponent<TMemberHandle, TSubmissionMode, DefaultRenderHandles>;
+
+    template<typename TMemberHandle>
+    using DefaultRenderTargetBindingComponent = helios::engine::rendering::renderTarget::components::RenderTargetBindingComponent<TMemberHandle, DefaultRenderHandles>;
+
+    template<typename TMemberHandle>
+    using DefaultSceneBindingComponent = helios::engine::scene::components::SceneBindingComponent<TMemberHandle, DefaultRenderHandles>;
+
+    template<typename TMemberHandle>
+    using DefaultCameraBindingComponent = helios::engine::scene::components::CameraBindingComponent<TMemberHandle, DefaultRenderHandles>;
+
+    template<typename TMemberHandle>
+    using DefaultSceneMemberComponent = helios::engine::scene::components::SceneMemberComponent<TMemberHandle, DefaultRenderHandles>;
 
 
     struct EngineRuntime {
@@ -157,7 +209,7 @@ export namespace helios::engine::bootstrap {
 
         gameWorld.emplaceResource<rendering::RenderDataResolver>(
             rendering::RenderDataResolver{
-                helios::opengl::OpenGLRenderDataResolver<RenderHandleList>{}
+                helios::opengl::OpenGLRenderDataResolver<DefaultRenderHandles>{}
         });
         gameWorld.emplaceResource<rendering::RenderBackend>(
             rendering::RenderBackend{opengl::OpenGLBackend{}}
