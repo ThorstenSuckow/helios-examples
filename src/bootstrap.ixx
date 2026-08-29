@@ -65,6 +65,9 @@ export namespace helios::engine::bootstrap {
     struct PlatformHandleDomain{};
     using PlatformHandle = helios::ecs::common::types::EntityHandle<PlatformHandleDomain>;
 
+    struct WindowHandleDomain{};
+    using WindowHandle = helios::ecs::common::types::EntityHandle<WindowHandleDomain>;
+
 
     template<typename ... THandles>
     struct WorldFactory {
