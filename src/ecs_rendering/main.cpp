@@ -263,7 +263,7 @@ int main() {
     gameLoop.phase(PhaseType::Pre)
                 .beginPass(EngineState::Any)
                     .addSystem<EngineFlowSystem>()
-                .executeCommands<DefaultEngineStateManager>()
+                .executeCommands<EngineStateManager>()
                 .endPass()
 
                 .beginPass(EngineState::Booting)
@@ -284,7 +284,7 @@ int main() {
                 .executeCommands<
                     DefaultMeshUploadManager,
                     DefaultShaderCompileManager,
-                    DefaultEngineStateManager
+                    EngineStateManager
                 >()
                 .endPass();
 
