@@ -82,6 +82,45 @@ cmake -S . -B build \
 
 ---
 
+## Development checks
+
+Run formatting for all example sources (default: `./src`):
+
+```bash
+./run-format.sh
+```
+
+Check formatting without changing files:
+
+```bash
+./run-format.sh --check-only
+```
+
+Run clang-tidy for module sources:
+
+```bash
+./run-tidy.sh
+```
+
+Run clang-tidy with autofix:
+
+```bash
+./run-tidy.sh --autofix
+```
+
+Skip the pre-build step when artifacts already exist:
+
+```bash
+SKIP_BUILD=1 ./run-tidy.sh
+```
+
+Tool configuration files:
+
+- Formatting: `.clang-format`
+- Tidy checks: `.clang-tidy`
+
+---
+
 ## Related repositories
 
 | Repository | Description |
