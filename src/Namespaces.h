@@ -60,12 +60,10 @@ using namespace helios::ecs::system;
 using namespace helios::ecs::system::types;
 using namespace helios::ecs::system::concepts;
 
-
 // Engine core
 using namespace helios::engine::state;
 using namespace helios::engine::state::types;
 using namespace helios::engine::tooling;
-
 
 // Runtime
 using namespace helios::engine::runtime::enginestate;
@@ -113,7 +111,6 @@ using namespace helios::core::log;
 using namespace helios::engine::runtime::timing;
 using namespace helios::engine::runtime::timing::systems;
 
-
 // Modules: spatial, scene, rendering, UI, AI
 using namespace helios::engine::spatial::components;
 using namespace helios::engine::scene::components;
@@ -123,7 +120,6 @@ using namespace helios::engine::rendering;
 using namespace helios::engine::rendering::common::components;
 using namespace helios::engine::rendering::common::types;
 using namespace helios::engine::rendering::common::commands;
-
 
 using namespace helios::physics::motion::components;
 using namespace helios::physics::motion::systems;
