@@ -84,40 +84,49 @@ cmake -S . -B build \
 
 ## Development checks
 
-Run formatting for all example sources (default: `./src`):
+Quick devtools entrypoint from this repository:
 
 ```bash
-./run-format.sh
+sh ./run-devtools.sh format
+sh ./run-devtools.sh format-fix
+sh ./run-devtools.sh tidy
+sh ./run-devtools.sh tidy-fix
 ```
 
-Check formatting without changing files:
+`run-devtools.sh` is a thin wrapper around CMake targets and expects an already configured build directory (default: `cmake-build-debug`).
+
+Run formatting checks:
 
 ```bash
-./run-format.sh --check-only
+cmake --build cmake-build-debug --target format
 ```
 
-Run clang-tidy for module sources:
+Run formatting with in-place fixes:
 
 ```bash
-./run-tidy.sh
+cmake --build cmake-build-debug --target format-fix
+```
+
+Run clang-tidy checks:
+
+```bash
+cmake --build cmake-build-debug --target tidy
 ```
 
 Run clang-tidy with autofix:
 
 ```bash
-./run-tidy.sh --autofix
+cmake --build cmake-build-debug --target tidy-fix
 ```
 
-Skip the pre-build step when artifacts already exist:
+Target-specific variants are also available:
 
 ```bash
-SKIP_BUILD=1 ./run-tidy.sh
+cmake --build cmake-build-debug --target format-helios_examples_bootstrap
+cmake --build cmake-build-debug --target tidy-helios_examples_bootstrap
 ```
 
-Tool configuration files:
-
-- Formatting: `.clang-format`
-- Tidy checks: `.clang-tidy`
+Formatting and clang-tidy checks are sourced from shared `helios-devtools` config.
 
 ---
 
