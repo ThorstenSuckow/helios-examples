@@ -240,13 +240,13 @@ int main() {
     float DELTA_TIME = 0.0f;
 
     // painting function
-    auto enableMemberMaterialOverride = [&](const UpdateContext& updateContext, auto memberContexts, const bool enable) {
+    auto enableMemberMaterialOverride = [&](const UpdateContext& updateContext, EntityManager<GameObjectHandle>& entityManager, auto memberContexts, const bool enable) {
 
-        auto* renderPrototypeSet = updateContext.sparseSet<GameObjectHandle, DefaultRenderPrototypeComponent<GameObjectHandle, Instanced>>();
+        auto* renderPrototypeSet = entityManager.sparseSet<DefaultRenderPrototypeComponent<GameObjectHandle, Instanced>>();
 
         auto handle = enable ? CubeMaterialOverride.handle() : CubeMaterial.handle();
         for (const auto member : memberContexts) {
-            if (!updateContext.isValid(member.memberHandle)) {
+            if (!entityManager.isValid(member.memberHandle)) {
                 continue;
             }
 
@@ -299,8 +299,8 @@ int main() {
                     .addSystem(
                         // replacement for systems that compute the local velocity from intended velocity,
                         // such as component systems
-                        [&](UpdateContext& updateContext) {
-                            for (auto [entity, intendedVelocity, localVelocity] : updateContext.view<
+                        [&](EcsWorld& ecsWorld) {
+                            for (auto [entity, intendedVelocity, localVelocity] : ecsWorld.view<
                                 GameObjectHandle,
                                 Velocity3DComponent<GameObjectHandle, Intent>,
                                 Velocity3DComponent<GameObjectHandle, Local>
@@ -336,16 +336,18 @@ int main() {
                         >>(AABBCullingStrategy<GameObjectHandle>())
                    .addParallelSystems(
                         [&](UpdateContext& updateContext,
+                            EntityManager<GameObjectHandle>& entityManager,
                             DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry) {
                             const auto viewport = CullingViewport.handle();
                             enableMemberMaterialOverride(
-                                updateContext, visibilityRegistry.culledMembers(viewport), true);
+                                updateContext, entityManager, visibilityRegistry.culledMembers(viewport), true);
                         },
                         [&](UpdateContext& updateContext,
+                            EntityManager<GameObjectHandle>& entityManager,
                             DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry) {
                                 const auto viewport = CullingViewport.handle();
                                 enableMemberMaterialOverride(
-                                    updateContext, visibilityRegistry.visibleMembers(viewport), false);
+                                    updateContext, entityManager, visibilityRegistry.visibleMembers(viewport), false);
                             }
                     )
                     // consume the scenemember-registry

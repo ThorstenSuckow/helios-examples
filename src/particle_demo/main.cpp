@@ -18,7 +18,7 @@ import helios.imgui;
 
 import helios.engine.bootstrap;
 
-#include "Namespaces.h"
+#include "../Namespaces.h"
 
 
 template<typename TEmitterHandle, typename TSpawnHandle = TEmitterHandle>
@@ -119,12 +119,12 @@ int main() {
     MainRenderTarget.add<OpenGLRenderTargetIdComponent<RenderTargetHandle>>(0);
     MainRenderTarget.trackDirty<Size2DComponent<RenderTargetHandle>>();
     MainRenderTarget.add<ClearComponent<RenderTargetHandle>>(ClearFlags::Color);
-    MainRenderTarget.add<ColorComponent<RenderTargetHandle>>(helios::engine::util::Colors::Black);
+    MainRenderTarget.add<ColorComponent<RenderTargetHandle>>(helios::engine::rendering::common::types::Colors::Black);
 
     auto MainViewport = gameWorld.add<ViewportHandle>();
     MainViewport.add<DebugNameComponent<ViewportHandle>>("MainViewport");
     MainViewport.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
-    MainViewport.add<ColorComponent<ViewportHandle>>(helios::engine::util::Colors::Black);
+    MainViewport.add<ColorComponent<ViewportHandle>>(helios::engine::rendering::common::types::Colors::Black);
     // RenderTarget : Viewport (1:N)
     MainViewport.add<DefaultRenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
     MainViewport.add<RectComponent<ViewportHandle>>(helios::math::vec4f{0.0f, 0.0f, 1.0f, 1.0f});
@@ -199,7 +199,7 @@ int main() {
 
 
     auto ParticleMaterial = gameWorld.add<MaterialHandle>();
-    ParticleMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::Blue);
+    ParticleMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::rendering::common::types::Colors::Blue);
     
 
     // ========================================
@@ -273,7 +273,7 @@ int main() {
 
             .beginPass(EngineState::Any)
                 .addSystem<EngineFlowSystem>()
-            .executeCommands<DefaultEngineStateManager>()
+            .executeCommands<EngineStateManager>()
             .endPass()
 
             .beginPass(EngineState::Booting)
@@ -297,7 +297,7 @@ int main() {
                 DefaultTextureUploadManager,
                 DefaultMeshUploadManager,
                 DefaultShaderCompileManager,
-                DefaultEngineStateManager
+                EngineStateManager
             >()
             .executeCommands<EntityPoolManager<ParticleHandle>>()
             .endPass();
@@ -306,10 +306,10 @@ int main() {
             gameLoop.phase(PhaseType::Main)
                 .beginPass(EngineState::Running)
 
-                .addSystem([&](UpdateContext& updateContext,
+                .addSystem([&](EcsWorld& ecsWorld,
                     helios::ecs::command::TypedCommandBuffer<SpawnCommand<ParticleHandle>>& cmdBuffer) {
 
-                            for (auto [entity, requestComponent] : updateContext.view<
+                            for (auto [entity, requestComponent] : ecsWorld.view<
                                 ParticleHandle,
                                 SpawnRequestComponent<ParticleHandle>
                             >().withActive()) {
@@ -383,10 +383,10 @@ int main() {
                     .addSystem<GLFWWindowCloseSystem<WindowHandle>>()
                     .addSystem<WindowBasedShutdownSystem<WindowHandle>>()
                     .addSystem<ClearAllDirtySetsSystem>()
-                    .addSystem([&](UpdateContext& updateContext,
+                    .addSystem([&](EcsWorld& ecsWorld, UpdateContext& updateContext,
                         helios::ecs::command::TypedCommandBuffer<ReleaseEntityCommand<ParticleHandle>>& cmdBuffer) {
 
-                            for (auto [entity, lcc, keyCmp] : updateContext.view<
+                            for (auto [entity, lcc, keyCmp] : ecsWorld.view<
                                 ParticleHandle,
                                 LifetimeComponent<ParticleHandle>,
                                 EntityPoolKeyComponent<ParticleHandle>>().withActive()) {
