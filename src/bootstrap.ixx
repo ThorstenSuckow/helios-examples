@@ -20,9 +20,6 @@ import helios.core.common.container;
 import helios.core.io;
 
 import helios.engine.runtime;
-import helios.engine.runtime.world.UpdateContext;
-
-import helios.engine.runtime.messaging;
 
 import helios.engine.scene;
 import helios.engine.rendering;
@@ -44,8 +41,7 @@ using namespace helios::engine::platform::window;
 using namespace helios::engine::platform::window::types;
 using namespace helios::gameplay::spawning;
 using namespace helios::gameplay::spawning::types;
-using namespace helios::engine::runtime::world;
-using namespace helios::engine::runtime::particle;
+using namespace helios::engine::runtime;
 using namespace helios::engine::runtime::gameloop;
 using namespace helios::ecs;
 using namespace helios::ecs::command;
@@ -157,7 +153,7 @@ export namespace helios::engine::bootstrap {
     using DefaultRenderPrototypeComponent = rendering::common::components::RenderPrototypeComponent<TMemberHandle, TSubmissionMode, DefaultRenderHandles>;
 
     template<typename TMemberHandle>
-    using DefaultRenderTargetBindingComponent = helios::engine::rendering::renderTarget::components::RenderTargetBindingComponent<TMemberHandle, DefaultRenderHandles>;
+    using DefaultRenderTargetBindingComponent = helios::engine::rendering::common::components::RenderTargetBindingComponent<TMemberHandle, DefaultRenderHandles>;
 
     template<typename TMemberHandle>
     using DefaultSceneBindingComponent = helios::engine::scene::components::SceneBindingComponent<TMemberHandle, DefaultRenderHandles>;
@@ -208,9 +204,8 @@ export namespace helios::engine::bootstrap {
             runtime::enginestate::rules::DefaultEngineStateTransitionRules::rules());
 
         gameWorld.emplaceResource<rendering::RenderDataResolver>(
-            rendering::RenderDataResolver{
                 helios::opengl::OpenGLRenderDataResolver<DefaultRenderHandles>{}
-        });
+        );
         gameWorld.emplaceResource<rendering::RenderBackend>(
             rendering::RenderBackend{opengl::OpenGLBackend{}}
         );

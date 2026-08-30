@@ -83,12 +83,12 @@ int main() {
     MainRenderTarget.add<OpenGLRenderTargetIdComponent<RenderTargetHandle>>(0);
     MainRenderTarget.trackDirty<Size2DComponent<RenderTargetHandle>>();
     MainRenderTarget.add<ClearComponent<RenderTargetHandle>>(ClearFlags::Color);
-    MainRenderTarget.add<ColorComponent<RenderTargetHandle>>(helios::engine::util::Colors::Black);
+    MainRenderTarget.add<ColorComponent<RenderTargetHandle>>(helios::engine::rendering::common::types::Colors::Black);
 
     auto CullingViewport = gameWorld.add<ViewportHandle>();
     CullingViewport.add<DebugNameComponent<ViewportHandle>>("CullingViewport");
     CullingViewport.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
-    CullingViewport.add<ColorComponent<ViewportHandle>>(helios::engine::util::Colors::LightGray);
+    CullingViewport.add<ColorComponent<ViewportHandle>>(helios::engine::rendering::common::types::Colors::LightGray);
     // RenderTarget : Viewport (1:N)
     CullingViewport.add<DefaultRenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
     CullingViewport.add<RectComponent<ViewportHandle>>(helios::math::vec4f{0.0f, .5f, 1.0f, 0.5f});
@@ -96,7 +96,7 @@ int main() {
     auto CullingViewport_bottom = gameWorld.add<ViewportHandle>();
     CullingViewport_bottom.add<DebugNameComponent<ViewportHandle>>("CullingViewport_bottom");
     CullingViewport_bottom.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
-    CullingViewport_bottom.add<ColorComponent<ViewportHandle>>(helios::engine::util::Colors::Gray);
+    CullingViewport_bottom.add<ColorComponent<ViewportHandle>>(helios::engine::rendering::common::types::Colors::Gray);
     // RenderTarget : Viewport (1:N)
     CullingViewport_bottom.add<DefaultRenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
     CullingViewport_bottom.add<RectComponent<ViewportHandle>>(helios::math::vec4f{0.0f, .0f, 1.0f, 0.5f});
@@ -171,10 +171,10 @@ int main() {
     );
 
     auto CubeMaterial = gameWorld.add<MaterialHandle>();
-    CubeMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::Red);
+    CubeMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::rendering::common::types::Colors::Red);
 
     auto CubeMaterialOverride = gameWorld.add<MaterialHandle>();
-    CubeMaterialOverride.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::White);
+    CubeMaterialOverride.add<ColorComponent<MaterialHandle>>(helios::engine::rendering::common::types::Colors::White);
 
     // ========================================
     // Entity Setup

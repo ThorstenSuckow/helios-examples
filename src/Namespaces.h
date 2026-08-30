@@ -24,9 +24,9 @@ using namespace helios::engine::rendering::shader::systems;
 using namespace helios::engine::rendering::texture;
 using namespace helios::engine::rendering::texture::components;
 using namespace helios::engine::rendering::texture::systems;
-using namespace helios::engine::rendering::renderTarget;
-using namespace helios::engine::rendering::renderTarget::types;
-using namespace helios::engine::rendering::renderTarget::components;
+using namespace helios::engine::rendering::common;
+using namespace helios::engine::rendering::common::types;
+using namespace helios::engine::rendering::common::components;
 using namespace helios::engine::rendering::mesh::assets;
 using namespace helios::engine::rendering::mesh::components;
 using namespace helios::engine::rendering::mesh::systems;
@@ -71,23 +71,19 @@ using namespace helios::engine::tooling;
 using namespace helios::engine::runtime::enginestate;
 using namespace helios::engine::runtime::enginestate::systems;
 using namespace helios::engine::runtime::enginestate::types;
-using namespace helios::engine::runtime::messaging::command;
-using namespace helios::engine::runtime::world::concepts;
-using namespace helios::engine::runtime::world;
 using namespace helios::engine::runtime::gameloop;
+using namespace helios::engine::runtime::gameloop::types;
 using namespace helios::engine::runtime::pooling;
 using namespace helios::engine::runtime::pooling::systems;
 using namespace helios::engine::runtime::pooling::commands;
 using namespace helios::engine::runtime::pooling::components;
 using namespace helios::engine::runtime::pooling::types;
-using namespace helios::engine::runtime::lifecycle::components;
-using namespace helios::engine::runtime::particle;
-using namespace helios::engine::runtime::particle::components;
 
 using namespace helios::gameplay::spawning;
 using namespace helios::gameplay::spawning::commands;
 using namespace helios::gameplay::spawning::components;
 using namespace helios::gameplay::spawning::types;
+using namespace helios::gameplay::lifecycle::components;
 
 // Platform
 using namespace helios::engine::platform::lifecycle;
