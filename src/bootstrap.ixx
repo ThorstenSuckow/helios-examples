@@ -128,7 +128,6 @@ export namespace helios::engine::bootstrap {
         MeshHandle
     >;
 
-    using DefaultEngineStateManager = helios::engine::runtime::enginestate::EngineStateManager;
     using DefaultTimerManager = helios::engine::runtime::timing::TimerManager;
     using DefaultGLFWPlatformManager = helios::glfw::GLFWPlatformManager<WindowHandle, DefaultRenderHandles>;
     using DefaultGameObjectMutationManager = helios::ecs::manager::EntityMutationManager<GameObjectHandle>;
@@ -200,8 +199,9 @@ export namespace helios::engine::bootstrap {
 
         EngineWorldFactory::updateResourceRegistry(gameWorld);
 
-        gameWorld.registerManager<DefaultEngineStateManager>(
-            runtime::enginestate::rules::DefaultEngineStateTransitionRules::rules());
+        gameWorld.emplaceResource<helios::engine::state::StateTransitionRules<EngineState>>(
+            runtime::enginestate::rules::DefaultEngineStateTransitionRules{}
+        );
 
         gameWorld.emplaceResource<rendering::RenderDataResolver>(
                 helios::opengl::OpenGLRenderDataResolver<DefaultRenderHandles>{}
