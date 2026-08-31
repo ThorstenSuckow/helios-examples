@@ -53,6 +53,7 @@ using namespace helios::core::time;
 // ECS library
 using namespace helios::ecs;
 using namespace helios::ecs::command;
+using namespace helios::ecs::entity;
 using namespace helios::ecs::components;
 using namespace helios::ecs::common::concepts;
 using namespace helios::ecs::common::types;
@@ -63,7 +64,6 @@ using namespace helios::ecs::system::concepts;
 // Engine core
 using namespace helios::engine::state;
 using namespace helios::engine::state::types;
-using namespace helios::engine::tooling;
 
 // Runtime
 using namespace helios::engine::runtime::enginestate;

@@ -42,6 +42,7 @@ using namespace helios::gameplay::spawning::types;
 using namespace helios::engine::runtime;
 using namespace helios::engine::runtime::gameloop;
 using namespace helios::ecs;
+using namespace helios::ecs::entity;
 using namespace helios::ecs::command;
 using namespace helios::engine::runtime::pooling::commands;
 using namespace helios::engine::runtime::pooling::types;
@@ -86,8 +87,8 @@ using CameraHandle = helios::ecs::common::types::EntityHandle<CameraHandleDomain
 
 template <typename... THandles>
 struct WorldFactory {
-    static EcsWorld makeEcsWorld() {
-        return helios::ecs::EcsWorld::make<THandles...>();
+    static EntityWorld makeEcsWorld() {
+        return helios::ecs::entity::EntityWorld::make<THandles...>();
     }
 
     static void updateResourceRegistry(GameWorld& gameWorld) {
@@ -179,7 +180,7 @@ struct EngineRuntime {
     EngineRuntime(EngineRuntime&&) = delete;
     EngineRuntime& operator=(EngineRuntime&&) = delete;
 
-    explicit EngineRuntime(EcsWorld&& ecsWorld, JobSystem& jobSystem)
+    explicit EngineRuntime(EntityWorld&& ecsWorld, JobSystem& jobSystem)
         : gameWorld{std::move(ecsWorld), jobSystem}, gameLoop{gameWorld} {}
 };
 
