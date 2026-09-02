@@ -210,7 +210,7 @@ int main() {
     auto fpsMetrics = FpsMetrics();
     auto framePacer = FramePacer();
     framePacer.setTargetFps(0.0F);
-    FrameStats frameStats{};
+    FrameTiming frameTiming{};
 
     auto* menu = new MainMenuWidget();
     auto* fpsWidget = new FpsWidget(&fpsMetrics, &framePacer);
@@ -233,7 +233,7 @@ int main() {
     // ========================================
     // Initialization of GameWorld and Game Loop
     // ========================================
-    float DELTA_TIME = 0.0F;
+
 
     // painting function
     auto enableMemberMaterialOverride = [&](const UpdateContext& updateContext,
@@ -290,24 +290,27 @@ int main() {
         .addSystem(
             // replacement for systems that compute the local velocity from intended velocity,
             // such as component systems
-            [&](EcsWorld& ecsWorld) {
-                for (auto [entity, intendedVelocity, localVelocity] :
-                     ecsWorld
-                         .view<
-                             GameObjectHandle,
-                             Velocity3DComponent<GameObjectHandle, Intent>,
-                             Velocity3DComponent<GameObjectHandle, Local>
-                         >()
-                         .withActive()
-                         .template whereAnyDirty<
-                             Active<GameObjectHandle>,
-                             Velocity3DComponent<GameObjectHandle, Intent>
-                         >()) {
+            [&](Query<
+                ReadSet<Velocity3DComponent<GameObjectHandle, Intent>, Velocity3DComponent<GameObjectHandle, Local>>,
+                WriteSet<Velocity3DComponent<GameObjectHandle, Local>>
+            > query) {
+                for (auto [
+                        entity,
+                        intendedVelocity,
+                        localVelocity
+                    ] : query
+                        .withActive()
+                        .whereAnyDirty<
+                            Active<GameObjectHandle>,
+                            Velocity3DComponent<GameObjectHandle, Intent>
+                        >()
+                    ) {
+
                     entity.setTrackedValue(localVelocity, intendedVelocity->value());
-                    //  intendedVelocity->setValue({0.0f, 0.0f, 0.0f});
                 }
             }
         )
+        .executeCommands<EntityMutationManager<GameObjectHandle>>()
 
         .addParallelSystems<
             Serial<
@@ -385,11 +388,10 @@ int main() {
         // const auto viewportSnapshots = renderTargetsRegistry.viewportSnapshots();
 
         // Frame Synchronization is now done via GLFWSwapBuffersSystems
-        gameLoop.update(DELTA_TIME, inputSnapshot); // inputSnapshot, viewportSnapshots);;
+        gameLoop.update(frameTiming, inputSnapshot); // inputSnapshot, viewportSnapshots);;
 
-        frameStats = framePacer.sync();
-        fpsMetrics.addFrame(frameStats);
-        DELTA_TIME = frameStats.totalFrameTime;
+        frameTiming = framePacer.sync();
+        fpsMetrics.addFrame(frameTiming);
     }
 
     logger.info("Engine is now in State {0}", std::to_underlying(gameWorld.session().state<EngineState>()));
