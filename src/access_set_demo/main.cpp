@@ -28,39 +28,32 @@ int main() {
     auto gameObject = gameWorld.add<GameObjectHandle>();
     gameObject.add<Position3DComponent>(0.0F, 0.0F, 0.0F);
     gameObject.add<Velocity3DComponent>(0.0F, 0.0F, 0.0F);
+    gameObject.add<ColorComponent>(0.0F, 0.0F, 0.0F, 0.0f);
 
+    using Q1 = Query<
+        GameObjectHandle,
+            Read<Position3DComponent, Velocity3DComponent>,
+            Write<Velocity3DComponent>
+    >;
+
+    using Q2 = Query<
+        GameObjectHandle,
+            Read<ColorComponent>,
+            Write<ColorComponent>
+    >;
 
     gameLoop.phase(PhaseType::Main)
         .beginPass(EngineState::Any)
 
-        .addSystem([&](Query<
-            Read<Position3DComponent<GameObjectHandle>, Velocity3DComponent<GameObjectHandle>>,
-            Write<Velocity3DComponent<GameObjectHandle>>
-        > query) {
-            for (auto [handle, position, velocity] : query) {
+        .addSystem([&](Q1 query1, Q2 query2) {
+            for (auto [entity, position, velocity] : query1) {
                 velocity->setValue({0.0F, 0.0F, 0.0F});
             }
-        })
-
-
-        .addSystem([&](Query<
-            Read<Position3DComponent<GameObjectHandle>, Velocity3DComponent<GameObjectHandle>>,
-            Write<Velocity3DComponent<GameObjectHandle>>
-        > query) {
-            for (auto [handle, position, velocity] : query) {
-                position->setValue({0.0F, 0.0F, 0.0F});
+            for (auto [entity, color] : query2) {
+                entity.setTrackedValue(color, vec4f{0.0F, 0.0F, 0.0F, 0.0f});
             }
         })
-
-        .addSystem([&](Query<
-            GameObjectHandle,
-            types::Read<Position3DComponent, Velocity3DComponent>,
-            types::Write<Velocity3DComponent>
-        > query) {
-            for (auto [handle, position, velocity] : query) {
-                position->setValue({0.0F, 0.0F, 0.0F});
-            }
-        })
+        .executeCommands<EntityMutationManager<GameObjectHandle>>()
         .endPass();
 
     gameWorld.init();
