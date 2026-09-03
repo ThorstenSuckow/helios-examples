@@ -125,8 +125,6 @@ using EngineWorldFactory = WorldFactory<
 
 using DefaultTimerManager = helios::engine::runtime::timing::TimerManager;
 using DefaultGLFWPlatformManager = helios::glfw::GLFWPlatformManager<WindowHandle, DefaultRenderHandles>;
-using DefaultGameObjectMutationManager = helios::ecs::manager::EntityMutationManager<GameObjectHandle>;
-using DefaultParticleMutationManager = helios::ecs::manager::EntityMutationManager<ParticleHandle>;
 using DefaultRenderManager =
     helios::engine::rendering::RenderManager<DefaultRenderHandles, ParticleHandle, GameObjectHandle>;
 using DefaultTextureUploadManager = helios::opengl::OpenGLTextureUploadManager<TextureHandle>;
