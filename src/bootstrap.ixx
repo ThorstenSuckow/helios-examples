@@ -91,8 +91,9 @@ struct WorldFactory {
         return helios::ecs::entity::EntityWorld::make<THandles...>();
     }
 
-    static void updateResourceRegistry(GameWorld& gameWorld) {
+    static void initPermaResources(GameWorld& gameWorld) {
         (gameWorld.resourceRegistry().bind(gameWorld.template entityManager<THandles>()), ...);
+        (gameWorld.registerManager<EntityMutationManager<THandles>>(), ...);
     }
 };
 
@@ -193,7 +194,7 @@ struct EngineRuntime {
 
     auto& gameWorld = engineRuntime->gameWorld;
 
-    EngineWorldFactory::updateResourceRegistry(gameWorld);
+    EngineWorldFactory::initPermaResources(gameWorld);
 
     gameWorld.emplaceResource<helios::engine::state::StateTransitionRules<EngineState>>(
         runtime::enginestate::rules::DefaultEngineStateTransitionRules{}
