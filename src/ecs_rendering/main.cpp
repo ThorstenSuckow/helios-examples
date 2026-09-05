@@ -298,7 +298,8 @@ int main() {
                 >
             > query) {
                 for (auto [entity, intendedVelocity, localVelocity ] : query) {
-                     entity.setTrackedValue(localVelocity, intendedVelocity->value());
+                     entity.track<Velocity3DComponent<GameObjectHandle, Local>>()
+                        ->setValue(intendedVelocity->value());
                 }
             }
         )

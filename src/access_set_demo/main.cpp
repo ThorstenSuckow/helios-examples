@@ -31,15 +31,13 @@ int main() {
     gameObject.add<ColorComponent>(0.0F, 0.0F, 0.0F, 0.0f);
 
     using Q1 = Query<
-        GameObjectHandle,
-            Read<Position3DComponent, Velocity3DComponent>,
-            Write<Velocity3DComponent>
+        ReadSet<Position3DComponent<GameObjectHandle>, Velocity3DComponent<GameObjectHandle>>,
+        WriteSet<Velocity3DComponent<GameObjectHandle>>
     >;
 
     using Q2 = Query<
-        GameObjectHandle,
-            Read<ColorComponent>,
-            Write<ColorComponent>
+        ReadSet<ColorComponent<GameObjectHandle>>,
+        WriteSet<Position3DComponent<GameObjectHandle>>
     >;
 
     gameLoop.phase(PhaseType::Main)
@@ -47,13 +45,13 @@ int main() {
 
         .addSystem([&](Q1 query1, Q2 query2) {
             for (auto [entity, position, velocity] : query1) {
-                velocity->setValue({0.0F, 0.0F, 0.0F});
+                entity.track<Velocity3DComponent<GameObjectHandle>>()->setValue({0.0F, 0.0F, 0.0F});
             }
-            for (auto [entity, color] : query2) {
-                entity.setTrackedValue(color, vec4f{0.0F, 0.0F, 0.0F, 0.0f});
+            for (auto [entity, position] : query2) {
+
+                entity.add<Position3DComponent<GameObjectHandle>>(vec3f{0.0F, 0.0F, 0.0F});
             }
         })
-        .executeCommands<EntityMutationManager<GameObjectHandle>>()
         .endPass();
 
     gameWorld.init();
