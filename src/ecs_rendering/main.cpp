@@ -236,8 +236,7 @@ int main() {
 
 
     // painting function
-    auto enableMemberMaterialOverride = [&](const UpdateContext& updateContext,
-                                            EntityManager<GameObjectHandle>& entityManager,
+    auto enableMemberMaterialOverride = [&](EntityManager<GameObjectHandle>& entityManager,
                                             auto memberContexts,
                                             const bool enable) {
         auto* renderPrototypeSet =
@@ -261,25 +260,25 @@ int main() {
     gameLoop.phase(PhaseType::Pre)
         .beginPass(EngineState::Any)
         .addSystem<EngineFlowSystem>()
-        .executeCommands<EngineStateManager>()
+        .commit<EngineStateManager>()
         .endPass()
 
         .beginPass(EngineState::Booting)
         .addSystem<PlatformInitSystem>()
-        .executeCommands<DefaultGLFWPlatformManager>()
+        .commit<DefaultGLFWPlatformManager>()
         .endPass()
 
         .beginPass(EngineState::Booted | EngineState::Running)
         .addSystem<PollEventsSystem>()
         .addSystem<WindowCreateSystem<WindowHandle>>()
-        .executeCommands<DefaultGLFWPlatformManager>()
+        .commit<DefaultGLFWPlatformManager>()
         .endPass()
 
         .beginPass(EngineState::Warmup)
         .addSystem<MeshUploadSystem<MeshHandle>>()
         .addSystem<ShaderCompileSystem<ShaderHandle>>()
         .addSystem<DefaultWarmupDoneSystem>()
-        .executeCommands<DefaultMeshUploadManager, DefaultShaderCompileManager, EngineStateManager>()
+        .commit<DefaultMeshUploadManager, DefaultShaderCompileManager, EngineStateManager>()
         .endPass();
 
     gameLoop.phase(PhaseType::Main).beginPass(EngineState::Running).endPass();
@@ -292,25 +291,17 @@ int main() {
             // such as component systems
             [&](Query<
                 ReadSet<Velocity3DComponent<GameObjectHandle, Intent>, Velocity3DComponent<GameObjectHandle, Local>>,
-                WriteSet<Velocity3DComponent<GameObjectHandle, Local>>
+                WriteSet<Velocity3DComponent<GameObjectHandle, Local>>,
+                Filter<
+                    IsActive,
+                    AnyDirty<Active<GameObjectHandle>, Velocity3DComponent<GameObjectHandle, Intent>>
+                >
             > query) {
-                for (auto [
-                        entity,
-                        intendedVelocity,
-                        localVelocity
-                    ] : query
-                        .withActive()
-                        .whereAnyDirty<
-                            Active<GameObjectHandle>,
-                            Velocity3DComponent<GameObjectHandle, Intent>
-                        >()
-                    ) {
-
-                    entity.setTrackedValue(localVelocity, intendedVelocity->value());
+                for (auto [entity, intendedVelocity, localVelocity ] : query) {
+                     entity.setTrackedValue(localVelocity, intendedVelocity->value());
                 }
             }
         )
-        .executeCommands<EntityMutationManager<GameObjectHandle>>()
 
         .addParallelSystems<
             Serial<
@@ -331,26 +322,24 @@ int main() {
             DefaultSceneMemberVisibilitySystem<GameObjectHandle, Instanced, AABBCullingStrategy<GameObjectHandle>>
         >(AABBCullingStrategy<GameObjectHandle>())
         .addParallelSystems(
-            [&](UpdateContext& updateContext,
-                EntityManager<GameObjectHandle>& entityManager,
+            [&](EntityManager<GameObjectHandle>& entityManager,
                 DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry) {
                 const auto viewport = CullingViewport.handle();
                 enableMemberMaterialOverride(
-                    updateContext, entityManager, visibilityRegistry.culledMembers(viewport), true
+                    entityManager, visibilityRegistry.culledMembers(viewport), true
                 );
             },
-            [&](UpdateContext& updateContext,
-                EntityManager<GameObjectHandle>& entityManager,
+            [&](EntityManager<GameObjectHandle>& entityManager,
                 DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry) {
                 const auto viewport = CullingViewport.handle();
                 enableMemberMaterialOverride(
-                    updateContext, entityManager, visibilityRegistry.visibleMembers(viewport), false
+                    entityManager, visibilityRegistry.visibleMembers(viewport), false
                 );
             }
         )
         // consume the scenemember-registry
         .addSystem<DefaultSceneRenderSystem<GameObjectHandle, Instanced>>()
-        .executeCommands<DefaultRenderManager>()
+        .commit<DefaultRenderManager>()
         .endPass()
 
         // Clear, bufferswapping
@@ -360,7 +349,7 @@ int main() {
         .addSystem<ClearAllDirtySetsSystem>()
         .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
         .addSystem<SwapBuffersSystem<WindowHandle>>()
-        .executeCommands<DefaultGLFWPlatformManager>()
+        .commit<DefaultGLFWPlatformManager>()
         .endPass()
 
         .beginPass(EngineState::Shutdown)
