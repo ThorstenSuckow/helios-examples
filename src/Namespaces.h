@@ -54,6 +54,8 @@ using namespace helios::core::time;
 using namespace helios::ecs;
 using namespace helios::ecs::command;
 using namespace helios::ecs::entity;
+using namespace helios::ecs::entity::mutation;
+using namespace helios::ecs::entity::query;
 using namespace helios::ecs::manager;
 using namespace helios::ecs::components;
 using namespace helios::ecs::common::concepts;

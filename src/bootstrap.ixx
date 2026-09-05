@@ -93,7 +93,7 @@ struct WorldFactory {
 
     static void initPermaResources(GameWorld& gameWorld) {
         (gameWorld.resourceRegistry().bind(gameWorld.template entityManager<THandles>()), ...);
-        (gameWorld.registerManager<EntityMutationManager<THandles>>(), ...);
+        (gameWorld.registerManager<mutation::EntityMutationManager<THandles>>(), ...);
     }
 };
 
