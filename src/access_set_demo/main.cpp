@@ -26,18 +26,20 @@ int main() {
     auto& gameLoop = engineRuntime->gameLoop;
 
     auto gameObject = gameWorld.add<GameObjectHandle>();
-    gameObject.add<Position3DComponent>(0.0F, 0.0F, 0.0F);
-    gameObject.add<Velocity3DComponent>(0.0F, 0.0F, 0.0F);
+    gameObject.add<Position3DComponent<>>(0.0F, 0.0F, 0.0F);
+    gameObject.add<Velocity3DComponent<>>(0.0F, 0.0F, 0.0F);
     gameObject.add<ColorComponent>(0.0F, 0.0F, 0.0F, 0.0f);
 
     using Q1 = Query<
-        ReadSet<Position3DComponent<GameObjectHandle>, Velocity3DComponent<GameObjectHandle>>,
-        WriteSet<Velocity3DComponent<GameObjectHandle>>
+        GameObjectHandle,
+        ReadSet<Position3DComponent<>, Velocity3DComponent<>>,
+        WriteSet<Velocity3DComponent<>>
     >;
 
     using Q2 = Query<
-        ReadSet<ColorComponent<GameObjectHandle>>,
-        WriteSet<Position3DComponent<GameObjectHandle>>
+        GameObjectHandle,
+        ReadSet<ColorComponent>,
+        WriteSet<Position3DComponent<>>
     >;
 
     gameLoop.phase(PhaseType::Main)
@@ -45,11 +47,10 @@ int main() {
 
         .addSystem([&](Q1 query1, Q2 query2) {
             for (auto [entity, position, velocity] : query1) {
-                entity.track<Velocity3DComponent<GameObjectHandle>>()->setValue({0.0F, 0.0F, 0.0F});
+                entity.track<Velocity3DComponent<>>()->setValue({0.0F, 0.0F, 0.0F});
             }
-            for (auto [entity, position] : query2) {
-
-                entity.add<Position3DComponent<GameObjectHandle>>(vec3f{0.0F, 0.0F, 0.0F});
+            for (auto [entity, color] : query2) {
+                entity.add<Position3DComponent<>>(vec3f{0.0F, 0.0F, 0.0F});
             }
         })
         .endPass();
@@ -63,9 +64,7 @@ int main() {
 
     FrameTiming frameTiming{};
     FramePacer framePacer{};
-    float DELTA_TIME = 0.0f;
-
-
+    
     InputSnapshot inputSnapshot{};
 
     while (gameLoop.isRunning()) {

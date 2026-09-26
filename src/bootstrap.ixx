@@ -150,25 +150,21 @@ template <typename TMemberHandle, typename TSubmissionMode>
 using DefaultSceneMemberVisibilityRegistry =
     scene::SceneMemberVisibilityRegistry<TMemberHandle, TSubmissionMode, DefaultRenderHandles>;
 
-template <typename TMemberHandle, typename TSubmissionMode>
+template <typename TSubmissionMode>
 using DefaultRenderPrototypeComponent =
-    rendering::common::components::RenderPrototypeComponent<TMemberHandle, TSubmissionMode, DefaultRenderHandles>;
+    rendering::common::components::RenderPrototypeComponent<TSubmissionMode, DefaultRenderHandles>;
 
-template <typename TMemberHandle>
 using DefaultRenderTargetBindingComponent =
-    helios::engine::rendering::common::components::RenderTargetBindingComponent<TMemberHandle, DefaultRenderHandles>;
+    helios::engine::rendering::common::components::RenderTargetBindingComponent<DefaultRenderHandles>;
 
-template <typename TMemberHandle>
 using DefaultSceneBindingComponent =
-    helios::engine::scene::components::SceneBindingComponent<TMemberHandle, DefaultRenderHandles>;
+    helios::engine::scene::components::SceneBindingComponent<DefaultRenderHandles>;
 
-template <typename TMemberHandle>
 using DefaultCameraBindingComponent =
-    helios::engine::scene::components::CameraBindingComponent<TMemberHandle, DefaultRenderHandles>;
+    helios::engine::scene::components::CameraBindingComponent<DefaultRenderHandles>;
 
-template <typename TMemberHandle>
 using DefaultSceneMemberComponent =
-    helios::engine::scene::components::SceneMemberComponent<TMemberHandle, DefaultRenderHandles>;
+    helios::engine::scene::components::SceneMemberComponent<DefaultRenderHandles>;
 
 struct EngineRuntime {
     GameWorld gameWorld;

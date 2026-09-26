@@ -55,7 +55,7 @@ int main() {
     // Window Setup
     // ========================================
     auto MainWindow = gameWorld.add<helios::engine::bootstrap::WindowHandle>();
-    MainWindow.add<WindowCreateRequestComponent<WindowHandle>>(WindowConfig{
+    MainWindow.add<WindowCreateRequestComponent>(WindowConfig{
         .title = "helios - ECS Rendering Demo",
         .size = {SCREEN_WIDTH, SCREEN_HEIGHT},
         .aspectRatioNumer = WINDOW_ASPECT_RATIO_NUMER,
@@ -68,65 +68,65 @@ int main() {
     // ========================================
 
     auto MainRenderTarget = gameWorld.add<helios::engine::bootstrap::RenderTargetHandle>();
-    MainRenderTarget.add<OpenGLRenderTargetIdComponent<RenderTargetHandle>>(0);
-    MainRenderTarget.trackDirty<Size2DComponent<RenderTargetHandle>>();
-    MainRenderTarget.add<ClearComponent<RenderTargetHandle>>(ClearFlags::Color);
-    MainRenderTarget.add<ColorComponent<RenderTargetHandle>>(helios::engine::rendering::common::types::Colors::Black);
+    MainRenderTarget.add<OpenGLRenderTargetIdComponent>(0);
+    MainRenderTarget.trackDirty<Size2DComponent>();
+    MainRenderTarget.add<ClearComponent>(ClearFlags::Color);
+    MainRenderTarget.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Black);
 
     auto CullingViewport = gameWorld.add<helios::engine::bootstrap::ViewportHandle>();
     CullingViewport.add<DebugNameComponent<ViewportHandle>>("CullingViewport");
-    CullingViewport.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
-    CullingViewport.add<ColorComponent<ViewportHandle>>(helios::engine::rendering::common::types::Colors::LightGray);
+    CullingViewport.add<ClearComponent>(ClearFlags::Color);
+    CullingViewport.add<ColorComponent>(helios::engine::rendering::common::types::Colors::LightGray);
     // RenderTarget : Viewport (1:N)
-    CullingViewport.add<DefaultRenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
-    CullingViewport.add<RectComponent<ViewportHandle>>(helios::math::vec4f{0.0F, .5f, 1.0F, 0.5F});
+    CullingViewport.add<DefaultRenderTargetBindingComponent>(MainRenderTarget);
+    CullingViewport.add<RectComponent<>>(helios::math::vec4f{0.0F, .5f, 1.0F, 0.5F});
 
     auto CullingViewport_bottom = gameWorld.add<helios::engine::bootstrap::ViewportHandle>();
     CullingViewport_bottom.add<DebugNameComponent<ViewportHandle>>("CullingViewport_bottom");
-    CullingViewport_bottom.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
-    CullingViewport_bottom.add<ColorComponent<ViewportHandle>>(helios::engine::rendering::common::types::Colors::Gray);
+    CullingViewport_bottom.add<ClearComponent>(ClearFlags::Color);
+    CullingViewport_bottom.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Gray);
     // RenderTarget : Viewport (1:N)
-    CullingViewport_bottom.add<DefaultRenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
-    CullingViewport_bottom.add<RectComponent<ViewportHandle>>(helios::math::vec4f{0.0F, .0f, 1.0F, 0.5F});
+    CullingViewport_bottom.add<DefaultRenderTargetBindingComponent>(MainRenderTarget);
+    CullingViewport_bottom.add<RectComponent<>>(helios::math::vec4f{0.0F, .0f, 1.0F, 0.5F});
 
     auto MainScene = gameWorld.add<SceneHandle>();
-    MainWindow.add<DefaultRenderTargetBindingComponent<WindowHandle>>(MainRenderTarget);
+    MainWindow.add<DefaultRenderTargetBindingComponent>(MainRenderTarget);
 
     // Viewport : Scene (N:1)
-    CullingViewport.add<DefaultSceneBindingComponent<ViewportHandle>>(MainScene);
-    CullingViewport_bottom.add<DefaultSceneBindingComponent<ViewportHandle>>(MainScene);
+    CullingViewport.add<DefaultSceneBindingComponent>(MainScene);
+    CullingViewport_bottom.add<DefaultSceneBindingComponent>(MainScene);
 
     auto CullingCamera = gameWorld.add<CameraHandle>();
     CullingCamera.add<DebugNameComponent<CameraHandle>>("CullingCamera");
-    CullingCamera.trackDirty<PerspectiveCameraComponent<CameraHandle>>(
+    CullingCamera.trackDirty<PerspectiveCameraComponent>(
         helios::math::radians(90.0F), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM)
     );
-    CullingCamera.trackDirty<ProjectionMatrixComponent<CameraHandle>>();
-    CullingCamera.trackDirty<ViewMatrixComponent<CameraHandle>>();
-    CullingCamera.trackDirty<YawPitchRollComponent<CameraHandle>>();
-    CullingCamera.trackDirty<Rotation3DComponent<CameraHandle, Local>>();
-    CullingCamera.trackDirty<TransformComponent<CameraHandle, World>>(1.0F);
-    CullingCamera.trackDirty<Position3DComponent<CameraHandle, Local>>(0.0F, 0.0F, -50.0F);
-    CullingCamera.add<DefaultSceneMemberComponent<CameraHandle>>(MainScene);
+    CullingCamera.trackDirty<ProjectionMatrixComponent>();
+    CullingCamera.trackDirty<ViewMatrixComponent>();
+    CullingCamera.trackDirty<YawPitchRollComponent>();
+    CullingCamera.trackDirty<Rotation3DComponent<Local>>();
+    CullingCamera.trackDirty<TransformComponent<World>>(1.0F);
+    CullingCamera.trackDirty<Position3DComponent<Local>>(0.0F, 0.0F, -50.0F);
+    CullingCamera.add<DefaultSceneMemberComponent>(MainScene);
     // later on: rebuildHandleMultiMapFromSceneMembership(). SSoT w/ components, but systems get the
     // multimaps for faster access / querying?
     // or the view gets extended internally that it can fall back to a multimap, e.g. filter<> instead of view<>
     // or some other adequate semantic name
-    CullingViewport.add<DefaultCameraBindingComponent<ViewportHandle>>(CullingCamera);
+    CullingViewport.add<DefaultCameraBindingComponent>(CullingCamera);
 
     auto CullingCamera_bottom = gameWorld.add<CameraHandle>();
     CullingCamera_bottom.add<DebugNameComponent<CameraHandle>>("CullingCamera_bottom");
-    CullingCamera_bottom.trackDirty<PerspectiveCameraComponent<CameraHandle>>(
+    CullingCamera_bottom.trackDirty<PerspectiveCameraComponent>(
         helios::math::radians(90.0F), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM)
     );
-    CullingCamera_bottom.trackDirty<ProjectionMatrixComponent<CameraHandle>>();
-    CullingCamera_bottom.trackDirty<ViewMatrixComponent<CameraHandle>>();
-    CullingCamera_bottom.trackDirty<YawPitchRollComponent<CameraHandle>>();
-    CullingCamera_bottom.trackDirty<Rotation3DComponent<CameraHandle, Local>>();
-    CullingCamera_bottom.trackDirty<Position3DComponent<CameraHandle, Local>>(0.0F, 0.0F, -110.0F);
-    CullingCamera_bottom.trackDirty<TransformComponent<CameraHandle, World>>(1.0F);
-    CullingCamera_bottom.add<DefaultSceneMemberComponent<CameraHandle>>(MainScene);
-    CullingViewport_bottom.add<DefaultCameraBindingComponent<ViewportHandle>>(CullingCamera_bottom);
+    CullingCamera_bottom.trackDirty<ProjectionMatrixComponent>();
+    CullingCamera_bottom.trackDirty<ViewMatrixComponent>();
+    CullingCamera_bottom.trackDirty<YawPitchRollComponent>();
+    CullingCamera_bottom.trackDirty<Rotation3DComponent<Local>>();
+    CullingCamera_bottom.trackDirty<Position3DComponent<Local>>(0.0F, 0.0F, -110.0F);
+    CullingCamera_bottom.trackDirty<TransformComponent<World>>(1.0F);
+    CullingCamera_bottom.add<DefaultSceneMemberComponent>(MainScene);
+    CullingViewport_bottom.add<DefaultCameraBindingComponent>(CullingCamera_bottom);
 
     // ========================================
     // Rendering Management setup
@@ -134,22 +134,22 @@ int main() {
 
     // shader, mesh, material for cube
     auto CubeShader = gameWorld.add<ShaderHandle>();
-    CubeShader.add<ShaderSourceComponent<ShaderHandle>>("./resources/cube.vert", "./resources/cube.frag");
-    CubeShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Pass>>(
+    CubeShader.add<ShaderSourceComponent>("./resources/cube.vert", "./resources/cube.frag");
+    CubeShader.add<UniformMappingsComponent<UniformScope::Pass>>(
         UniformMapping{.semantics = UniformSemantics::ProjectionMatrix, .name = "projectionMatrix"},
         UniformMapping{.semantics = UniformSemantics::ViewMatrix, .name = "viewMatrix"}
     );
-    CubeShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Material>>(
+    CubeShader.add<UniformMappingsComponent<UniformScope::Material>>(
         UniformMapping{.semantics = UniformSemantics::MaterialBaseColor, .name = "color"}
     );
-    CubeShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Draw>>(
+    CubeShader.add<UniformMappingsComponent<UniformScope::Draw>>(
         UniformMapping{.semantics = UniformSemantics::ModelMatrix, .name = "modelMatrix"}
     );
 
     auto CubeMesh = gameWorld.add<MeshHandle>();
-    CubeMesh.add<MeshDataComponent<MeshHandle>>(Triangle::meshData());
-    CubeMesh.add<MeshUploadRequestComponent<MeshHandle>>();
-    CubeMesh.add<VertexAttributeLayoutComponent<MeshHandle, PerVertex>>(VertexAttributeLayout{
+    CubeMesh.add<MeshDataComponent>(Triangle::meshData());
+    CubeMesh.add<MeshUploadRequestComponent>();
+    CubeMesh.add<VertexAttributeLayoutComponent<PerVertex>>(VertexAttributeLayout{
         .attribute =
             VertexAttribute{.semantics = VertexAttributeSemantics::Position, .type = VertexAttributeType::Vec3f},
         .location = 0,
@@ -157,7 +157,7 @@ int main() {
         .offset = offsetof(Vertex, position),
         .divisor = 0
     });
-    CubeMesh.add<VertexAttributeLayoutComponent<MeshHandle, PerInstance>>(VertexAttributeLayout{
+    CubeMesh.add<VertexAttributeLayoutComponent<PerInstance>>(VertexAttributeLayout{
         .attribute =
             VertexAttribute{
                 .semantics = VertexAttributeSemantics::InstancedModelMatrix, .type = VertexAttributeType::Mat4f
@@ -169,10 +169,10 @@ int main() {
     });
 
     auto CubeMaterial = gameWorld.add<MaterialHandle>();
-    CubeMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::rendering::common::types::Colors::Red);
+    CubeMaterial.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Red);
 
     auto CubeMaterialOverride = gameWorld.add<MaterialHandle>();
-    CubeMaterialOverride.add<ColorComponent<MaterialHandle>>(helios::engine::rendering::common::types::Colors::White);
+    CubeMaterialOverride.add<ColorComponent>(helios::engine::rendering::common::types::Colors::White);
 
     // ========================================
     // Entity Setup
@@ -181,22 +181,22 @@ int main() {
     for (int x = -OBJECT_COUNT / 2; x < OBJECT_COUNT / 2; x += OBJECT_DISTANCE) {
         for (int y = -OBJECT_COUNT / 2; y < OBJECT_COUNT / 2; y += OBJECT_DISTANCE) {
             auto cube = gameWorld.add<GameObjectHandle>();
-            cube.add<DefaultSceneMemberComponent<GameObjectHandle>>(MainScene);
-            cube.trackDirty<BoundsComponent<GameObjectHandle, Local>>(Triangle::boundsData());
-            cube.trackDirty<BoundsComponent<GameObjectHandle, World>>();
-            cube.trackDirty<Rotation3DComponent<GameObjectHandle, Local>>();
+            cube.add<DefaultSceneMemberComponent>(MainScene);
+            cube.trackDirty<BoundsComponent<Local>>(Triangle::boundsData());
+            cube.trackDirty<BoundsComponent<World>>();
+            cube.trackDirty<Rotation3DComponent<Local>>();
 
-            cube.trackDirty<Position3DComponent<GameObjectHandle, Local>>(
+            cube.trackDirty<Position3DComponent<Local>>(
                 static_cast<float>(x), static_cast<float>(y), 0.0F
             );
-            cube.trackDirty<Position3DComponent<GameObjectHandle, World>>(0.0F, 0.0F, 0.0F);
-            cube.trackDirty<helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Intent>>(
+            cube.trackDirty<Position3DComponent<World>>(0.0F, 0.0F, 0.0F);
+            cube.trackDirty<helios::physics::motion::components::Velocity3DComponent<Intent>>(
                 randomVec3f(x * y).withZ(0.0F).normalize()
             );
-            cube.trackDirty<helios::physics::motion::components::Velocity3DComponent<GameObjectHandle, Local>>();
+            cube.trackDirty<helios::physics::motion::components::Velocity3DComponent<Local>>();
 
-            cube.trackDirty<TransformComponent<GameObjectHandle, World>>(1.0F);
-            cube.add<DefaultRenderPrototypeComponent<GameObjectHandle, Instanced>>(
+            cube.trackDirty<TransformComponent<World>>(1.0F);
+            cube.add<DefaultRenderPrototypeComponent<Instanced>>(
                 CubeShader.handle(), CubeMaterial.handle(), CubeMesh.handle()
             );
         }
@@ -240,7 +240,7 @@ int main() {
                                             auto memberContexts,
                                             const bool enable) {
         auto* renderPrototypeSet =
-            entityManager.sparseSet<DefaultRenderPrototypeComponent<GameObjectHandle, Instanced>>();
+            entityManager.sparseSet<DefaultRenderPrototypeComponent<Instanced>>();
 
         auto handle = enable ? CubeMaterialOverride.handle() : CubeMaterial.handle();
         for (const auto member : memberContexts) {
@@ -290,15 +290,16 @@ int main() {
             // replacement for systems that compute the local velocity from intended velocity,
             // such as component systems
             [&](Query<
-                ReadSet<Velocity3DComponent<GameObjectHandle, Intent>, Velocity3DComponent<GameObjectHandle, Local>>,
-                WriteSet<Velocity3DComponent<GameObjectHandle, Local>>,
+                GameObjectHandle,
+                ReadSet<Velocity3DComponent<Intent>, Velocity3DComponent<Local>>,
+                WriteSet<Velocity3DComponent<Local>>,
                 Filter<
                     IsActive,
-                    AnyDirty<Active<GameObjectHandle>, Velocity3DComponent<GameObjectHandle, Intent>>
+                    AnyDirty<Active, Velocity3DComponent<Intent>>
                 >
             > query) {
                 for (auto [entity, intendedVelocity, localVelocity ] : query) {
-                     entity.track<Velocity3DComponent<GameObjectHandle, Local>>()
+                     entity.track<Velocity3DComponent<Local>>()
                         ->setValue(intendedVelocity->value());
                 }
             }
