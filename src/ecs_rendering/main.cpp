@@ -254,109 +254,109 @@ int main() {
         }
     };
 
+
     // ----------------------------------------
     // GameLoop Config
     // ----------------------------------------
-    gameLoop.phase(PhaseType::Pre)
-        .beginPass(EngineState::Any)
-        .addSystem<EngineFlowSystem>()
-        .commit<EngineStateManager>()
-        .endPass()
+    gameLoop.scheduler()
+        // PRE
+        .beginSchedule(GameWorld::sessionState(EngineState::Any))
+            .add<EngineFlowSystem>()
+        .endSchedule<EngineStateManager>()
 
-        .beginPass(EngineState::Booting)
-        .addSystem<PlatformInitSystem>()
-        .commit<DefaultGLFWPlatformManager>()
-        .endPass()
+        .beginSchedule(GameWorld::sessionState(EngineState::Booting))
+            .add<PlatformInitSystem>()
+        .endSchedule<DefaultGLFWPlatformManager>()
 
-        .beginPass(EngineState::Booted | EngineState::Running)
-        .addSystem<PollEventsSystem>()
-        .addSystem<WindowCreateSystem<WindowHandle>>()
-        .commit<DefaultGLFWPlatformManager>()
-        .endPass()
+        .beginSchedule(GameWorld::sessionState(EngineState::Booted | EngineState::Running))
+            .add<PollEventsSystem>()
+            .add<WindowCreateSystem<WindowHandle>>()
+        .endSchedule<DefaultGLFWPlatformManager>()
 
-        .beginPass(EngineState::Warmup)
-        .addSystem<MeshUploadSystem<MeshHandle>>()
-        .addSystem<ShaderCompileSystem<ShaderHandle>>()
-        .addSystem<DefaultWarmupDoneSystem>()
-        .commit<DefaultMeshUploadManager, DefaultShaderCompileManager, EngineStateManager>()
-        .endPass();
-
-    gameLoop.phase(PhaseType::Main).beginPass(EngineState::Running).endPass();
-
-    gameLoop.phase(PhaseType::Post)
-        .beginPass(EngineState::Running)
-
-        .addSystem(
-            // replacement for systems that compute the local velocity from intended velocity,
-            // such as component systems
-            [&](Query<
-                GameObjectHandle,
-                ReadSet<Velocity3DComponent<Intent>, Velocity3DComponent<Local>>,
-                WriteSet<Velocity3DComponent<Local>>,
-                Filter<
-                    IsActive,
-                    AnyDirty<Active, Velocity3DComponent<Intent>>
-                >
-            > query) {
-                for (auto [entity, intendedVelocity, localVelocity ] : query) {
-                     entity.track<Velocity3DComponent<Local>>()
-                        ->setValue(intendedVelocity->value());
-                }
-            }
-        )
-
-        .addParallelSystems<
-            Serial<
-                YawPitchRollUpdateSystem<CameraHandle>,
-                WorldTransformSystem<CameraHandle>,
-                PerspectiveCameraUpdateSystem<CameraHandle>
-            >,
-            Serial<
-                MotionIntegrationSystem<GameObjectHandle>,
-                WorldTransformSystem<GameObjectHandle>,
-                WorldBoundsUpdateSystem<GameObjectHandle>
-            >
+        .beginSchedule(GameWorld::sessionState(EngineState::Warmup))
+            .add<MeshUploadSystem<MeshHandle>>()
+            .add<ShaderCompileSystem<ShaderHandle>>()
+            .add<DefaultWarmupDoneSystem>()
+        .endSchedule<
+            DefaultMeshUploadManager,
+            DefaultShaderCompileManager,
+            EngineStateManager
         >()
 
-        // this will produce render commands after scenes have been culled according to
-        // their active viewports
-        .addSystem<
-            DefaultSceneMemberVisibilitySystem<GameObjectHandle, Instanced, AABBCullingStrategy<GameObjectHandle>>
-        >(AABBCullingStrategy<GameObjectHandle>())
-        .addParallelSystems(
-            [&](EntityManager<GameObjectHandle>& entityManager,
-                DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry) {
-                const auto viewport = CullingViewport.handle();
-                enableMemberMaterialOverride(
-                    entityManager, visibilityRegistry.culledMembers(viewport), true
-                );
-            },
-            [&](EntityManager<GameObjectHandle>& entityManager,
-                DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry) {
-                const auto viewport = CullingViewport.handle();
-                enableMemberMaterialOverride(
-                    entityManager, visibilityRegistry.visibleMembers(viewport), false
-                );
-            }
-        )
-        // consume the scenemember-registry
-        .addSystem<DefaultSceneRenderSystem<GameObjectHandle, Instanced>>()
-        .commit<DefaultRenderManager>()
-        .endPass()
+        // MAIN
+        .beginSchedule(GameWorld::sessionState(EngineState::Running))
 
+            .add(
+                // replacement for systems that compute the local velocity from intended velocity,
+                // such as component systems
+                [&](Query<
+                    GameObjectHandle,
+                    ReadSet<Velocity3DComponent<Intent>, Velocity3DComponent<Local>>,
+                    WriteSet<Velocity3DComponent<Local>>,
+                    Filter<
+                        IsActive,
+                        AnyDirty<Active, Velocity3DComponent<Intent>>
+                    >
+                > query) {
+                    for (auto [entity, intendedVelocity, localVelocity ] : query) {
+                         entity.track<Velocity3DComponent<Local>>()
+                            ->setValue(intendedVelocity->value());
+                    }
+                }
+            )
+
+            .add<
+                Sequential<
+                    YawPitchRollUpdateSystem<CameraHandle>,
+                    WorldTransformSystem<CameraHandle>,
+                    PerspectiveCameraUpdateSystem<CameraHandle>
+                >,
+                Sequential<
+                    MotionIntegrationSystem<GameObjectHandle>,
+                    WorldTransformSystem<GameObjectHandle>,
+                    WorldBoundsUpdateSystem<GameObjectHandle>
+                >
+            >()
+
+            // this will produce render commands after scenes have been culled according to
+            // their active viewports
+            .add<
+                DefaultSceneMemberVisibilitySystem<GameObjectHandle, Instanced, AABBCullingStrategy<GameObjectHandle>>
+            >(AABBCullingStrategy<GameObjectHandle>())
+            .add(
+                [&](EntityManager<GameObjectHandle>& entityManager,
+                    DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry) {
+                    const auto viewport = CullingViewport.handle();
+                    enableMemberMaterialOverride(
+                        entityManager, visibilityRegistry.culledMembers(viewport), true
+                    );
+                },
+                [&](EntityManager<GameObjectHandle>& entityManager,
+                    DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry) {
+                    const auto viewport = CullingViewport.handle();
+                    enableMemberMaterialOverride(
+                        entityManager, visibilityRegistry.visibleMembers(viewport), false
+                    );
+                }
+            )
+            // consume the scenemember-registry
+            .add<DefaultSceneRenderSystem<GameObjectHandle, Instanced>>()
+        .endSchedule<DefaultRenderManager>()
+
+        // POST
         // Clear, bufferswapping
-        .beginPass(EngineState::Running)
-        .addSystem<GLFWWindowCloseSystem<WindowHandle>>()
-        .addSystem<WindowBasedShutdownSystem<WindowHandle>>()
-        .addSystem<ClearAllDirtySetsSystem>()
-        .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
-        .addSystem<SwapBuffersSystem<WindowHandle>>()
-        .commit<DefaultGLFWPlatformManager>()
-        .endPass()
+        .beginSchedule(GameWorld::sessionState(EngineState::Running))
+            .add<GLFWWindowCloseSystem<WindowHandle>>()
+            .add<WindowBasedShutdownSystem<WindowHandle>>()
+            .add<ClearAllDirtySetsSystem>()
+            .add<ImGuiOverlayRenderSystem>(imguiOverlay)
+            .add<SwapBuffersSystem<WindowHandle>>()
+        .endSchedule<DefaultGLFWPlatformManager>()
 
-        .beginPass(EngineState::Shutdown)
-        .addSystem<DestroySessionSystem>()
-        .endPass();
+        .beginSchedule(GameWorld::sessionState(EngineState::Shutdown))
+            .add<DestroySessionSystem>()
+        .endSchedule();
+
 
     gameWorld.init();
     gameLoop.init();

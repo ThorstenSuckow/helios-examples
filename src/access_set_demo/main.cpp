@@ -42,18 +42,17 @@ int main() {
         WriteSet<Position3DComponent<>>
     >;
 
-    gameLoop.phase(PhaseType::Main)
-        .beginPass(EngineState::Any)
-
-        .addSystem([&](Q1 query1, Q2 query2) {
-            for (auto [entity, position, velocity] : query1) {
-                entity.track<Velocity3DComponent<>>()->setValue({0.0F, 0.0F, 0.0F});
-            }
-            for (auto [entity, color] : query2) {
-                entity.add<Position3DComponent<>>(vec3f{0.0F, 0.0F, 0.0F});
-            }
-        })
-        .endPass();
+    gameLoop.scheduler()
+        .beginSchedule(GameWorld::sessionState(EngineState::Any))
+            .add([&](Q1 query1, Q2 query2) {
+                for (auto [entity, position, velocity] : query1) {
+                    entity.track<Velocity3DComponent<>>()->setValue({0.0F, 0.0F, 0.0F});
+                }
+                for (auto [entity, color] : query2) {
+                    entity.add<Position3DComponent<>>(vec3f{0.0F, 0.0F, 0.0F});
+                }
+            })
+        .endSchedule();
 
     gameWorld.init();
     gameLoop.init();

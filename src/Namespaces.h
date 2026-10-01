@@ -69,6 +69,7 @@ using namespace helios::engine::state;
 using namespace helios::engine::state::types;
 
 // Runtime
+using namespace helios::engine::runtime;
 using namespace helios::engine::runtime::enginestate;
 using namespace helios::engine::runtime::enginestate::systems;
 using namespace helios::engine::runtime::enginestate::types;
