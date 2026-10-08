@@ -42,8 +42,10 @@ int main() {
     constexpr float WINDOW_ASPECT_RATIO_NUMER = 16.0F;
     constexpr float WINDOW_ASPECT_RATIO_DENOM = 9.0F;
 
-    constexpr int OBJECT_COUNT = 143; // per axis
-    constexpr std::size_t OBJECT_DISTANCE = 3;
+    constexpr int AXIS_LENGTH   = 500;
+    constexpr int OBJECTS_PER_AXIS = 333;
+
+    const int CELL_SIZE = std::max(2, static_cast<int>(AXIS_LENGTH / OBJECTS_PER_AXIS)) ;
 
     // ==========================================================
     // Infrastructure init / GameWorld / GameLoop / InputManager
@@ -106,7 +108,7 @@ int main() {
     CullingCamera.add<YawPitchRollComponent>();
     CullingCamera.add<Rotation3DComponent<Local>>();
     CullingCamera.add<TransformComponent<World>>(1.0F);
-    CullingCamera.add<Position3DComponent<Local>>(0.0F, 0.0F, -75.0F);
+    CullingCamera.add<Position3DComponent<Local>>(0.0F, 0.0F, (-AXIS_LENGTH / 2.0F) - 50.0f);
     CullingCamera.add<DefaultSceneMemberComponent>(MainScene);
     CullingViewport.add<DefaultCameraBindingComponent>(CullingCamera);
 
@@ -191,71 +193,98 @@ int main() {
         .divisor = 1
     });
 
-    auto CubeMaterial = gameWorld.add<MaterialHandle>();
-    CubeMaterial.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Blue);
-
     // ========================================
     // Entity Setup
     // ========================================
     // boundaries
-    for (int i = 0; i < 4; i++) {
-        auto bndLeft =  gameWorld.add<GameObjectHandle>();
+    auto createBoundaries = [&]<typename THandle>() {
+        for (int i = 0; i < 4; i++) {
+            auto bndLeft =  gameWorld.add<THandle>();
 
-        switch (i) {
-            case 0: bndLeft.add<Position3DComponent<Local>>(0.0F, -OBJECT_COUNT/2 , 0.0F);
-                break;
-            case 1: bndLeft.add<Position3DComponent<Local>>(OBJECT_COUNT/2 , 0.0F, 0.0F);
-                break;
-            case 2: bndLeft.add<Position3DComponent<Local>>(0.0F, OBJECT_COUNT/2 , 0.0F);
-                break;
-            case 3: bndLeft.add<Position3DComponent<Local>>(-OBJECT_COUNT/2, 0.0F, 0.0F);
-                break;
-        }
-        bndLeft.add<Scale3DComponent<Local>>(OBJECT_COUNT , 1.0F, 1.0F);
-        bndLeft.add<DefaultSceneMemberComponent>(MainScene);
-        bndLeft.add<BoundsComponent<Local>>(WireframeCube::boundsData());
-        bndLeft.add<Rotation3DComponent<Local>>(
-            helios::math::quatf::fromEulerAngles<Intrinsic>(
-                0.0f, 0.0f, i* (std::numbers::pi / 2)
-            )
-        );
-        bndLeft.add<helios::physics::collision::components::CollisionComponent>();
-        bndLeft.add<BoundsComponent<World>>();
-        bndLeft.add<TransformComponent<World>>(1.0F);
-        bndLeft.add<DefaultRenderPrototypeComponent<Instanced>>(
-            CubeShader.handle(), BoundaryMaterial.handle(), BoundaryMesh.handle()
-        );
-    }
-
-    // cubes
-    for (int x = -OBJECT_COUNT / 2; x < OBJECT_COUNT / 2; x += OBJECT_DISTANCE) {
-        for (int y = -OBJECT_COUNT / 2; y < OBJECT_COUNT / 2; y += OBJECT_DISTANCE) {
-            auto cube = gameWorld.add<GameObjectHandle>();
-            cube.add<helios::physics::collision::components::CollisionComponent>();
-            cube.add<DefaultSceneMemberComponent>(MainScene);
-            cube.add<BoundsComponent<Local>>(WireframeCube::boundsData());
-            cube.add<BoundsComponent<World>>();
-            cube.add<Rotation3DComponent<Local>>();
-            cube.add<Scale3DComponent<Local>>(1.0F, 1.0F, 1.0F);
-            cube.add<Position3DComponent<Local>>(
-                static_cast<float>(
-                    x <= -OBJECT_COUNT/2  ? x + 5 : (x >= OBJECT_COUNT/2 ? x - 5 : x)
-                ), static_cast<float>(
-                    y <= -OBJECT_COUNT/2 ? y + 5 : (y >= OBJECT_COUNT/2 ? y - 5 : y)
-                ), 0.0F
+            switch (i) {
+                case 0: bndLeft.template add<Position3DComponent<Local>>(0.0F, -AXIS_LENGTH/2 , 0.0F);
+                    break;
+                case 1: bndLeft.template add<Position3DComponent<Local>>(AXIS_LENGTH/2 , 0.0F, 0.0F);
+                    break;
+                case 2: bndLeft.template add<Position3DComponent<Local>>(0.0F, AXIS_LENGTH/2 , 0.0F);
+                    break;
+                case 3: bndLeft.template add<Position3DComponent<Local>>(-AXIS_LENGTH/2, 0.0F, 0.0F);
+                    break;
+            }
+            bndLeft.template add<Scale3DComponent<Local>>(AXIS_LENGTH , 1.0F, 1.0F);
+            bndLeft.template add<DefaultSceneMemberComponent>(MainScene);
+            bndLeft.template add<BoundsComponent<Local>>(WireframeCube::boundsData());
+            bndLeft.template add<Rotation3DComponent<Local>>(
+                helios::math::quatf::fromEulerAngles<Intrinsic>(
+                    0.0f, 0.0f, i* (std::numbers::pi / 2)
+                )
             );
-            cube.add<Position3DComponent<World>>(0.0F, 0.0F, 0.0F);
-            cube.add<helios::physics::motion::components::Velocity3DComponent<Intent>>(
-                randomVec3f(x * y).withZ(0.0F).normalize()
-            );
-            cube.add<helios::physics::motion::components::Velocity3DComponent<Local>>();
-
-            cube.add<TransformComponent<World>>(1.0F);
-            cube.add<DefaultRenderPrototypeComponent<Instanced>>(
-                CubeShader.handle(), CubeMaterial.handle(), CubeMesh.handle()
+            bndLeft.template add<helios::physics::collision::components::CollisionComponent>();
+            bndLeft.template add<BoundsComponent<World>>();
+            bndLeft.template add<TransformComponent<World>>(1.0F);
+            bndLeft.template add<DefaultRenderPrototypeComponent<Instanced>>(
+                CubeShader.handle(), BoundaryMaterial.handle(), BoundaryMesh.handle()
             );
         }
-    }
+    };
+
+    auto createObjects = [&]<typename THandle>(MaterialHandle materialHandle, const int randomizerOffset = 0){
+        int NUM_OBJECTS = 0;
+        float delx = static_cast<float>(AXIS_LENGTH) / OBJECTS_PER_AXIS;
+        float dely = static_cast<float>(AXIS_LENGTH) / OBJECTS_PER_AXIS;
+        float startLeft = -AXIS_LENGTH / 2.0F;
+        float endRight = AXIS_LENGTH / 2.0F;
+        float endTop = AXIS_LENGTH / 2.0F;
+        float startBottom = -AXIS_LENGTH / 2.0F;
+        float x = startLeft;
+        float y = startBottom;
+
+        for (int i = 0; i < OBJECTS_PER_AXIS; i++) {
+            x += delx;
+            y = startBottom;
+            for (int j = 0; j < OBJECTS_PER_AXIS; j++) {
+                auto cube = gameWorld.add<THandle>();
+                cube.template add<helios::physics::collision::components::CollisionComponent>();
+                cube.template add<DefaultSceneMemberComponent>(MainScene);
+                cube.template add<BoundsComponent<Local>>(WireframeCube::boundsData());
+                cube.template add<BoundsComponent<World>>();
+                cube.template add<Rotation3DComponent<Local>>();
+                cube.template add<Scale3DComponent<Local>>(1.0F, 1.0F, 1.0F);
+                cube.template add<Position3DComponent<Local>>(
+                    static_cast<float>(
+                        x <= startLeft  ? x + 5 : (x >= endRight ? x - 5 : x)
+                    ), static_cast<float>(
+                        y <= startBottom ? y + 5 : (y >= endTop ? y - 5 : y)
+                    ), 0.0F
+                );
+                cube.template add<Position3DComponent<World>>(0.0F, 0.0F, 0.0F);
+                cube.template add<helios::physics::motion::components::Velocity3DComponent<Local>>(
+                    randomVec3f(NUM_OBJECTS + randomizerOffset).withZ(0.0F).normalize()
+                );
+
+                cube.template add<TransformComponent<World>>(1.0F);
+                cube.template add<DefaultRenderPrototypeComponent<Instanced>>(
+                    CubeShader.handle(), materialHandle, CubeMesh.handle()
+                );
+                NUM_OBJECTS++;
+
+                y += dely;
+            }
+        }
+
+        logger.info("Created {} objects.", NUM_OBJECTS);
+    };
+
+    auto GameObjectMaterial = gameWorld.add<MaterialHandle>();
+    GameObjectMaterial.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Blue);
+
+    auto ParticleMaterial = gameWorld.add<MaterialHandle>();
+    ParticleMaterial.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Green);
+
+    createObjects.operator()<GameObjectHandle>(GameObjectMaterial.handle());
+    createObjects.operator()<ParticleHandle>(ParticleMaterial.handle(), OBJECTS_PER_AXIS * OBJECTS_PER_AXIS);
+    createBoundaries.operator()<GameObjectHandle>();
+    createBoundaries.operator()<ParticleHandle>();
 
     // ----------------------------------------
     // ImGui and Debug Tooling
@@ -331,24 +360,6 @@ int main() {
         // MAIN
         .beginSchedule(GameWorld::sessionState(EngineState::Running))
 
-            .add(
-                // replacement for systems that compute the local velocity from intended velocity,
-                // such as component systems
-                [&](Query<
-                    GameObjectHandle,
-                    ReadSet<Velocity3DComponent<Intent>, Velocity3DComponent<Local>>,
-                    WriteSet<Velocity3DComponent<Local>
-                    >,
-                    Filter<
-                        IsActive,
-                        AnyDirty<Active, Velocity3DComponent<Intent>>
-                    >
-                > query) {
-                    for (auto [entity, intendedVelocity, localVelocity ] : query) {
-                         localVelocity->setValue(intendedVelocity->value());
-                    }
-                }
-            )
 
             .add<
                 Sequential<
@@ -360,113 +371,53 @@ int main() {
                     MotionIntegrationSystem<GameObjectHandle>,
                     WorldTransformSystem<GameObjectHandle>,
                     WorldBoundsUpdateSystem<GameObjectHandle>
+                >,
+                Sequential<
+                    MotionIntegrationSystem<ParticleHandle>,
+                    WorldTransformSystem<ParticleHandle>,
+                    WorldBoundsUpdateSystem<ParticleHandle>
                 >
             >()
             .add(
                 Sequential(
                     helios::physics::collision::systems::GridCollisionDetectionSystem<GameObjectHandle>(
                         helios::math::aabbf{
-                            -OBJECT_COUNT / 2.0F, -OBJECT_COUNT / 2.0F, 0.0f,
-                            OBJECT_COUNT / 2.0F, OBJECT_COUNT / 2.0F, 0.0f
-                        }, 10.0f
+                            -AXIS_LENGTH / 2.0F, -AXIS_LENGTH / 2.0F, 0.0f,
+                            AXIS_LENGTH / 2.0F, AXIS_LENGTH / 2.0F, 0.0f
+                        }, CELL_SIZE
                     ),
-                    [&logger](
-                    const helios::physics::collision::CollisionDetectionResult<GameObjectHandle>& collisionResult,
-                    UpdateContext& ctx,
-                    Query<
-                        GameObjectHandle,
-                        ReadSet<Velocity3DComponent<Local>>,
-                        WriteSet<Velocity3DComponent<Local>>
-                    > query
-                ) {
-
-                    const auto& collisions = collisionResult.collisionPairs();
-
-                    constexpr float restitution = 1.0f;
-
-                    for (const auto& collisionPair : collisions) {
-
-                        auto lftResult = query.get(collisionPair.leftHandle);
-                        auto rgtResult = query.get(collisionPair.rightHandle);
-
-                        // staionary collision (most unlikely)
-                        if (!lftResult && !rgtResult) [[unlikely]] {
-                            continue;
-                        }
-
-                        helios::math::vec3f leftVelocity{0.0f, 0.0f, 0.0f};
-                        helios::math::vec3f rightVelocity{0.0f, 0.0f, 0.0f};
-
-                        if (lftResult) {
-                            auto [entity, velocity] = *lftResult;
-                            leftVelocity = velocity->value();
-                        }
-
-                        if (rgtResult) {
-                            auto [entity, velocity] = *rgtResult;
-                            rightVelocity = velocity->value();
-                        }
-
-                        // at least one stationary
-                        const float leftInverseMass  = lftResult ? 1.0f : 0.0f;
-                        const float rightInverseMass = rgtResult ? 1.0f : 0.0f;
-
-                        const auto relativeVelocity =
-                            rightVelocity - leftVelocity;
-
-                        // overlapNormal: left -> right.
-                        const float velocityAlongNormal =
-                            helios::math::dot(
-                                relativeVelocity,
-                                collisionPair.overlapNormal
-                            );
-
-                        // moving away from each other - ignore
-                        if (velocityAlongNormal >= 0.0f) {
-                            continue;
-                        }
-
-                        const float impulseMagnitude =
-                            -(1.0f + restitution) *
-                            velocityAlongNormal /
-                            (leftInverseMass + rightInverseMass);
-
-                        const auto impulse = collisionPair.overlapNormal * impulseMagnitude;
-
-                        if (lftResult) {
-                            auto [entity, velocity] = *lftResult;
-
-                            entity
-                                .track<Velocity3DComponent<Local>>()
-                                ->setValue(
-                                    leftVelocity -
-                                    impulse * leftInverseMass
-                                );
-                        }
-
-                        if (rgtResult) {
-                            auto [entity, velocity] = *rgtResult;
-
-                            entity
-                                .track<Velocity3DComponent<Local>>()
-                                ->setValue(
-                                    rightVelocity +
-                                    impulse * rightInverseMass
-                                );
-                        }
-                    }
-                }
-            ))
+                    helios::physics::collision::systems::CollisionResponseSystem<GameObjectHandle>()
+                ),
+                Sequential(
+                    helios::physics::collision::systems::GridCollisionDetectionSystem<ParticleHandle>(
+                        helios::math::aabbf{
+                            -AXIS_LENGTH / 2.0F, -AXIS_LENGTH / 2.0F, 0.0f,
+                            AXIS_LENGTH / 2.0F, AXIS_LENGTH / 2.0F, 0.0f
+                        }, CELL_SIZE
+                    ),
+                    helios::physics::collision::systems::CollisionResponseSystem<ParticleHandle>()
+                )
+            )
 
             // this will produce render commands after scenes have been culled according to
             // their active viewports
             .add(
-                SceneMemberVisibilitySystem<
-                    GameObjectHandle, Instanced, NullCullingStrategy<GameObjectHandle>, DefaultRenderHandles
-                >(NullCullingStrategy<GameObjectHandle>())
+                Sequential(
+                    SceneMemberVisibilitySystem<
+                        GameObjectHandle, Instanced, NullCullingStrategy<GameObjectHandle>, DefaultRenderHandles
+                    >(NullCullingStrategy<GameObjectHandle>())
+                ),
+                Sequential(
+                    SceneMemberVisibilitySystem<
+                        ParticleHandle, Instanced, NullCullingStrategy<ParticleHandle>, DefaultRenderHandles
+                    >(NullCullingStrategy<ParticleHandle>())
+                )
             )
             // consume the scenemember-registry
-            .add<DefaultSceneRenderSystem<GameObjectHandle, Instanced>>()
+            .add<
+                DefaultSceneRenderSystem<GameObjectHandle, Instanced>,
+                DefaultSceneRenderSystem<ParticleHandle, Instanced>
+            >()
         .endSchedule<DefaultRenderManager>()
 
         // POST
