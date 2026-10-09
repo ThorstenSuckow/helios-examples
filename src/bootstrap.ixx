@@ -174,8 +174,8 @@ struct EngineRuntime {
     EngineRuntime(EngineRuntime&&) = delete;
     EngineRuntime& operator=(EngineRuntime&&) = delete;
 
-    explicit EngineRuntime(EntityWorld&& ecsWorld, JobSystem& jobSystem)
-        : gameWorld{std::move(ecsWorld), jobSystem}, gameLoop{gameWorld} {}
+    explicit EngineRuntime(EntityWorld&& ecsWorld)
+        : gameWorld{std::move(ecsWorld)}, gameLoop{gameWorld} {}
 };
 
 /**
@@ -183,9 +183,9 @@ struct EngineRuntime {
  *
  * @return A EngineRuntime object.
  */
-[[nodiscard]] std::unique_ptr<EngineRuntime> bootstrapGameWorld(JobSystem& jobSystem, size_t capacity = 1000) {
+[[nodiscard]] std::unique_ptr<EngineRuntime> bootstrapGameWorld(size_t capacity = 1000) {
 
-    auto engineRuntime = std::make_unique<EngineRuntime>(EngineWorldFactory::makeEcsWorld(), jobSystem);
+    auto engineRuntime = std::make_unique<EngineRuntime>(EngineWorldFactory::makeEcsWorld());
 
     auto& gameWorld = engineRuntime->gameWorld;
 

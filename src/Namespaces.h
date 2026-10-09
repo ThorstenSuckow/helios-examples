@@ -53,6 +53,7 @@ using namespace helios::core::time;
 // ECS library
 using namespace helios::ecs;
 using namespace helios::ecs::command;
+using namespace helios::ecs::common;
 using namespace helios::ecs::entity;
 using namespace helios::ecs::entity::mutation;
 using namespace helios::ecs::entity::query;
