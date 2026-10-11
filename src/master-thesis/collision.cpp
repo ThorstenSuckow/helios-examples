@@ -42,8 +42,11 @@ int main() {
     constexpr float WINDOW_ASPECT_RATIO_NUMER = 16.0F;
     constexpr float WINDOW_ASPECT_RATIO_DENOM = 9.0F;
 
-    constexpr int AXIS_LENGTH   = 500;
     constexpr int OBJECTS_PER_AXIS = 333;
+    constexpr int DISTANCE_BETWEEN_OBJECTS = 1;
+    constexpr int AXIS_LENGTH      = 2 * OBJECTS_PER_AXIS + 1;
+
+    logger.info("Actual axis length: {}", AXIS_LENGTH);
 
     const int CELL_SIZE = std::max(2, static_cast<int>(AXIS_LENGTH / OBJECTS_PER_AXIS)) ;
 
@@ -202,13 +205,13 @@ int main() {
             auto bndLeft =  gameWorld.add<THandle>();
 
             switch (i) {
-                case 0: bndLeft.template add<Position3DComponent<Local>>(0.0F, -AXIS_LENGTH/2 , 0.0F);
+                case 0: bndLeft.template add<Position3DComponent<Local>>(0.0F, -AXIS_LENGTH/2.0f - 0.5f , 0.0F);
                     break;
-                case 1: bndLeft.template add<Position3DComponent<Local>>(AXIS_LENGTH/2 , 0.0F, 0.0F);
+                case 1: bndLeft.template add<Position3DComponent<Local>>(AXIS_LENGTH/2.0f + 0.5f , 0.0F, 0.0F);
                     break;
-                case 2: bndLeft.template add<Position3DComponent<Local>>(0.0F, AXIS_LENGTH/2 , 0.0F);
+                case 2: bndLeft.template add<Position3DComponent<Local>>(0.0F, AXIS_LENGTH/2.0f + 0.5f , 0.0F);
                     break;
-                case 3: bndLeft.template add<Position3DComponent<Local>>(-AXIS_LENGTH/2, 0.0F, 0.0F);
+                case 3: bndLeft.template add<Position3DComponent<Local>>(-AXIS_LENGTH/2.0f - 0.5f , 0.0F, 0.0F);
                     break;
             }
             bndLeft.template add<Scale3DComponent<Local>>(AXIS_LENGTH , 1.0F, 1.0F);
@@ -230,18 +233,17 @@ int main() {
 
     auto createObjects = [&]<typename THandle>(MaterialHandle materialHandle, const int randomizerOffset = 0){
         int NUM_OBJECTS = 0;
-        float delx = static_cast<float>(AXIS_LENGTH) / OBJECTS_PER_AXIS;
-        float dely = static_cast<float>(AXIS_LENGTH) / OBJECTS_PER_AXIS;
+
         float startLeft = -AXIS_LENGTH / 2.0F;
         float endRight = AXIS_LENGTH / 2.0F;
         float endTop = AXIS_LENGTH / 2.0F;
-        float startBottom = -AXIS_LENGTH / 2.0F;
-        float x = startLeft;
-        float y = startBottom;
+        float startBottom = -AXIS_LENGTH / 2.0F - 0.5f;
+        float x = startLeft + 2*DISTANCE_BETWEEN_OBJECTS -0.5f;
 
         for (int i = 0; i < OBJECTS_PER_AXIS; i++) {
-            x += delx;
-            y = startBottom;
+
+            float y = startBottom + 2*DISTANCE_BETWEEN_OBJECTS;
+
             for (int j = 0; j < OBJECTS_PER_AXIS; j++) {
                 auto cube = gameWorld.add<THandle>();
                 cube.template add<helios::physics::collision::components::CollisionComponent>();
@@ -251,11 +253,7 @@ int main() {
                 cube.template add<Rotation3DComponent<Local>>();
                 cube.template add<Scale3DComponent<Local>>(1.0F, 1.0F, 1.0F);
                 cube.template add<Position3DComponent<Local>>(
-                    static_cast<float>(
-                        x <= startLeft  ? x + 5 : (x >= endRight ? x - 5 : x)
-                    ), static_cast<float>(
-                        y <= startBottom ? y + 5 : (y >= endTop ? y - 5 : y)
-                    ), 0.0F
+                    static_cast<float>(x), static_cast<float>(y), 0.0F
                 );
                 cube.template add<Position3DComponent<World>>(0.0F, 0.0F, 0.0F);
                 cube.template add<helios::physics::motion::components::Velocity3DComponent<Local>>(
@@ -268,8 +266,10 @@ int main() {
                 );
                 NUM_OBJECTS++;
 
-                y += dely;
+                y += 2*DISTANCE_BETWEEN_OBJECTS;
             }
+            x += 2*DISTANCE_BETWEEN_OBJECTS;
+
         }
 
         logger.info("Created {} objects.", NUM_OBJECTS);
@@ -352,9 +352,11 @@ int main() {
                 >
             >()
         .endSchedule<
-            DefaultMeshUploadManager,
-            DefaultShaderCompileManager,
-            EngineStateManager
+            Sequential<
+                DefaultMeshUploadManager,
+                DefaultShaderCompileManager,
+                EngineStateManager
+            >
         >()
 
         // MAIN
@@ -380,21 +382,25 @@ int main() {
             >()
             .add(
                 Sequential(
-                    helios::physics::collision::systems::GridCollisionDetectionSystem<GameObjectHandle>(
+                    helios::physics::collision::systems::CollisionDetectionSystem<GameObjectHandle,
+                    helios::physics::collision::strategies::GridCollisionDetectionStrategy<GameObjectHandle>>(
+                        helios::physics::collision::strategies::GridCollisionDetectionStrategy<GameObjectHandle>(
                         helios::math::aabbf{
                             -AXIS_LENGTH / 2.0F, -AXIS_LENGTH / 2.0F, 0.0f,
                             AXIS_LENGTH / 2.0F, AXIS_LENGTH / 2.0F, 0.0f
                         }, CELL_SIZE
-                    ),
+                    )),
                     helios::physics::collision::systems::CollisionResponseSystem<GameObjectHandle>()
                 ),
                 Sequential(
-                    helios::physics::collision::systems::GridCollisionDetectionSystem<ParticleHandle>(
+                    helios::physics::collision::systems::CollisionDetectionSystem<ParticleHandle,
+                    helios::physics::collision::strategies::GridCollisionDetectionStrategy<ParticleHandle>>(
+                    helios::physics::collision::strategies::GridCollisionDetectionStrategy<ParticleHandle>(
                         helios::math::aabbf{
                             -AXIS_LENGTH / 2.0F, -AXIS_LENGTH / 2.0F, 0.0f,
                             AXIS_LENGTH / 2.0F, AXIS_LENGTH / 2.0F, 0.0f
                         }, CELL_SIZE
-                    ),
+                    )),
                     helios::physics::collision::systems::CollisionResponseSystem<ParticleHandle>()
                 )
             )
