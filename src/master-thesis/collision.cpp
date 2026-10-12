@@ -18,10 +18,11 @@ import helios.engine.bootstrap;
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 
 #include "../Namespaces.h"
 
-helios::math::vec3f randomVec3f(const std::uint32_t seed) {
+helios::math::vec3f randomVec3f(const std::uint64_t seed) {
 
     auto rand = helios::core::common::Random(seed);
 
@@ -42,13 +43,18 @@ int main() {
     constexpr float WINDOW_ASPECT_RATIO_NUMER = 16.0F;
     constexpr float WINDOW_ASPECT_RATIO_DENOM = 9.0F;
 
-    constexpr int OBJECTS_PER_AXIS = 333;
-    constexpr int DISTANCE_BETWEEN_OBJECTS = 1;
-    constexpr int AXIS_LENGTH      = 2 * OBJECTS_PER_AXIS + 1;
+    constexpr int OBJECTS_PER_AXIS = 317;
+    constexpr auto BORDER_SCALE = vec3f{1.0F, 1.0F, 1.0F};
+    constexpr int DISTANCE_BETWEEN_OBJECTS = 2;
+    constexpr int CREATE_PARTICLES = 2;
+    constexpr float PARTICLE_SPEED = 32.0F;
+    constexpr float GAME_OBJECT_SPEED = 1.0f;
+    constexpr float PARTICLE_LIFETIME = 1.0f;
+    constexpr int AXIS_LENGTH      = DISTANCE_BETWEEN_OBJECTS * OBJECTS_PER_AXIS + DISTANCE_BETWEEN_OBJECTS - 1;
 
-    logger.info("Actual axis length: {}", AXIS_LENGTH);
+    const int CELL_SIZE = static_cast<int>(AXIS_LENGTH / OBJECTS_PER_AXIS);
 
-    const int CELL_SIZE = std::max(2, static_cast<int>(AXIS_LENGTH / OBJECTS_PER_AXIS)) ;
+        logger.info("Actual axis length: {}; Cell size: {}", AXIS_LENGTH, CELL_SIZE);
 
     // ==========================================================
     // Infrastructure init / GameWorld / GameLoop / InputManager
@@ -89,7 +95,7 @@ int main() {
     auto CullingViewport = gameWorld.add<helios::engine::bootstrap::ViewportHandle>();
     CullingViewport.add<DebugNameComponent<ViewportHandle>>("CullingViewport");
     CullingViewport.add<ClearComponent>(ClearFlags::Color);
-    CullingViewport.add<ColorComponent>(helios::engine::rendering::common::types::Colors::LightGray);
+    CullingViewport.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Black);
     // RenderTarget : Viewport (1:N)
     CullingViewport.add<DefaultRenderTargetBindingComponent>(MainRenderTarget);
     CullingViewport.add<RectComponent<>>(helios::math::vec4f{0.0F, 0.0f, 1.0F, 1.0F});
@@ -194,27 +200,39 @@ int main() {
         .stride = sizeof(InstanceData),
         .offset = offsetof(InstanceData, modelMatrix),
         .divisor = 1
-    });
+    },
+    VertexAttributeLayout{
+           .attribute =
+               VertexAttribute{
+                   .semantics = VertexAttributeSemantics::InstancedNormalizedAge, .type = VertexAttributeType::Float
+               },
+           .location = 8,
+           .stride = sizeof(InstanceData),
+           .offset = offsetof(InstanceData, normalizedAge),
+           .divisor = 1
+       });
 
     // ========================================
     // Entity Setup
     // ========================================
     // boundaries
     auto createBoundaries = [&]<typename THandle>() {
+
+        float borderAccount  = BORDER_SCALE[0]/2.0f;
         for (int i = 0; i < 4; i++) {
             auto bndLeft =  gameWorld.add<THandle>();
 
             switch (i) {
-                case 0: bndLeft.template add<Position3DComponent<Local>>(0.0F, -AXIS_LENGTH/2.0f - 0.5f , 0.0F);
+                case 0: bndLeft.template add<Position3DComponent<Local>>(0.0F, -AXIS_LENGTH/2.0f - borderAccount , 0.0F);
                     break;
-                case 1: bndLeft.template add<Position3DComponent<Local>>(AXIS_LENGTH/2.0f + 0.5f , 0.0F, 0.0F);
+                case 1: bndLeft.template add<Position3DComponent<Local>>(AXIS_LENGTH/2.0f + borderAccount , 0.0F, 0.0F);
                     break;
-                case 2: bndLeft.template add<Position3DComponent<Local>>(0.0F, AXIS_LENGTH/2.0f + 0.5f , 0.0F);
+                case 2: bndLeft.template add<Position3DComponent<Local>>(0.0F, AXIS_LENGTH/2.0f + borderAccount , 0.0F);
                     break;
-                case 3: bndLeft.template add<Position3DComponent<Local>>(-AXIS_LENGTH/2.0f - 0.5f , 0.0F, 0.0F);
+                case 3: bndLeft.template add<Position3DComponent<Local>>(-AXIS_LENGTH/2.0f - borderAccount , 0.0F, 0.0F);
                     break;
             }
-            bndLeft.template add<Scale3DComponent<Local>>(AXIS_LENGTH , 1.0F, 1.0F);
+            bndLeft.template add<Scale3DComponent<Local>>(AXIS_LENGTH , BORDER_SCALE[1], BORDER_SCALE[2]);
             bndLeft.template add<DefaultSceneMemberComponent>(MainScene);
             bndLeft.template add<BoundsComponent<Local>>(WireframeCube::boundsData());
             bndLeft.template add<Rotation3DComponent<Local>>(
@@ -231,18 +249,25 @@ int main() {
         }
     };
 
-    auto createObjects = [&]<typename THandle>(MaterialHandle materialHandle, const int randomizerOffset = 0){
+    auto GameObjectMaterial = gameWorld.add<MaterialHandle>();
+    GameObjectMaterial.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Blue);
+
+    auto ParticleMaterial = gameWorld.add<MaterialHandle>();
+    ParticleMaterial.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Green);
+
+    auto createObjects = [&]<typename THandle>(MaterialHandle materialHandle, const int randomizerOffset = 0) {
         int NUM_OBJECTS = 0;
 
+        float borderAccount  = BORDER_SCALE[0]/2.0f;
         float startLeft = -AXIS_LENGTH / 2.0F;
         float endRight = AXIS_LENGTH / 2.0F;
         float endTop = AXIS_LENGTH / 2.0F;
-        float startBottom = -AXIS_LENGTH / 2.0F - 0.5f;
-        float x = startLeft + 2*DISTANCE_BETWEEN_OBJECTS -0.5f;
+        float startBottom = -AXIS_LENGTH / 2.0F - borderAccount;
+        float x = startLeft + DISTANCE_BETWEEN_OBJECTS - borderAccount;
 
         for (int i = 0; i < OBJECTS_PER_AXIS; i++) {
 
-            float y = startBottom + 2*DISTANCE_BETWEEN_OBJECTS;
+            float y = startBottom + DISTANCE_BETWEEN_OBJECTS;
 
             for (int j = 0; j < OBJECTS_PER_AXIS; j++) {
                 auto cube = gameWorld.add<THandle>();
@@ -257,7 +282,7 @@ int main() {
                 );
                 cube.template add<Position3DComponent<World>>(0.0F, 0.0F, 0.0F);
                 cube.template add<helios::physics::motion::components::Velocity3DComponent<Local>>(
-                    randomVec3f(NUM_OBJECTS + randomizerOffset).withZ(0.0F).normalize()
+                    randomVec3f(NUM_OBJECTS + randomizerOffset).withZ(0.0F).normalize() * GAME_OBJECT_SPEED
                 );
 
                 cube.template add<TransformComponent<World>>(1.0F);
@@ -266,23 +291,45 @@ int main() {
                 );
                 NUM_OBJECTS++;
 
-                y += 2*DISTANCE_BETWEEN_OBJECTS;
+                y += DISTANCE_BETWEEN_OBJECTS;
             }
-            x += 2*DISTANCE_BETWEEN_OBJECTS;
+            x += DISTANCE_BETWEEN_OBJECTS;
 
         }
 
         logger.info("Created {} objects.", NUM_OBJECTS);
     };
 
-    auto GameObjectMaterial = gameWorld.add<MaterialHandle>();
-    GameObjectMaterial.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Blue);
+    auto createParticles = [&]<typename THandle>(
+        EntityManager<THandle>& entityManager,
+        std::uint64_t key, int count, helios::math::vec3f location) {
 
-    auto ParticleMaterial = gameWorld.add<MaterialHandle>();
-    ParticleMaterial.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Green);
+        for (int i = 0; i < count; i++) {
+            auto handle = entityManager.create();
+            auto cube = entity::Entity{handle, &entityManager};
+            cube.setActive(true);
+            cube.template add<helios::physics::collision::components::CollisionComponent>();
+            cube.template add<DefaultSceneMemberComponent>(MainScene);
+            cube.template add<BoundsComponent<Local>>(WireframeCube::boundsData());
+            cube.template add<BoundsComponent<World>>();
+            cube.template add<LifetimeComponent>(PARTICLE_LIFETIME);
+            cube.template add<Rotation3DComponent<Local>>();
+            cube.template add<Scale3DComponent<Local>>(1.0F, 1.0F, 1.0F);
+            cube.template add<Position3DComponent<Local>>(location);
+            cube.template add<Position3DComponent<World>>(0.0F, 0.0F, 0.0F);
+             cube.template add<helios::physics::motion::components::Velocity3DComponent<Local>>(
+                randomVec3f(key + i).withZ(0.0F).normalize()*PARTICLE_SPEED
+            );
+
+            cube.template add<TransformComponent<World>>(1.0F);
+            cube.template add<DefaultRenderPrototypeComponent<Instanced>>(
+                CubeShader.handle(), ParticleMaterial.handle(), CubeMesh.handle()
+            );
+        }
+    };
+
 
     createObjects.operator()<GameObjectHandle>(GameObjectMaterial.handle());
-    createObjects.operator()<ParticleHandle>(ParticleMaterial.handle(), OBJECTS_PER_AXIS * OBJECTS_PER_AXIS);
     createBoundaries.operator()<GameObjectHandle>();
     createBoundaries.operator()<ParticleHandle>();
 
@@ -318,8 +365,19 @@ int main() {
     // Initialization of GameWorld and Game Loop
     // ========================================
 
+    gameWorld.managerRegistry().add<helios::physics::collision::CollisionManager<GameObjectHandle, ParticleHandle>>(
+        [&](EntityManager<GameObjectHandle>& entityManager, EntityManager<ParticleHandle>& targetEntityManager,
+            std::span<const helios::physics::collision::commands::CollisionCommand<GameObjectHandle>> collisionCommands) {
+           // logger.info("CollisionManager: {} collisions detected.", collisionCommands.size());
+            for (const auto& collision : collisionCommands) {
+                createParticles.operator()<ParticleHandle>(targetEntityManager,
+                    ((collision.leftHandle.entityId() << 32) |  collision.rightHandle.entityId()),
+                CREATE_PARTICLES,
+                collision.location);
+            }
 
-
+        }
+    );
 
     // ----------------------------------------
     // GameLoop Config
@@ -361,6 +419,15 @@ int main() {
 
         // MAIN
         .beginSchedule(GameWorld::sessionState(EngineState::Running))
+        .endSchedule<
+            Sequential<
+            helios::physics::collision::CollisionManager<GameObjectHandle, ParticleHandle>,
+            helios::gameplay::lifecycle::LifetimeManager<ParticleHandle>
+             >
+        >()
+
+
+        .beginSchedule(GameWorld::sessionState(EngineState::Running))
 
 
             .add<
@@ -383,25 +450,49 @@ int main() {
             .add(
                 Sequential(
                     helios::physics::collision::systems::CollisionDetectionSystem<GameObjectHandle,
-                    helios::physics::collision::strategies::GridCollisionDetectionStrategy<GameObjectHandle>>(
-                        helios::physics::collision::strategies::GridCollisionDetectionStrategy<GameObjectHandle>(
+                    helios::physics::collision::strategies::GridCollisionDetection<GameObjectHandle>>(
+                        helios::physics::collision::strategies::GridCollisionDetection<GameObjectHandle>(
                         helios::math::aabbf{
                             -AXIS_LENGTH / 2.0F, -AXIS_LENGTH / 2.0F, 0.0f,
                             AXIS_LENGTH / 2.0F, AXIS_LENGTH / 2.0F, 0.0f
                         }, CELL_SIZE
                     )),
-                    helios::physics::collision::systems::CollisionResponseSystem<GameObjectHandle>()
+                    helios::physics::collision::systems::CollisionResponseSystem<
+                        GameObjectHandle,
+                        helios::physics::collision::strategies::CollisionImpulseResponse
+                    >(
+                        helios::physics::collision::strategies::CollisionImpulseResponse{}
+                    )
                 ),
                 Sequential(
                     helios::physics::collision::systems::CollisionDetectionSystem<ParticleHandle,
-                    helios::physics::collision::strategies::GridCollisionDetectionStrategy<ParticleHandle>>(
-                    helios::physics::collision::strategies::GridCollisionDetectionStrategy<ParticleHandle>(
+                    helios::physics::collision::strategies::GridCollisionDetection<ParticleHandle>>(
+                    helios::physics::collision::strategies::GridCollisionDetection<ParticleHandle>(
                         helios::math::aabbf{
                             -AXIS_LENGTH / 2.0F, -AXIS_LENGTH / 2.0F, 0.0f,
                             AXIS_LENGTH / 2.0F, AXIS_LENGTH / 2.0F, 0.0f
                         }, CELL_SIZE
                     )),
-                    helios::physics::collision::systems::CollisionResponseSystem<ParticleHandle>()
+                    helios::physics::collision::systems::CollisionResponseSystem<
+                        ParticleHandle,
+                        helios::physics::collision::strategies::CollisionImpulseResponse
+                    >(
+                        helios::physics::collision::strategies::CollisionImpulseResponse{}
+                    ),
+                    [](TypedCommandBuffer<LifetimeCommand<ParticleHandle>>& commandBuffer,
+                        Query<ParticleHandle, ReadSet<LifetimeComponent>, WriteSet<LifetimeComponent>> query, const UpdateContext& updateContext) {
+
+                        for (auto [entity, lifetime] : query) {
+                            lifetime->tick(updateContext.deltaTime());
+
+                            if (lifetime->isExpired())
+                                commandBuffer.add<LifetimeCommand<ParticleHandle>>(
+                                LifetimeCommand<ParticleHandle>(
+                                    entity.handle(),
+                                    LifetimeCommandType::LifetimeExpired
+                                ));
+                        }
+                    }
                 )
             )
 
@@ -411,20 +502,28 @@ int main() {
                 Sequential(
                     SceneMemberVisibilitySystem<
                         GameObjectHandle, Instanced, NullCullingStrategy<GameObjectHandle>, DefaultRenderHandles
-                    >(NullCullingStrategy<GameObjectHandle>())
+                    >(NullCullingStrategy<GameObjectHandle>()),
+                    DefaultSceneRenderSystem<GameObjectHandle, Instanced>()
                 ),
                 Sequential(
                     SceneMemberVisibilitySystem<
                         ParticleHandle, Instanced, NullCullingStrategy<ParticleHandle>, DefaultRenderHandles
-                    >(NullCullingStrategy<ParticleHandle>())
+                    >(NullCullingStrategy<ParticleHandle>()),
+                    [&](EntityManager<ParticleHandle>& entityManager,
+                       DefaultSceneMemberVisibilityRegistry<ParticleHandle, Instanced>& visibilityRegistry) {
+                        auto* lifetimeSparseSet = entityManager.sparseSet<LifetimeComponent>();
+                          //  logger.info("ParticleManager: {} particles visible.", lifetimeSparseSet->componentCount());
+                        visibilityRegistry.forEachVisibleMember([&lifetimeSparseSet = *lifetimeSparseSet](auto& visibleContext) {
+                            if (auto* cmp = lifetimeSparseSet.get(visibleContext.memberHandle.entityId())) {
+                                visibleContext.normalizedAge = cmp->value() / cmp->lifetime();
+                            }
+                        });
+                    },
+                    DefaultSceneRenderSystem<ParticleHandle, Instanced>())
+
                 )
-            )
-            // consume the scenemember-registry
-            .add<
-                DefaultSceneRenderSystem<GameObjectHandle, Instanced>,
-                DefaultSceneRenderSystem<ParticleHandle, Instanced>
-            >()
-        .endSchedule<DefaultRenderManager>()
+
+        .endSchedule<Sequential<DefaultRenderManager>>()
 
         // POST
         // Clear, bufferswapping

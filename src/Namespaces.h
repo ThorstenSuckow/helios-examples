@@ -87,6 +87,7 @@ using namespace helios::gameplay::spawning::commands;
 using namespace helios::gameplay::spawning::components;
 using namespace helios::gameplay::spawning::types;
 using namespace helios::gameplay::lifecycle::components;
+using namespace helios::gameplay::lifecycle::commands;
 
 // Platform
 using namespace helios::engine::platform::lifecycle;
