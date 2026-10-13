@@ -36,23 +36,24 @@ int main() {
 
     auto& gameWorld = engineRuntime->gameWorld;
     auto& gameLoop = engineRuntime->gameLoop;
+    auto& ecsDataContainer = gameWorld.resourceRegistry();
 
-    gameWorld.resourceRegistry().emplace<helios::core::thread::ThreadPool>(
+    ecsDataContainer.emplace<helios::core::thread::ThreadPool>(
         std::max(1U, std::thread::hardware_concurrency() - 1U)
     );
 
     #include "RenderSetup.inc"
 
     thesis::util::createGameObjects<GameObjectHandle>(
-        gameWorld.resourceRegistry().get<EntityManager<GameObjectHandle>>(),
+        ecsDataContainer.get<EntityManager<GameObjectHandle>>(),
         gameObjectRenderCallback
     );
     thesis::util::createBoundaries<GameObjectHandle>(
-        gameWorld.resourceRegistry().get<EntityManager<GameObjectHandle>>(),
+        ecsDataContainer.get<EntityManager<GameObjectHandle>>(),
         borderRenderCallback
     );
     thesis::util::createBoundaries<ParticleHandle>(
-        gameWorld.resourceRegistry().get<EntityManager<ParticleHandle>>(),
+        ecsDataContainer.get<EntityManager<ParticleHandle>>(),
         borderRenderCallback
     );
 
@@ -73,7 +74,7 @@ int main() {
 
     #include "RuntimeSetup.inc"
 
-    gameWorld.managerRegistry().add<
+    ecsDataContainer.get<ManagerRegistry>().add<
         helios::physics::collision::CollisionManager<GameObjectHandle, ParticleHandle>>(
         collisionManagerCallback
     );
@@ -83,7 +84,6 @@ int main() {
     // ----------------------------------------
 
     auto scheduler = helios::ecs::scheduling::Scheduler();
-    auto& ecsDataContainer = gameWorld.resourceRegistry();
     ecsDataContainer.reserve<UpdateContext>();
     scheduler.init(ecsDataContainer);
 
