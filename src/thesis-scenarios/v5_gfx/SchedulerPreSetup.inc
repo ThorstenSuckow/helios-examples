@@ -29,4 +29,11 @@
                 DefaultShaderCompileManager,
                 EngineStateManager
             >
+        >()
+        .beginSchedule(GameWorld::sessionState(EngineState::Running))
+        .add<Sequential<
+            YawPitchRollUpdateSystem<CameraHandle>,
+            WorldTransformSystem<CameraHandle>,
+            PerspectiveCameraUpdateSystem<CameraHandle>
+            >
         >();

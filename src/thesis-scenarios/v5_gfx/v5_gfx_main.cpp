@@ -17,6 +17,7 @@ import helios.imgui;
 import helios.engine.v5_gfx_bootstrap;
 import thesis.config;
 import thesis.util;
+import thesis.systems;
 
 #include <algorithm>
 #include <cmath>
@@ -103,19 +104,10 @@ int main() {
 
             .add<
                 Sequential<
-                    YawPitchRollUpdateSystem<CameraHandle>,
-                    WorldTransformSystem<CameraHandle>,
-                    PerspectiveCameraUpdateSystem<CameraHandle>
+                    thesis::systems::BetaSystem<GameObjectHandle>
                 >,
                 Sequential<
-                    MotionIntegrationSystem<GameObjectHandle>,
-                    WorldTransformSystem<GameObjectHandle>,
-                    WorldBoundsUpdateSystem<GameObjectHandle>
-                >,
-                Sequential<
-                    MotionIntegrationSystem<ParticleHandle>,
-                    WorldTransformSystem<ParticleHandle>,
-                    WorldBoundsUpdateSystem<ParticleHandle>
+                    thesis::systems::BetaSystem<ParticleHandle>
                 >
             >()
             .add(

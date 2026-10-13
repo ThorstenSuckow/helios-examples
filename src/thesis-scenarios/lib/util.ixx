@@ -176,6 +176,37 @@ export namespace thesis::util {
             border.template add<helios::engine::spatial::components::BoundsComponent<helios::engine::core::types::World>>();
             border.template add<helios::engine::spatial::components::TransformComponent<helios::engine::core::types::World>>(1.0F);
 
+            // update fixed component values so we do not require systems
+            const auto boundsLocal = border.template get<
+                helios::engine::spatial::components::BoundsComponent<helios::engine::core::types::Local>
+                >();
+
+            const auto localRotation = border.template get<
+                helios::engine::spatial::components::Rotation3DComponent<helios::engine::core::types::Local>
+            >();
+            const auto localPosition = border.template get<
+                helios::engine::spatial::components::Position3DComponent<helios::engine::core::types::Local>
+            >();
+            const auto worldTransform =  border.template get<
+                helios::engine::spatial::components::TransformComponent<helios::engine::core::types::World>
+            >();
+
+            const auto worldBounds = border.template get<
+                helios::engine::spatial::components::BoundsComponent<helios::engine::core::types::World>
+            >();
+
+            worldTransform->setValue(localRotation->value().rotationMatrix().withTranslation(
+                            localPosition->value())
+            );
+
+            worldTransform->setValue(localRotation->value()
+                .rotationMatrix()
+                .withScaling(helios::math::vec3f{config::AXIS_LENGTH , config::BORDER_SCALE[1], config::BORDER_SCALE[2]})
+                .withTranslation(localPosition->value()));
+
+            worldBounds->setValue(boundsLocal->value().applyTransform(worldTransform->value()));
+
+
             std::invoke(func, border);
 
         }
