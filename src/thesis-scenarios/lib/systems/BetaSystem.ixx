@@ -1,6 +1,6 @@
 /**
- * @file MotionIntegrationSystem.ixx
- * @brief Integrates local position from local velocity using frame delta time.
+ * @file BetaSystem.ixx
+ * @brief Integrates local position using local velocity and frame delta time.
  */
 module;
 
@@ -24,7 +24,7 @@ import helios.engine.spatial.components;
 export namespace thesis::systems {
 
     /**
-     * @brief Updates local position by applying local velocity each frame, including AABBounds and WorldTransform-matrix.
+     * @brief Updates local position by applying local velocity each frame, including AABB bounds and world transform matrix.
      *
      * @tparam TMemberHandle ECS handle type.
      */
@@ -54,11 +54,8 @@ export namespace thesis::systems {
 
         using HandleType = TMemberHandle;
 
-
-
         /**
-         * @brief BetaSystem updating position of an entity, including its AABB
-         * and WorldTransform-matrix.
+         * @brief Updates an entity's position, including its AABB and world transform matrix.
          */
         void update(
             Query<

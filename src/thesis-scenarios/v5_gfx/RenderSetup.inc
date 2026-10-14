@@ -6,6 +6,13 @@
     constexpr float WINDOW_ASPECT_RATIO_NUMER = 16.0F;
     constexpr float WINDOW_ASPECT_RATIO_DENOM = 9.0F;
 
+    auto& gameWorld = engineRuntime->gameWorld;
+    gameWorld.session().trackState<helios::engine::runtime::enginestate::types::EngineState>();
+
+    gameWorld.session().template setStateFrom<EngineState>(StateTransitionContext<EngineState>(
+        EngineState::Undefined, EngineState::Booting, EngineStateTransitionId::BootRequest
+    ));
+
     auto MainWindow = gameWorld.add<WindowHandle>();
     MainWindow.add<WindowCreateRequestComponent>(WindowConfig{
         .title = "helios - ECS Rendering Demo",
@@ -151,6 +158,7 @@
     ParticleMaterial.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Green);
 
     auto gameObjectRenderCallback = [&](auto& gameObject) {
+        gameObject.setActive(true);
         gameObject.template add<DefaultSceneMemberComponent>(MainScene);
         gameObject.template add<DefaultRenderPrototypeComponent<Instanced>>(
             InstanceShader.handle(), GameObjectMaterial.handle(), RectMesh.handle()
@@ -158,6 +166,7 @@
     };
 
     auto borderRenderCallback = [&](auto& border) {
+        border.setActive(true);
         border.template add<DefaultSceneMemberComponent>(MainScene);
         border.template add<DefaultRenderPrototypeComponent<Instanced>>(
             InstanceShader.handle(), BoundaryMaterial.handle(), RectMesh.handle()
@@ -165,6 +174,7 @@
     };
 
     auto particleRenderCallback = [&](auto& particle) {
+        particle.setActive(true);
         particle.template add<DefaultSceneMemberComponent>(MainScene);
         particle.template add<DefaultRenderPrototypeComponent<Instanced>>(
             InstanceShader.handle(), ParticleMaterial.handle(), RectMesh.handle()

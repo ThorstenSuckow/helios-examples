@@ -7,14 +7,19 @@ module;
 export module thesis.util;
 
 import helios.core.common;
+import helios.core.thread;
 import helios.ecs.entity;
+import helios.ecs.common;
+import helios.ecs.manager;
 import helios.engine.core;
 import helios.math;
 import helios.physics;
 import helios.engine.spatial;
+import helios.engine.runtime;
 import thesis.config;
 import helios.engine.rendering.mesh;
 import helios.gameplay.lifecycle;
+import thesis.systems;
 
 export namespace thesis::util {
 
@@ -39,9 +44,9 @@ export namespace thesis::util {
     void createGameObjects(
         helios::ecs::entity::EntityManager<THandle>& entityManager,
         TFunc&& func,
-        const int randomizerOffset = 0
+        const std::uint32_t randomizerOffset = 0
     ) {
-        int NUM_OBJECTS = 0;
+        std::uint32_t NUM_OBJECTS = 0;
 
         float borderAccount  = thesis::config::BORDER_SCALE[0]/2.0f;
         float startLeft = -thesis::config::AXIS_LENGTH / 2.0F;
@@ -55,7 +60,6 @@ export namespace thesis::util {
             for (int j = 0; j < thesis::config::OBJECTS_PER_AXIS; j++) {
                 auto handle = entityManager.create();
                 auto gameObject = helios::ecs::entity::Entity{handle, &entityManager};
-                gameObject.setActive(true);
 
                 gameObject.template add<helios::physics::collision::components::CollisionComponent>();
                 gameObject.template add<helios::engine::spatial::components::BoundsComponent<helios::engine::core::types::Local>>(
@@ -72,7 +76,9 @@ export namespace thesis::util {
                 );
                 gameObject.template add<helios::engine::spatial::components::Position3DComponent<helios::engine::core::types::World>>(0.0F, 0.0F, 0.0F);
                 gameObject.template add<helios::physics::motion::components::Velocity3DComponent<helios::engine::core::types::Local>>(
-                    randomVec3f(NUM_OBJECTS + randomizerOffset).withZ(0.0F).normalize() * thesis::config::GAME_OBJECT_SPEED
+                    randomVec3f(
+                             (randomizerOffset << 32) | NUM_OBJECTS
+                    ).withZ(0.0F).normalize() * thesis::config::GAME_OBJECT_SPEED
                 );
 
                 gameObject.template add<helios::engine::spatial::components::TransformComponent<helios::engine::core::types::World>>(1.0F);
@@ -93,24 +99,24 @@ export namespace thesis::util {
         helios::ecs::entity::EntityManager<THandle>& entityManager,
         const std::uint64_t key,
         const int count,
-        const helios::math::vec3f location
+        const helios::math::vec3f location,
+        const int randomizerOffset = 0
     ) {
-        createParticles(entityManager, key, count, location, [](auto&){});
+        createParticles(entityManager, key, count, location, [](auto&){}, randomizerOffset);
     }
     
     template<typename THandle, typename TFunc>
     void createParticles(
         helios::ecs::entity::EntityManager<THandle>& entityManager,
-        const std::uint64_t key, 
-        const int count, 
+        const std::uint32_t count,
         const helios::math::vec3f location,
-        TFunc&& func
+        TFunc&& func,
+        const std::uint32_t randomizerOffset = 0
     ) {
 
-        for (int i = 0; i < count; i++) {
+        for (std::uint32_t i = 0; i < count; i++) {
             auto handle = entityManager.create();
             auto particle = helios::ecs::entity::Entity{handle, &entityManager};
-            particle.setActive(true);
 
             particle.template add<helios::physics::collision::components::CollisionComponent>();
 
@@ -130,7 +136,9 @@ export namespace thesis::util {
             particle.template add<helios::engine::spatial::components::TransformComponent<helios::engine::core::types::World>>(1.0F);
 
             particle.template add<helios::physics::motion::components::Velocity3DComponent<helios::engine::core::types::Local>>(
-               randomVec3f(key + i).withZ(0.0F).normalize()*thesis::config::PARTICLE_SPEED
+               randomVec3f(
+                 (randomizerOffset << 32) | i
+               ).withZ(0.0F).normalize()*thesis::config::PARTICLE_SPEED
             );
 
             std::invoke(func, particle);
@@ -153,7 +161,6 @@ export namespace thesis::util {
         for (int i = 0; i < 4; i++) {
             auto handle = entityManager.create();
             auto border = helios::ecs::entity::Entity{handle, &entityManager};
-            border.setActive(true);
 
             switch (i) {
                 case 0: border.template add<helios::engine::spatial::components::Position3DComponent<helios::engine::core::types::Local>>(0.0F, -config::AXIS_LENGTH/2.0f - borderAccount , 0.0F);
@@ -211,6 +218,61 @@ export namespace thesis::util {
 
         }
     };
-    
+
+    template<typename THandle>
+    auto collCb() {
+        return collCb<THandle>([](auto&){});
+    }
+
+    template<typename THandle, typename TFunc>
+    auto collCb(TFunc&& func) {
+
+        return [&](
+          auto& targetEntityManager,
+          auto collisionCommands,
+          const helios::engine::runtime::gameloop::types::UpdateContext& updateContext
+        ) {
+            for (const auto& collision : collisionCommands) {
+                thesis::util::createParticles<THandle>(
+                    targetEntityManager,
+                    thesis::config::PARTICLE_SPAWN_COUNT,
+                    collision.location,
+                    std::forward<TFunc>(func),
+                    updateContext.frameCount()
+                );
+            }
+        };
+    }
+
+    template<typename Thandle>
+    auto grid() {
+        return thesis::systems::GridCollisionDetection<Thandle>(
+            thesis::config::SPATIAL_GRID, thesis::config::CELL_SIZE
+        );
+    }
+
+    void updateFrameMetrics(auto& ecsDataContainer, auto&frameCount, auto& frameTiming, auto &totalTime) {
+        totalTime += frameTiming.totalFrameTime;
+        frameCount++;
+        auto updateContext = helios::engine::runtime::gameloop::types::UpdateContext(
+              frameTiming.totalFrameTime,
+              totalTime,
+              frameCount,
+              {}
+        );
+        ecsDataContainer.template replace<helios::engine::runtime::gameloop::types::UpdateContext>(updateContext);
+    };
+
+    void prepare(helios::ecs::common::container::EcsDataContainer& ecsDataContainer) {
+        ecsDataContainer.emplace<helios::core::thread::ThreadPool>(thesis::config::MAX_THREADS);
+    }
+
+    void init(helios::ecs::common::container::EcsDataContainer& ecsDataContainer) {
+        auto& managerRegistry = ecsDataContainer.get<helios::ecs::manager::ManagerRegistry>();
+
+        for (auto& manager : managerRegistry.items()) {
+            manager->init(ecsDataContainer);
+        }
+    }
     
 }

@@ -1,11 +1,15 @@
 module;
 
+#include <thread>
+
 export module thesis.config;
 
 import helios.math;
 
+import helios.ecs.entity;
 
 export namespace thesis::config {
+    const     auto MAX_THREADS           = std::thread::hardware_concurrency() - 1U;
     constexpr auto LOGGING_ENABLED       = false;
     constexpr auto TARGET_FPS            = 0.0F;
     constexpr auto FIXED_FRAME_TIME      = 1.0F / 60.0F;

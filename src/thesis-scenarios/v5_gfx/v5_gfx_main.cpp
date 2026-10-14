@@ -18,6 +18,7 @@ import helios.engine.v5_gfx_bootstrap;
 import thesis.config;
 import thesis.util;
 import thesis.systems;
+import thesis.manager;
 
 #include <algorithm>
 #include <cmath>
@@ -29,18 +30,30 @@ using namespace thesis::config;
 
 
 int main() {
-    const auto& logger = helios::core::log::LogManager::loggerForScope("main");
 
-    // gameworld
+    using m_col           = thesis::manager::CollisionManager<GameObjectHandle, ParticleHandle>;
+    using m_lft           = thesis::manager::LifetimeManager<ParticleHandle>;
+    using s_beta_go       = thesis::systems::BetaSystem<GameObjectHandle>;
+    using s_beta_prt      = thesis::systems::BetaSystem<GameObjectHandle>;
+    using s_delta_det_go  = thesis::systems::DeltaDetSystem<GameObjectHandle>;
+    using s_delta_det_prt = thesis::systems::DeltaDetSystem<ParticleHandle>;
+    using s_delta_res_go  = thesis::systems::DeltaResSystem<GameObjectHandle>;
+    using s_delta_res_prt = thesis::systems::DeltaResSystem<ParticleHandle>;
+    using s_lambda        = thesis::systems::LambdaSystem<ParticleHandle>;
+
     auto engineRuntime = helios::engine::v5_gfx_bootstrap::bootstrapGameWorld();
+    auto& ecsDataContainer = engineRuntime->gameWorld.resourceRegistry();
+    auto& managerRegistry = ecsDataContainer.get<ManagerRegistry>();
 
-    auto& gameWorld = engineRuntime->gameWorld;
-    auto& gameLoop = engineRuntime->gameLoop;
-    auto& ecsDataContainer = gameWorld.resourceRegistry();
+    auto scheduler = helios::ecs::scheduling::Scheduler();
+    ecsDataContainer.reserve<UpdateContext>();
+    scheduler.init(ecsDataContainer);
 
-    ecsDataContainer.emplace<helios::core::thread::ThreadPool>(
-        std::max(1U, std::thread::hardware_concurrency() - 1U)
-    );
+    FrameTiming frameTiming{};
+    std::size_t frameCount = 0;
+    float totalTime = 0.0f;
+
+    thesis::util::prepare(ecsDataContainer);
 
     #include "RenderSetup.inc"
 
@@ -57,123 +70,45 @@ int main() {
         borderRenderCallback
     );
 
-    // ----------------------------------------
-    // ImGui and Debug Tooling
-    // ----------------------------------------
-    auto fpsMetrics = FpsMetrics();
-    auto framePacer = FramePacer();
-
-
     #include "ToolingSetup.inc"
-
-    framePacer.setFixedFrameTime(FIXED_FRAME_TIME);
-
-    FrameTiming frameTiming{};
-    std::size_t frameCount = 0;
-    float totalTime = 0.0f;
-
-    #include "RuntimeSetup.inc"
-
-    ecsDataContainer.get<ManagerRegistry>().add<
-        helios::physics::collision::CollisionManager<GameObjectHandle, ParticleHandle>>(
-        collisionManagerCallback
-    );
-
-    // ----------------------------------------
-    // GameLoop Config
-    // ----------------------------------------
-
-    auto scheduler = helios::ecs::scheduling::Scheduler();
-    ecsDataContainer.reserve<UpdateContext>();
-    scheduler.init(ecsDataContainer);
-
     #include "SchedulerPreSetup.inc"
 
-        // MAIN
-        scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running))
-        .endSchedule<
-            Sequential<
-            helios::physics::collision::CollisionManager<GameObjectHandle, ParticleHandle>,
-            helios::gameplay::lifecycle::LifetimeManager<ParticleHandle>
-             >
-        >()
-
-
-        .beginSchedule(GameWorld::sessionState(EngineState::Running))
-
-
-            .add<
-                Sequential<
-                    thesis::systems::BetaSystem<GameObjectHandle>
-                >,
-                Sequential<
-                    thesis::systems::BetaSystem<ParticleHandle>
-                >
-            >()
-            .add(
-                Sequential(
-                    helios::physics::collision::systems::CollisionDetectionSystem<GameObjectHandle,
-                    helios::physics::collision::strategies::GridCollisionDetection<GameObjectHandle>>(
-                        helios::physics::collision::strategies::GridCollisionDetection<GameObjectHandle>(
-                        SPATIAL_GRID, CELL_SIZE
-                    )),
-                    helios::physics::collision::systems::CollisionResponseSystem<
-                        GameObjectHandle,
-                        helios::physics::collision::strategies::CollisionImpulseResponse
-                    >(
-                        helios::physics::collision::strategies::CollisionImpulseResponse{}
-                    )
-                ),
-                Sequential(
-                    helios::physics::collision::systems::CollisionDetectionSystem<ParticleHandle,
-                    helios::physics::collision::strategies::GridCollisionDetection<ParticleHandle>>(
-                    helios::physics::collision::strategies::GridCollisionDetection<ParticleHandle>(
-                        SPATIAL_GRID, CELL_SIZE
-                    )),
-                    helios::physics::collision::systems::CollisionResponseSystem<
-                        ParticleHandle,
-                        helios::physics::collision::strategies::CollisionImpulseResponse
-                    >(
-                        helios::physics::collision::strategies::CollisionImpulseResponse{}
-                    ),
-                    [](TypedCommandBuffer<LifetimeCommand<ParticleHandle>>& commandBuffer,
-                        Query<ParticleHandle, ReadSet<LifetimeComponent>, WriteSet<LifetimeComponent>> query, const UpdateContext& updateContext) {
-
-                        for (auto [entity, lifetime] : query) {
-                            lifetime->tick(updateContext.deltaTime());
-
-                            if (lifetime->isExpired())
-                                commandBuffer.add<LifetimeCommand<ParticleHandle>>(
-                                LifetimeCommand<ParticleHandle>(
-                                    entity.handle(),
-                                    LifetimeCommandType::LifetimeExpired
-                                ));
-                        }
-                    }
-                )
+    // MAIN
+    scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running))
+    .endSchedule(
+        Sequential(
+            m_col(thesis::util::collCb<ParticleHandle>(particleRenderCallback)),
+            m_lft
+        )
+    )
+    .beginSchedule(GameWorld::sessionState(EngineState::Running))
+        .add<s_beta_go, s_beta_prt>()
+        .add(
+            Sequential(
+                s_delta_det_go(thesis::util::grid<GameObjectHandle>()),
+                s_delta_res_go()
+            ),
+            Sequential(
+                s_delta_det_prt(thesis::util::grid<ParticleHandle>()),
+                s_delta_res_prt<ParticleHandle>(),
+                s_lambda<ParticleHandle>()
             )
-        .endSchedule();
+        )
+    .endSchedule();
 
     #include "SchedulerPostSetup.inc"
 
-    gameWorld.init();
-    gameLoop.init();
+    thesis::util::init(ecsDataContainer);
 
-    gameWorld.session().template setStateFrom<EngineState>(StateTransitionContext<EngineState>(
-        EngineState::Undefined, EngineState::Booting, EngineStateTransitionId::BootRequest
-    ));
-
-    while (gameLoop.isRunning()) {
+    while (true) {
         framePacer.beginFrame();
 
-        updateFrameMetrics(ecsDataContainer, frameCount, frameTiming, totalTime);
+        thesis::util::updateFrameMetrics(ecsDataContainer, frameCount, frameTiming, totalTime);
         scheduler.update();
 
         frameTiming = framePacer.sync();
         fpsMetrics.addFrame(frameTiming);
     }
-
-    logger.info("Engine is now in State {0}", std::to_underlying(gameWorld.session().state<EngineState>()));
 
     return 0;
 }
