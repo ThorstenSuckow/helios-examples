@@ -29,12 +29,19 @@ export namespace thesis::manager {
         ExecuteLambda executeLambda_;
         std::vector<CollisionCommand> pendingCommands_;
 
+        std::vector<std::size_t>& COLLISION_COMMANDS_;
+
+        void measure(std::size_t count) noexcept {
+            COLLISION_COMMANDS_.push_back(count);
+        }
+
     public:
         CollisionManager() = delete;
 
-        explicit CollisionManager(ExecuteLambda executeLambda)
+        explicit CollisionManager(ExecuteLambda executeLambda, std::vector<std::size_t>& COLLISION_COMMANDS)
             : executeLambda_(std::move(executeLambda)),
-              pendingCommands_{} {
+              pendingCommands_{},
+              COLLISION_COMMANDS_(COLLISION_COMMANDS) {
         }
 
         bool init(helios::ecs::command::CommandHandlerRegistry& commandHandlerRegistry) noexcept {
@@ -55,6 +62,7 @@ export namespace thesis::manager {
             helios::ecs::entity::EntityManager<TTargetHandle>& targetEntityManager,
             const helios::engine::runtime::gameloop::types::UpdateContext& updateContext
         ) noexcept {
+            measure(pendingCommands_.size());
             executeLambda_(targetEntityManager, pendingCommands_, updateContext);
             pendingCommands_.clear();
             return true;

@@ -1,12 +1,22 @@
 module;
 
+#include <algorithm>
 #include <cstdint>
+#include <ctime>
+#include <filesystem>
+#include <format>
+#include <fstream>
 #include <functional>
 #include <numbers>
+#include <numeric>
+#include <string>
+#include <vector>
+#include <cassert>
 
 export module thesis.util;
 
 import helios.core.common;
+import helios.core.io;
 import helios.core.thread;
 import helios.ecs.entity;
 import helios.ecs.common;
@@ -77,7 +87,7 @@ export namespace thesis::util {
                 gameObject.template add<helios::engine::spatial::components::Position3DComponent<helios::engine::core::types::World>>(0.0F, 0.0F, 0.0F);
                 gameObject.template add<helios::physics::motion::components::Velocity3DComponent<helios::engine::core::types::Local>>(
                     randomVec3f(
-                             (randomizerOffset << 32) | NUM_OBJECTS
+                             ((std::uint64_t)randomizerOffset << 32) | NUM_OBJECTS
                     ).withZ(0.0F).normalize() * thesis::config::GAME_OBJECT_SPEED
                 );
 
@@ -137,7 +147,7 @@ export namespace thesis::util {
 
             particle.template add<helios::physics::motion::components::Velocity3DComponent<helios::engine::core::types::Local>>(
                randomVec3f(
-                 (randomizerOffset << 32) | i
+                 ((std::uint64_t)randomizerOffset << 32) | i
                ).withZ(0.0F).normalize()*thesis::config::PARTICLE_SPEED
             );
 
@@ -263,6 +273,12 @@ export namespace thesis::util {
         ecsDataContainer.template replace<helios::engine::runtime::gameloop::types::UpdateContext>(updateContext);
     };
 
+    bool shouldRun(std::size_t frameCount) {
+        return frameCount < thesis::config::WARMUP_FRAMES +
+                          thesis::config::MEASURE_FRAMES +
+                          thesis::config::COOLDOWN_FRAMES;
+    }
+
     void prepare(helios::ecs::common::container::EcsDataContainer& ecsDataContainer) {
         ecsDataContainer.emplace<helios::core::thread::ThreadPool>(thesis::config::MAX_THREADS);
     }
@@ -274,5 +290,82 @@ export namespace thesis::util {
             manager->init(ecsDataContainer);
         }
     }
-    
+
+
+    template<typename T>
+    bool writeVectorToCSV(
+        const std::string& filename,
+        const std::string& column,
+        const std::vector<T>& values) {
+        const helios::core::io::BasicStringFileWriter writer;
+
+        // open the file once and keep it open while writing all rows
+        std::ofstream outfile{filename, std::ios::out | std::ios::trunc};
+        if (!outfile) {
+            return false;
+        }
+
+        bool ok = writer.tryWriteLine(outfile, "index," + column);
+
+        assert(values.size() == thesis::config::MEASURE_FRAMES + thesis::config::WARMUP_FRAMES);
+        std::size_t index = 0;
+        for (std::size_t i = thesis::config::WARMUP_FRAMES;
+            i < thesis::config::WARMUP_FRAMES + thesis::config::MEASURE_FRAMES + thesis::config::COOLDOWN_FRAMES;
+            ++i) {
+            auto& value = values[i];
+            ok &= writer.tryWriteLine(outfile, std::format("{},{}", index++, value));
+            if (index >= thesis::config::MEASURE_FRAMES) {
+                break;
+            }
+        }
+
+        return ok;
+    }
+
+
+    std::string measurementsPath() {
+        const std::time_t now = std::time(nullptr);
+        std::tm localTime{};
+        localtime_r(&now, &localTime);
+
+        char timestamp[32];
+        std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d_%H-%M-%S", &localTime);
+
+        return (std::filesystem::current_path() / "measurements" / timestamp).string();
+    }
+
+
+    bool writeMetricsToCSV() {
+        namespace cfg = thesis::config;
+
+        std::string directory = measurementsPath();
+
+        std::error_code errorCode;
+        std::filesystem::create_directories(directory, errorCode);
+        if (errorCode) {
+            return false;
+        }
+
+        const auto file = [&directory](const char* name) {
+            return (std::filesystem::path{directory} / name).string();
+        };
+
+        bool ok = true;
+        ok &= writeVectorToCSV(file("frame_timings.csv"), "frame_time", cfg::FRAME_TIMINGS);
+        ok &= writeVectorToCSV(file("schedule_timings.csv"), "schedule_time", cfg::SCHEDULE_TIMINGS);
+        ok &= writeVectorToCSV(file("s_delta_det_timings.csv"), "s_delta_det_time", cfg::S_DELTA_DET_TIMINGS);
+        ok &= writeVectorToCSV(file("s_delta_prt_timings.csv"), "s_delta_prt_time", cfg::S_DELTA_PRT_TIMINGS);
+        ok &= writeVectorToCSV(file("m_col_timings.csv"), "m_col_time", cfg::M_COL_TIMINGS);
+        ok &= writeVectorToCSV(file("m_lft_timings.csv"), "m_lft_time", cfg::M_LFT_TIMINGS);
+        ok &= writeVectorToCSV(file("collision_pairs_found_go.csv"), "pairs", cfg::COLLISION_PAIRS_FOUND_GO);
+        ok &= writeVectorToCSV(file("collision_pairs_found_prt.csv"), "pairs", cfg::COLLISION_PAIRS_FOUND_PRT);
+        ok &= writeVectorToCSV(file("collision_pairs_processed_go.csv"), "pairs", cfg::COLLISION_PAIRS_PROCESSED_GO);
+        ok &= writeVectorToCSV(file("collision_pairs_processed_prt.csv"), "pairs", cfg::COLLISION_PAIRS_PROCESSED_PRT);
+        ok &= writeVectorToCSV(file("collision_commands_go.csv"), "commands", cfg::COLLISION_COMMANDS_GO);
+        ok &= writeVectorToCSV(file("lifetime_commands_prt.csv"), "commands", cfg::LIFETIME_COMMANDS_PRT);
+        ok &= writeVectorToCSV(file("particle_population.csv"), "particles", cfg::PARTICLE_POPULATION);
+
+        return ok;
+    }
+
 }
