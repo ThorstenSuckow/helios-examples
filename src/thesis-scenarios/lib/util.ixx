@@ -251,11 +251,11 @@ export namespace thesis::util {
         );
     }
 
-    void updateFrameMetrics(auto& ecsDataContainer, auto&frameCount, auto& frameTiming, auto &totalTime) {
+    void updateFrameMetrics(auto& ecsDataContainer, auto& frameTiming,  auto&frameCount, auto &totalTime) {
         totalTime += frameTiming.totalFrameTime;
         frameCount++;
         auto updateContext = helios::engine::runtime::gameloop::types::UpdateContext(
-              frameTiming.totalFrameTime,
+              frameTiming.deltaTime,
               totalTime,
               frameCount,
               {}

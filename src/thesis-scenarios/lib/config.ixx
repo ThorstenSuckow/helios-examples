@@ -12,10 +12,10 @@ export namespace thesis::config {
     const     auto MAX_THREADS           = std::thread::hardware_concurrency() - 1U;
     constexpr auto LOGGING_ENABLED       = false;
     constexpr auto TARGET_FPS            = 0.0F;
-    constexpr auto FIXED_FRAME_TIME      = 1.0F / 60.0F;
+    constexpr auto FIXED_DELTA_TIME      = 1.0F / 60.0F;
     constexpr auto WARMUP_FRAMES         = 1000;
     constexpr auto MEASURE_FRAMES        = 5000;
-    constexpr auto OBJECTS_PER_AXIS      = 50;
+    constexpr auto OBJECTS_PER_AXIS      = 5;
     constexpr auto BORDER_SCALE          = helios::math::vec3f{1.0F, 1.0F, 1.0F};
     constexpr auto TILE_SIZE             = 2;
     constexpr auto PARTICLE_SPAWN_COUNT  = 2;

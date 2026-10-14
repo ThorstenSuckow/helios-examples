@@ -2,7 +2,7 @@
     auto fpsMetrics = FpsMetrics();
     auto framePacer = FramePacer();
 
-    framePacer.setFixedFrameTime(FIXED_FRAME_TIME);
+    framePacer.setFixedDeltaTime(FIXED_DELTA_TIME);
 
     auto imguiBackend = ImGuiGlfwOpenGLBackend(MainWindow.handle(), gameWorld.ecsWorld());
     auto imguiOverlay = ImGuiOverlay::forBackend(&imguiBackend);

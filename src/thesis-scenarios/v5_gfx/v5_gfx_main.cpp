@@ -105,7 +105,7 @@ int main() {
     while (true) {
         framePacer.beginFrame();
 
-        thesis::util::updateFrameMetrics(ecsDataContainer, frameCount, frameTiming, totalTime);
+        thesis::util::updateFrameMetrics(ecsDataContainer, frameTiming, frameCount, totalTime);
         scheduler.update();
 
         frameTiming = framePacer.sync();
