@@ -57,6 +57,8 @@ int main() {
 
     #include "RenderSetup.inc"
 
+    auto collisionCallback = thesis::util::collCb<ParticleHandle>(particleRenderCallback);
+
     thesis::util::createGameObjects<GameObjectHandle>(
         ecsDataContainer.get<EntityManager<GameObjectHandle>>(),
         gameObjectRenderCallback
@@ -77,7 +79,7 @@ int main() {
     scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running))
     .endSchedule(
         Sequential(
-            m_col(thesis::util::collCb<ParticleHandle>(particleRenderCallback)),
+            m_col(collisionCallback),
             m_lft
         )
     )
