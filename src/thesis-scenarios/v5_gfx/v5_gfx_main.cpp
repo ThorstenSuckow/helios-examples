@@ -30,16 +30,7 @@ using namespace thesis::config;
 
 
 int main() {
-
-    using m_col           = thesis::manager::CollisionManager<GameObjectHandle, ParticleHandle>;
-    using m_lft           = thesis::manager::LifetimeManager<ParticleHandle>;
-    using s_beta_go       = thesis::systems::BetaSystem<GameObjectHandle>;
-    using s_beta_prt      = thesis::systems::BetaSystem<ParticleHandle>;
-    using s_delta_det_go  = thesis::systems::DeltaDetSystem<GameObjectHandle>;
-    using s_delta_det_prt = thesis::systems::DeltaDetSystem<ParticleHandle>;
-    using s_delta_res_go  = thesis::systems::DeltaResSystem<GameObjectHandle>;
-    using s_delta_res_prt = thesis::systems::DeltaResSystem<ParticleHandle>;
-    using s_lambda        = thesis::systems::LambdaSystem<ParticleHandle>;
+;
 
     auto engineRuntime = helios::engine::v5_gfx_bootstrap::bootstrapGameWorld();
     auto& ecsDataContainer = engineRuntime->gameWorld.resourceRegistry();
@@ -58,6 +49,16 @@ int main() {
     #include "RenderSetup.inc"
 
     auto collisionCallback = thesis::util::collCb<ParticleHandle>(particleRenderCallback);
+    auto m_col             = thesis::manager::CollisionManager<
+        GameObjectHandle, ParticleHandle>{collisionCallback, thesis::config::COLLISION_COMMANDS_GO};
+    auto m_lft             = thesis::manager::LifetimeManager<ParticleHandle>();
+    auto s_beta_go         = thesis::systems::BetaSystem<GameObjectHandle>();
+    auto s_beta_prt        = thesis::systems::BetaSystem<ParticleHandle>();
+    auto s_delta_det_go    = thesis::systems::DeltaDetSystem<GameObjectHandle>(thesis::util::grid<GameObjectHandle>());
+    auto s_delta_det_prt   = thesis::systems::DeltaDetSystem<ParticleHandle>(thesis::util::grid<ParticleHandle>());
+    auto s_delta_res_go    = thesis::systems::DeltaResSystem<GameObjectHandle>();
+    auto s_delta_res_prt   = thesis::systems::DeltaResSystem<ParticleHandle>();
+    auto s_lambda          = thesis::systems::LambdaSystem<ParticleHandle>();
 
     thesis::util::createGameObjects<GameObjectHandle>(
         ecsDataContainer.get<EntityManager<GameObjectHandle>>(),
@@ -75,34 +76,27 @@ int main() {
     #include "ToolingSetup.inc"
     #include "SchedulerPreSetup.inc"
 
-    // MAIN
+    // +----------------------------------------
+    // | THESIS SCHEDULE
+    // +----------------------------------------
     scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running))
     .endSchedule(
-        Sequential(
-            m_col(collisionCallback),
-            m_lft()
-        )
+        Sequential(m_col, m_lft)
     )
     .beginSchedule(GameWorld::sessionState(EngineState::Running))
-        .add<s_beta_go, s_beta_prt>()
-        .add(
-            Sequential(
-                s_delta_det_go(thesis::util::grid<GameObjectHandle>()),
-                s_delta_res_go()
-            ),
-            Sequential(
-                s_delta_det_prt(thesis::util::grid<ParticleHandle>()),
-                s_delta_res_prt(),
-                s_lambda()
-            )
-        )
+        .add(s_beta_go, s_beta_prt)
+        .add(s_delta_det_go, s_delta_det_prt)
+        .add(s_delta_res_go, s_delta_res_prt)
+        .add(s_lambda)
     .endSchedule();
+    // +----------------------------------------
+    // +----------------------------------------
 
     #include "SchedulerPostSetup.inc"
 
     thesis::util::init(ecsDataContainer);
 
-    while (true) {
+    while (thesis::util::shouldRun(frameCount)) {
         framePacer.beginFrame();
 
         thesis::util::updateFrameMetrics(ecsDataContainer, frameTiming, frameCount, totalTime);
@@ -111,6 +105,8 @@ int main() {
         frameTiming = framePacer.sync();
         fpsMetrics.addFrame(frameTiming);
     }
+
+    thesis::util::writeMetricsToCSV();
 
     return 0;
 }
