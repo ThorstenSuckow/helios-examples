@@ -34,7 +34,7 @@ int main() {
     using m_col           = thesis::manager::CollisionManager<GameObjectHandle, ParticleHandle>;
     using m_lft           = thesis::manager::LifetimeManager<ParticleHandle>;
     using s_beta_go       = thesis::systems::BetaSystem<GameObjectHandle>;
-    using s_beta_prt      = thesis::systems::BetaSystem<GameObjectHandle>;
+    using s_beta_prt      = thesis::systems::BetaSystem<ParticleHandle>;
     using s_delta_det_go  = thesis::systems::DeltaDetSystem<GameObjectHandle>;
     using s_delta_det_prt = thesis::systems::DeltaDetSystem<ParticleHandle>;
     using s_delta_res_go  = thesis::systems::DeltaResSystem<GameObjectHandle>;
@@ -80,7 +80,7 @@ int main() {
     .endSchedule(
         Sequential(
             m_col(collisionCallback),
-            m_lft
+            m_lft()
         )
     )
     .beginSchedule(GameWorld::sessionState(EngineState::Running))
@@ -92,8 +92,8 @@ int main() {
             ),
             Sequential(
                 s_delta_det_prt(thesis::util::grid<ParticleHandle>()),
-                s_delta_res_prt<ParticleHandle>(),
-                s_lambda<ParticleHandle>()
+                s_delta_res_prt(),
+                s_lambda()
             )
         )
     .endSchedule();
