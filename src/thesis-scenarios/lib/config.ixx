@@ -1,12 +1,15 @@
 module;
 
+#include <cstddef>
 #include <thread>
+#include <vector>
 
 export module thesis.config;
 
 import helios.math;
 
 import helios.ecs.entity;
+
 
 export namespace thesis::config {
     const     auto MAX_THREADS           = std::thread::hardware_concurrency() - 1U;
@@ -15,7 +18,8 @@ export namespace thesis::config {
     constexpr auto FIXED_DELTA_TIME      = 1.0F / 60.0F;
     constexpr auto WARMUP_FRAMES         = 1000;
     constexpr auto MEASURE_FRAMES        = 5000;
-    constexpr auto OBJECTS_PER_AXIS      = 5;
+    constexpr auto COOLDOWN_FRAMES       = 100;
+    constexpr auto OBJECTS_PER_AXIS      = 300;
     constexpr auto BORDER_SCALE          = helios::math::vec3f{1.0F, 1.0F, 1.0F};
     constexpr auto TILE_SIZE             = 2;
     constexpr auto PARTICLE_SPAWN_COUNT  = 2;
@@ -29,4 +33,25 @@ export namespace thesis::config {
         -AXIS_LENGTH / 2.0F, -AXIS_LENGTH / 2.0F, 0.0f,
         AXIS_LENGTH / 2.0F, AXIS_LENGTH / 2.0F, 0.0f
     };
+
+    template<typename T>
+    std::vector<T> reservedVector(const std::size_t capacity = WARMUP_FRAMES + MEASURE_FRAMES + COOLDOWN_FRAMES ) {
+        std::vector<T> vec;
+        vec.reserve(capacity);
+        return vec;
+    }
+
+    std::vector<float> FRAME_TIMINGS                       = reservedVector<float>();
+    std::vector<float> SCHEDULE_TIMINGS                    = reservedVector<float>();
+    std::vector<float> S_DELTA_DET_TIMINGS                 = reservedVector<float>();
+    std::vector<float> S_DELTA_PRT_TIMINGS                 = reservedVector<float>();
+    std::vector<float> M_COL_TIMINGS                       = reservedVector<float>();
+    std::vector<float> M_LFT_TIMINGS                       = reservedVector<float>();
+    std::vector<std::size_t> COLLISION_PAIRS_FOUND_GO      = reservedVector<std::size_t>();
+    std::vector<std::size_t> COLLISION_PAIRS_FOUND_PRT     = reservedVector<std::size_t>();
+    std::vector<std::size_t> COLLISION_PAIRS_PROCESSED_GO  = reservedVector<std::size_t>();
+    std::vector<std::size_t> COLLISION_PAIRS_PROCESSED_PRT = reservedVector<std::size_t>();
+    std::vector<std::size_t> COLLISION_COMMANDS_GO         = reservedVector<std::size_t>();
+    std::vector<std::size_t> LIFETIME_COMMANDS_PRT         = reservedVector<std::size_t>();
+    std::vector<std::size_t> PARTICLE_POPULATION           = reservedVector<std::size_t>();
 }
