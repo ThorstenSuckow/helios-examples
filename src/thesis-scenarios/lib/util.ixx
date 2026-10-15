@@ -12,6 +12,8 @@ module;
 #include <string>
 #include <vector>
 #include <cassert>
+#include <iostream>
+#include <exception>
 
 export module thesis.util;
 
@@ -273,7 +275,7 @@ export namespace thesis::util {
         ecsDataContainer.template replace<helios::engine::runtime::gameloop::types::UpdateContext>(updateContext);
     };
 
-    bool shouldRun(std::size_t frameCount) {
+    bool shouldbeRunning(std::size_t frameCount) {
         return frameCount < thesis::config::WARMUP_FRAMES +
                           thesis::config::MEASURE_FRAMES +
                           thesis::config::COOLDOWN_FRAMES;
@@ -307,16 +309,18 @@ export namespace thesis::util {
 
         bool ok = writer.tryWriteLine(outfile, "index," + column);
 
-        assert(values.size() == thesis::config::MEASURE_FRAMES + thesis::config::WARMUP_FRAMES);
+        if (!ok) {
+            assert(ok);
+            std::cerr << "Couldnt write to file." << std::endl;
+            std::terminate();
+        }
+        if (values.size() < thesis::config::MEASURE_FRAMES + thesis::config::WARMUP_FRAMES) {
+            std::cerr << values.size() << "  " << thesis::config::MEASURE_FRAMES + thesis::config::WARMUP_FRAMES << " " << " " << std::endl;
+            std::terminate();
+        }
         std::size_t index = 0;
-        for (std::size_t i = thesis::config::WARMUP_FRAMES;
-            i < thesis::config::WARMUP_FRAMES + thesis::config::MEASURE_FRAMES + thesis::config::COOLDOWN_FRAMES;
-            ++i) {
-            auto& value = values[i];
+        for (auto& value : values) {
             ok &= writer.tryWriteLine(outfile, std::format("{},{}", index++, value));
-            if (index >= thesis::config::MEASURE_FRAMES) {
-                break;
-            }
         }
 
         return ok;
@@ -335,7 +339,7 @@ export namespace thesis::util {
     }
 
 
-    bool writeMetricsToCSV() {
+    bool writeMetricsToCSV(thesis::config::METRICS& metrics) {
         namespace cfg = thesis::config;
 
         std::string directory = measurementsPath();
@@ -351,19 +355,19 @@ export namespace thesis::util {
         };
 
         bool ok = true;
-        ok &= writeVectorToCSV(file("frame_timings.csv"), "frame_time", cfg::FRAME_TIMINGS);
-        ok &= writeVectorToCSV(file("schedule_timings.csv"), "schedule_time", cfg::SCHEDULE_TIMINGS);
-        ok &= writeVectorToCSV(file("s_delta_det_timings.csv"), "s_delta_det_time", cfg::S_DELTA_DET_TIMINGS);
-        ok &= writeVectorToCSV(file("s_delta_prt_timings.csv"), "s_delta_prt_time", cfg::S_DELTA_PRT_TIMINGS);
-        ok &= writeVectorToCSV(file("m_col_timings.csv"), "m_col_time", cfg::M_COL_TIMINGS);
-        ok &= writeVectorToCSV(file("m_lft_timings.csv"), "m_lft_time", cfg::M_LFT_TIMINGS);
-        ok &= writeVectorToCSV(file("collision_pairs_found_go.csv"), "pairs", cfg::COLLISION_PAIRS_FOUND_GO);
-        ok &= writeVectorToCSV(file("collision_pairs_found_prt.csv"), "pairs", cfg::COLLISION_PAIRS_FOUND_PRT);
-        ok &= writeVectorToCSV(file("collision_pairs_processed_go.csv"), "pairs", cfg::COLLISION_PAIRS_PROCESSED_GO);
-        ok &= writeVectorToCSV(file("collision_pairs_processed_prt.csv"), "pairs", cfg::COLLISION_PAIRS_PROCESSED_PRT);
-        ok &= writeVectorToCSV(file("collision_commands_go.csv"), "commands", cfg::COLLISION_COMMANDS_GO);
-        ok &= writeVectorToCSV(file("lifetime_commands_prt.csv"), "commands", cfg::LIFETIME_COMMANDS_PRT);
-        ok &= writeVectorToCSV(file("particle_population.csv"), "particles", cfg::PARTICLE_POPULATION);
+        ok &= writeVectorToCSV(file("frame_timings.csv"), "frame_time", metrics.FRAME_TIMINGS);
+        ok &= writeVectorToCSV(file("schedule_timings.csv"), "schedule_time", metrics.SCHEDULE_TIMINGS);
+        ok &= writeVectorToCSV(file("s_delta_det_timings.csv"), "s_delta_det_time", metrics.S_DELTA_DET_TIMINGS);
+        ok &= writeVectorToCSV(file("s_delta_prt_timings.csv"), "s_delta_prt_time", metrics.S_DELTA_PRT_TIMINGS);
+        ok &= writeVectorToCSV(file("m_col_timings.csv"), "m_col_time", metrics.M_COL_TIMINGS);
+        ok &= writeVectorToCSV(file("m_lft_timings.csv"), "m_lft_time", metrics.M_LFT_TIMINGS);
+        ok &= writeVectorToCSV(file("collision_pairs_found_go.csv"), "pairs", metrics.COLLISION_PAIRS_FOUND_GO);
+        ok &= writeVectorToCSV(file("collision_pairs_found_prt.csv"), "pairs", metrics.COLLISION_PAIRS_FOUND_PRT);
+        ok &= writeVectorToCSV(file("collision_pairs_processed_go.csv"), "pairs", metrics.COLLISION_PAIRS_PROCESSED_GO);
+        ok &= writeVectorToCSV(file("collision_pairs_processed_prt.csv"), "pairs", metrics.COLLISION_PAIRS_PROCESSED_PRT);
+        ok &= writeVectorToCSV(file("collision_commands_go.csv"), "commands", metrics.COLLISION_COMMANDS_GO);
+        ok &= writeVectorToCSV(file("lifetime_commands_prt.csv"), "commands", metrics.LIFETIME_COMMANDS_PRT);
+        ok &= writeVectorToCSV(file("particle_population.csv"), "particles", metrics.PARTICLE_POPULATION);
 
         return ok;
     }
