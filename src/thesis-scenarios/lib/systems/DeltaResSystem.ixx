@@ -10,6 +10,8 @@ export module thesis.systems.DeltaResSystem;
 
 import :CollisionImpulseResponse;
 
+import thesis.types;
+
 import helios.physics.collision.components;
 import helios.physics.collision.types;
 import helios.physics.motion.components;
@@ -55,7 +57,7 @@ export namespace thesis::systems {
         }
 
 
-        void update(
+         types::DeltaResResult<THandle> update(
             CommandBuffer& commandBuffer,
             const helios::physics::collision::types::CollisionDetectionResult<THandle>& collisionResult,
             helios::ecs::entity::query::Query<
@@ -67,6 +69,8 @@ export namespace thesis::systems {
         ) noexcept {
 
             const auto& collisions = collisionResult.collisionPairs();
+
+            std::size_t processedCollisions = 0;
 
             for (const auto& collisionPair : collisions) {
 
@@ -121,6 +125,8 @@ export namespace thesis::systems {
                     velocity->setValue(rightVelocity);
                 }
 
+                processedCollisions++;
+
                 commandBuffer.template add<CollisionCommand>(CollisionCommand{
                     .leftHandle = collisionPair.leftHandle,
                     .rightHandle = collisionPair.rightHandle,
@@ -128,6 +134,7 @@ export namespace thesis::systems {
                     .location = collisionPair.collisionSnapshot.overlapCenter
                 });
             }
+            return types::DeltaResResult<THandle>{processedCollisions};
         }
     };
 }
