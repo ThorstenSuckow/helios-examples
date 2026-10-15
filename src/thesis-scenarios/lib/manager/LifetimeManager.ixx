@@ -8,6 +8,8 @@ import helios.gameplay.lifecycle.commands;
 import helios.ecs.command;
 import helios.ecs.entity;
 
+import thesis.types;
+
 export namespace thesis::manager {
 
     template <typename THandle>
@@ -39,15 +41,17 @@ export namespace thesis::manager {
         /**
          * @note Not thread-safe!
          */
-        bool execute(EntityManager& entityManager) noexcept {
+        types::LifetimeManagerResult execute(EntityManager& entityManager) noexcept {
             bool result = true;
+
+            auto expiredCount = pendingCommands_.size();
 
             for (const auto& command : pendingCommands_) {
                 result = entityManager.destroy(command.handle) && result;
             }
 
             pendingCommands_.clear();
-            return result;
+            return types::LifetimeManagerResult{expiredCount};
         }
     };
 
