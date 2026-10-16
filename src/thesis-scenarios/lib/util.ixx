@@ -31,7 +31,7 @@ import helios.engine.runtime;
 import thesis.config;
 import helios.engine.rendering.mesh;
 import helios.gameplay.lifecycle;
-import thesis.systems;
+import thesis.strategies;
 
 export namespace thesis::util {
 
@@ -258,7 +258,7 @@ export namespace thesis::util {
 
     template<typename Thandle>
     auto grid() {
-        return thesis::systems::GridCollisionDetection<Thandle>(
+        return thesis::strategies::GridCollisionDetection<Thandle>(
             thesis::config::SPATIAL_GRID, thesis::config::CELL_SIZE
         );
     }
@@ -300,6 +300,15 @@ export namespace thesis::util {
         const std::string& column,
         const std::vector<T>& values) {
         const helios::core::io::BasicStringFileWriter writer;
+
+        if (values.empty() || std::all_of(
+            values.begin(), values.end(),
+            [&](const auto& value) {
+               return value == values.front();
+            })
+        ) {
+            return true;
+        }
 
         // open the file once and keep it open while writing all rows
         std::ofstream outfile{filename, std::ios::out | std::ios::trunc};

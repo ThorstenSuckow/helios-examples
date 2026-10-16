@@ -8,7 +8,7 @@ module;
 
 export module thesis.systems.DeltaResSystem;
 
-import :CollisionImpulseResponse;
+import thesis.strategies;
 
 import thesis.types;
 
@@ -36,7 +36,7 @@ export namespace thesis::systems {
 
     template<
         typename THandle,
-        typename TResponseStrategy = thesis::systems::CollisionImpulseResponse
+        typename TResponseStrategy = thesis::strategies::CollisionImpulseResponse
     >
     class DeltaResSystem {
 

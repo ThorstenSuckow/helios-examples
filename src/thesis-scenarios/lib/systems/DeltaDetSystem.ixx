@@ -16,7 +16,7 @@ module;
 
 export module thesis.systems.DeltaDetSystem;
 
-export import :GridCollisionDetection;
+import thesis.strategies;
 
 import helios.physics.collision.components;
 import helios.physics.collision.types;
@@ -39,7 +39,7 @@ export namespace thesis::systems {
 
     template<
         typename THandle,
-        typename TStrategy = thesis::systems::GridCollisionDetection<THandle>
+        typename TStrategy = thesis::strategies::GridCollisionDetection<THandle>
     >
     class DeltaDetSystem {
 

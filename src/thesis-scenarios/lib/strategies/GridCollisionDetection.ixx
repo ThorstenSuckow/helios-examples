@@ -16,7 +16,7 @@ module;
 #include <exception>
 
 
-export module thesis.systems.DeltaDetSystem:GridCollisionDetection;
+export module thesis.strategies:GridCollisionDetection;
 
 
 import helios.physics.collision.components;
@@ -33,7 +33,7 @@ import helios.math;
 
 import helios.engine.spatial.components;
 
-export namespace thesis::systems {
+export namespace thesis::strategies {
 
     template<typename THandle>
     class GridCollisionDetection {

@@ -69,7 +69,6 @@ using EngineWorldFactory = WorldFactory<
 >;
 
 
-
 struct EngineRuntime {
     GameWorld gameWorld;
     GameLoop gameLoop;
@@ -83,11 +82,7 @@ struct EngineRuntime {
         : gameWorld{std::move(ecsWorld)}, gameLoop{gameWorld} {}
 };
 
-/**
- * @brief Creates a pre-configured GameWorld and GameLoop pair.
- *
- * @return A EngineRuntime object.
- */
+
 [[nodiscard]] std::unique_ptr<EngineRuntime> bootstrapGameWorld(size_t capacity = 1000) {
 
     auto engineRuntime = std::make_unique<EngineRuntime>(EngineWorldFactory::makeEcsWorld());
@@ -99,4 +94,4 @@ struct EngineRuntime {
     return engineRuntime;
 }
 
-} // namespace helios::engine::v1_bootstrap
+} // namespace helios::engine::bootstrap
