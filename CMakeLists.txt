@@ -187,21 +187,23 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
             "${EXAMPLE_DIR}/*.ixx"
     )
 
+    # The scenario-local bootstrap.ixx is added separately via BOOTSTRAP_MODULE.
+    list(FILTER EXAMPLE_MODULES EXCLUDE REGEX "/bootstrap\\.ixx$")
+
     # Shared thesis scenario modules (e.g. thesis.config) live in src/thesis-scenarios/lib.
     if(REL_PATH MATCHES "^src/thesis-scenarios/")
         file(GLOB_RECURSE SHARED_THESIS_MODULES CONFIGURE_DEPENDS
                 "${CMAKE_CURRENT_SOURCE_DIR}/src/thesis-scenarios/lib/*.ixx"
         )
-        list(APPEND EXAMPLE_MODULES ${SHARED_THESIS_MODULES})
 
-        # The shared lib/Bootstrap.ixx imports the scenario-local module
+        # The shared lib/bootstrap.ixx imports the scenario-local module
         # `thesis.handles`; only use it for scenarios providing a HandleSetup.ixx.
         if(NOT EXISTS "${EXAMPLE_DIR}/HandleSetup.ixx")
-            list(FILTER EXAMPLE_MODULES EXCLUDE REGEX "/thesis-scenarios/lib/Bootstrap\\.ixx$")
+            list(FILTER SHARED_THESIS_MODULES EXCLUDE REGEX "/thesis-scenarios/lib/bootstrap\\.ixx$")
         endif()
-    endif()
 
-    list(FILTER EXAMPLE_MODULES EXCLUDE REGEX "/bootstrap\\.ixx$")
+        list(APPEND EXAMPLE_MODULES ${SHARED_THESIS_MODULES})
+    endif()
 
     target_sources(${UNIQUE_TARGET}
             PRIVATE
