@@ -330,7 +330,11 @@ export namespace thesis::util {
     std::string measurementsPath() {
         const std::time_t now = std::time(nullptr);
         std::tm localTime{};
+#ifdef _WIN32
+        localtime_s(&localTime, &now);
+#else
         localtime_r(&now, &localTime);
+#endif
 
         char timestamp[32];
         std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d_%H-%M-%S", &localTime);

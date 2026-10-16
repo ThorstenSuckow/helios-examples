@@ -202,6 +202,14 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
             "${EXAMPLE_DIR}/*.ixx"
     )
 
+    # shared thesis.* modules live in thesis-scenarios/lib
+    if(SUBDIR MATCHES "^src/thesis-scenarios/")
+        file(GLOB_RECURSE THESIS_LIB_MODULES CONFIGURE_DEPENDS
+                "${CMAKE_CURRENT_SOURCE_DIR}/src/thesis-scenarios/lib/*.ixx"
+        )
+        list(APPEND EXAMPLE_MODULES ${THESIS_LIB_MODULES})
+    endif()
+
     if(EXAMPLE_MODULES)
         target_sources(${UNIQUE_TARGET}
                 PRIVATE
