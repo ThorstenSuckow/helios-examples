@@ -5,7 +5,7 @@
 module;
 
 #include <optional>
-export module thesis.systems.DeltaResSystem:CollisionImpulseResponse;
+export module thesis.strategies:CollisionImpulseResponse;
 
 import helios.physics.collision.components;
 import helios.physics.collision.types;
@@ -23,7 +23,7 @@ import helios.math;
 
 import helios.engine.spatial.components;
 
-export namespace thesis::systems {
+export namespace thesis::strategies {
 
 
     class CollisionImpulseResponse {

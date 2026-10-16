@@ -1,6 +1,10 @@
 /**
  * @file bootstrap.ixx
- * @brief Engine bootstrap: component registration and GameWorld/GameLoop factory.
+ * @brief Engine bootstrap for the V1 reference scenario with rendering.
+ *
+ * @details All entities (GameObjects, particles, window, camera, shaders, ...) live in a single
+ * handle domain (UniHandle). The role-specific names below are plain aliases of UniHandle,
+ * i.e. there are no separate handle domains for rendering resources.
  */
 module;
 
@@ -44,13 +48,23 @@ using namespace helios::engine::runtime::gameloop;
 using namespace helios::ecs;
 using namespace helios::ecs::entity;
 using namespace helios::ecs::command;
-using namespace helios::engine::runtime::pooling::commands;
-using namespace helios::engine::runtime::pooling::types;
+
 
 export namespace helios::engine::v1_bootstrap {
 
 struct UniHandleDomain {};
 using UniHandle = helios::ecs::common::types::EntityHandle<UniHandleDomain>;
+
+// All roles share the one unified handle domain.
+using WindowHandle       = UniHandle;
+using RenderTargetHandle = UniHandle;
+using ViewportHandle     = UniHandle;
+using TextureHandle      = UniHandle;
+using ShaderHandle       = UniHandle;
+using MaterialHandle     = UniHandle;
+using MeshHandle         = UniHandle;
+using SceneHandle        = UniHandle;
+using CameraHandle       = UniHandle;
 
 template <typename... THandles>
 struct WorldFactory {
@@ -63,12 +77,60 @@ struct WorldFactory {
     }
 };
 
-
-using EngineWorldFactory = WorldFactory<
-    UniHandle
+using DefaultRenderHandles = helios::engine::rendering::RenderHandles<
+    RenderTargetHandle,
+    ViewportHandle,
+    SceneHandle,
+    CameraHandle,
+    ShaderHandle,
+    MaterialHandle,
+    TextureHandle,
+    MeshHandle
 >;
 
+using EngineWorldFactory = WorldFactory<UniHandle>;
 
+using DefaultTimerManager = helios::engine::runtime::timing::TimerManager;
+using DefaultGLFWPlatformManager = helios::glfw::GLFWPlatformManager<WindowHandle, DefaultRenderHandles>;
+using DefaultRenderManager =
+    helios::engine::rendering::RenderManager<DefaultRenderHandles, UniHandle>;
+using DefaultTextureUploadManager = helios::opengl::OpenGLTextureUploadManager<TextureHandle>;
+using DefaultMeshUploadManager = helios::opengl::OpenGLMeshUploadManager<MeshHandle>;
+using DefaultShaderCompileManager = helios::opengl::OpenGLShaderCompileManager<ShaderHandle>;
+
+using DefaultWarmupDoneSystem = platform::lifecycle::systems::WarmupDoneSystem<DefaultRenderHandles>;
+
+template <typename TMemberHandle, typename TSubmissionMode>
+using DefaultSceneRenderSystem =
+    scene::systems::SceneRenderSystem<TMemberHandle, TSubmissionMode, DefaultRenderHandles>;
+
+template <typename TMemberHandle, typename TSubmissionMode, typename TCullingStrategy>
+using DefaultSceneMemberVisibilitySystem = scene::systems::SceneMemberVisibilitySystem<
+    TMemberHandle,
+    TSubmissionMode,
+    scene::AABBCullingStrategy<TMemberHandle>,
+    DefaultRenderHandles
+>;
+
+template <typename TMemberHandle, typename TSubmissionMode>
+using DefaultSceneMemberVisibilityRegistry =
+    scene::SceneMemberVisibilityRegistry<TMemberHandle, TSubmissionMode, DefaultRenderHandles>;
+
+template <typename TSubmissionMode>
+using DefaultRenderPrototypeComponent =
+    rendering::common::components::RenderPrototypeComponent<TSubmissionMode, DefaultRenderHandles>;
+
+using DefaultRenderTargetBindingComponent =
+    helios::engine::rendering::common::components::RenderTargetBindingComponent<DefaultRenderHandles>;
+
+using DefaultSceneBindingComponent =
+    helios::engine::scene::components::SceneBindingComponent<DefaultRenderHandles>;
+
+using DefaultCameraBindingComponent =
+    helios::engine::scene::components::CameraBindingComponent<DefaultRenderHandles>;
+
+using DefaultSceneMemberComponent =
+    helios::engine::scene::components::SceneMemberComponent<DefaultRenderHandles>;
 
 struct EngineRuntime {
     GameWorld gameWorld;
@@ -96,7 +158,18 @@ struct EngineRuntime {
 
     EngineWorldFactory::initPermaResources(gameWorld);
 
+    gameWorld.emplaceResource<helios::engine::state::StateTransitionRules<EngineState>>(
+        runtime::enginestate::rules::DefaultEngineStateTransitionRules{}
+    );
+
+    gameWorld.emplaceResource<rendering::RenderDataResolver>(
+        helios::opengl::OpenGLRenderDataResolver<DefaultRenderHandles>{}
+    );
+    gameWorld.emplaceResource<rendering::RenderBackend>(rendering::RenderBackend{opengl::OpenGLBackend{}});
+
+
     return engineRuntime;
 }
 
-} // namespace helios::engine::v1_bootstrap
+} // namespace helios::engine::v1_gfx_bootstrap
+

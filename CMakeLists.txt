@@ -3,12 +3,14 @@ project(helios-examples LANGUAGES C CXX)
 
 include(FetchContent)
 
-set(HELIOS_USE_DEVTOOLS_DEFAULT OFF)
-if(PROJECT_IS_TOP_LEVEL)
-    set(HELIOS_USE_DEVTOOLS_DEFAULT ON)
-endif()
+set(
+    HELIOS_USE_DEVTOOLS
+    OFF
+    CACHE BOOL
+    "Load shared tooling from helios-devtools"
+    FORCE
+)
 
-option(HELIOS_USE_DEVTOOLS "Load shared tooling from helios-devtools" ${HELIOS_USE_DEVTOOLS_DEFAULT})
 set(HELIOS_DEVTOOLS_GIT_REPOSITORY "https://github.com/thorstensuckow/helios-devtools.git" CACHE STRING "helios-devtools git repository")
 set(HELIOS_DEVTOOLS_GIT_TAG "v1.0.0" CACHE STRING "helios-devtools git tag or commit")
 set(HELIOS_DEVTOOLS_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-devtools" CACHE PATH "Optional local path to helios-devtools")
@@ -141,29 +143,7 @@ if(NOT TARGET helios::physics)
     endif()
 endif()
 
-add_library(helios_examples_bootstrap STATIC)
-target_sources(helios_examples_bootstrap
-        PUBLIC
-        FILE_SET cxx_modules TYPE CXX_MODULES FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/bootstrap.ixx"
-)
-
-if(HELIOS_USE_DEVTOOLS)
-    helios_configure_target(helios_examples_bootstrap)
-endif()
-
-
-target_link_libraries(
-        helios_examples_bootstrap
-        PUBLIC
-        helios::ecs
-        helios::engine
-        helios::opengl
-        helios::glfw
-        helios::imgui
-        helios::gameplay
-        helios::physics
-)
+set(DEFAULT_BOOTSTRAP_MODULE "${CMAKE_CURRENT_SOURCE_DIR}/src/bootstrap.ixx")
 
 file(GLOB_RECURSE EXAMPLE_FILES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
@@ -185,7 +165,6 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
     endif()
 
     target_link_libraries(${UNIQUE_TARGET} PRIVATE
-            helios_examples_bootstrap
             helios::ecs
             helios::engine
             helios::opengl
@@ -198,25 +177,32 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
     target_compile_definitions(${UNIQUE_TARGET} PRIVATE GLFW_INCLUDE_NONE)
 
     get_filename_component(EXAMPLE_DIR ${EXAMPLE_FILE} DIRECTORY)
-    file(GLOB_RECURSE EXAMPLE_MODULES
+
+    set(BOOTSTRAP_MODULE "${EXAMPLE_DIR}/bootstrap.ixx")
+    if(NOT EXISTS "${BOOTSTRAP_MODULE}")
+        set(BOOTSTRAP_MODULE "${DEFAULT_BOOTSTRAP_MODULE}")
+    endif()
+
+    file(GLOB_RECURSE EXAMPLE_MODULES CONFIGURE_DEPENDS
             "${EXAMPLE_DIR}/*.ixx"
     )
 
-    # shared thesis.* modules live in thesis-scenarios/lib
-    if(SUBDIR MATCHES "^src/thesis-scenarios/")
-        file(GLOB_RECURSE THESIS_LIB_MODULES CONFIGURE_DEPENDS
+    # Shared thesis scenario modules (e.g. thesis.config) live in src/thesis-scenarios/lib.
+    if(REL_PATH MATCHES "^src/thesis-scenarios/")
+        file(GLOB_RECURSE SHARED_THESIS_MODULES CONFIGURE_DEPENDS
                 "${CMAKE_CURRENT_SOURCE_DIR}/src/thesis-scenarios/lib/*.ixx"
         )
-        list(APPEND EXAMPLE_MODULES ${THESIS_LIB_MODULES})
+        list(APPEND EXAMPLE_MODULES ${SHARED_THESIS_MODULES})
     endif()
 
-    if(EXAMPLE_MODULES)
-        target_sources(${UNIQUE_TARGET}
-                PRIVATE
-                FILE_SET cxx_modules TYPE CXX_MODULES FILES
-                ${EXAMPLE_MODULES}
-        )
-    endif()
+    list(FILTER EXAMPLE_MODULES EXCLUDE REGEX "/bootstrap\\.ixx$")
+
+    target_sources(${UNIQUE_TARGET}
+            PRIVATE
+            FILE_SET cxx_modules TYPE CXX_MODULES FILES
+            "${BOOTSTRAP_MODULE}"
+            ${EXAMPLE_MODULES}
+    )
 
     set_target_properties(${UNIQUE_TARGET} PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/examples/${SUBDIR}

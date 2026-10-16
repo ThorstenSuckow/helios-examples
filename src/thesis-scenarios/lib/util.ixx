@@ -31,7 +31,7 @@ import helios.engine.runtime;
 import thesis.config;
 import helios.engine.rendering.mesh;
 import helios.gameplay.lifecycle;
-import thesis.systems;
+import thesis.strategies;
 
 export namespace thesis::util {
 
@@ -109,12 +109,12 @@ export namespace thesis::util {
     template<typename THandle>
     void createParticles(
         helios::ecs::entity::EntityManager<THandle>& entityManager,
-        const std::uint64_t key,
         const int count,
         const helios::math::vec3f location,
-        const int randomizerOffset = 0
+        const int randomizerOffset = 0,
+        const std::uint32_t index = 0
     ) {
-        createParticles(entityManager, key, count, location, [](auto&){}, randomizerOffset);
+        createParticles(entityManager, count, location, [](auto&){}, randomizerOffset, index);
     }
     
     template<typename THandle, typename TFunc>
@@ -149,7 +149,7 @@ export namespace thesis::util {
 
             particle.template add<helios::physics::motion::components::Velocity3DComponent<helios::engine::core::types::Local>>(
                randomVec3f(
-                 ((std::uint64_t)randomizerOffset << 32) | i
+                 (static_cast<std::uint64_t>(randomizerOffset) << 32) | i
                ).withZ(0.0F).normalize()*thesis::config::PARTICLE_SPEED
             );
 
@@ -239,18 +239,18 @@ export namespace thesis::util {
     template<typename THandle, typename TFunc>
     auto collCb(TFunc&& func) {
 
-        return [&](
+        return [&, counter = std::uint32_t{0}](
           auto& targetEntityManager,
           auto collisionCommands,
-          const helios::engine::runtime::gameloop::types::UpdateContext& updateContext
-        ) {
+          const helios::engine::runtime::gameloop::types::UpdateContext&
+        ) mutable {
             for (const auto& collision : collisionCommands) {
                 thesis::util::createParticles<THandle>(
                     targetEntityManager,
                     thesis::config::PARTICLE_SPAWN_COUNT,
                     collision.location,
                     std::forward<TFunc>(func),
-                    updateContext.frameCount()
+                    counter++
                 );
             }
         };
@@ -258,7 +258,7 @@ export namespace thesis::util {
 
     template<typename Thandle>
     auto grid() {
-        return thesis::systems::GridCollisionDetection<Thandle>(
+        return thesis::strategies::GridCollisionDetection<Thandle>(
             thesis::config::SPATIAL_GRID, thesis::config::CELL_SIZE
         );
     }
@@ -300,6 +300,15 @@ export namespace thesis::util {
         const std::string& column,
         const std::vector<T>& values) {
         const helios::core::io::BasicStringFileWriter writer;
+
+        if (values.empty() || std::all_of(
+            values.begin(), values.end(),
+            [&](const auto& value) {
+               return value == values.front();
+            })
+        ) {
+            return true;
+        }
 
         // open the file once and keep it open while writing all rows
         std::ofstream outfile{filename, std::ios::out | std::ios::trunc};
@@ -359,18 +368,25 @@ export namespace thesis::util {
         };
 
         bool ok = true;
-        ok &= writeVectorToCSV(file("frame_timings.csv"), "frame_time", metrics.FRAME_TIMINGS);
         ok &= writeVectorToCSV(file("schedule_timings.csv"), "schedule_time", metrics.SCHEDULE_TIMINGS);
-        ok &= writeVectorToCSV(file("s_delta_det_timings.csv"), "s_delta_det_time", metrics.S_DELTA_DET_TIMINGS);
-        ok &= writeVectorToCSV(file("s_delta_prt_timings.csv"), "s_delta_prt_time", metrics.S_DELTA_PRT_TIMINGS);
+
+        ok &= writeVectorToCSV(file("s_beta_go_timings.csv"), "s_beta_go_time", metrics.S_BETA_GO_TIMINGS);
+        ok &= writeVectorToCSV(file("s_beta_prt_timings.csv"), "s_beta_prt_time", metrics.S_BETA_PRT_TIMINGS);
+
+        ok &= writeVectorToCSV(file("s_delta_det_go_timings.csv"), "s_delta_det_go_time", metrics.S_DELTA_DET_GO_TIMINGS);
+        ok &= writeVectorToCSV(file("s_delta_det_prt_timings.csv"), "s_delta_det_prt_time", metrics.S_DELTA_DET_PRT_TIMINGS);
+        ok &= writeVectorToCSV(file("s_delta_res_go_timings.csv"), "s_delta_res_go_time", metrics.S_DELTA_RES_GO_TIMINGS);
+        ok &= writeVectorToCSV(file("s_delta_res_prt_timings.csv"), "s_delta_res_prt_time", metrics.S_DELTA_RES_PRT_TIMINGS);
+        ok &= writeVectorToCSV(file("s_lambda_prt_timings.csv"), "s_lambda_prt_time", metrics.S_LAMBDA_TIMINGS);
+
         ok &= writeVectorToCSV(file("m_col_timings.csv"), "m_col_time", metrics.M_COL_TIMINGS);
         ok &= writeVectorToCSV(file("m_lft_timings.csv"), "m_lft_time", metrics.M_LFT_TIMINGS);
-        ok &= writeVectorToCSV(file("collision_pairs_found_go.csv"), "pairs", metrics.COLLISION_PAIRS_FOUND_GO);
-        ok &= writeVectorToCSV(file("collision_pairs_found_prt.csv"), "pairs", metrics.COLLISION_PAIRS_FOUND_PRT);
-        ok &= writeVectorToCSV(file("collision_pairs_processed_go.csv"), "pairs", metrics.COLLISION_PAIRS_PROCESSED_GO);
-        ok &= writeVectorToCSV(file("collision_pairs_processed_prt.csv"), "pairs", metrics.COLLISION_PAIRS_PROCESSED_PRT);
-        ok &= writeVectorToCSV(file("collision_commands_go.csv"), "commands", metrics.COLLISION_COMMANDS_GO);
-        ok &= writeVectorToCSV(file("lifetime_commands_prt.csv"), "commands", metrics.LIFETIME_COMMANDS_PRT);
+        ok &= writeVectorToCSV(file("collision_pairs_found_go.csv"), "pairs_go", metrics.COLLISION_PAIRS_FOUND_GO);
+        ok &= writeVectorToCSV(file("collision_pairs_found_prt.csv"), "pairs_prt", metrics.COLLISION_PAIRS_FOUND_PRT);
+        ok &= writeVectorToCSV(file("collision_pairs_processed_go.csv"), "pairs_go", metrics.COLLISION_PAIRS_PROCESSED_GO);
+        ok &= writeVectorToCSV(file("collision_pairs_processed_prt.csv"), "pairs_prt", metrics.COLLISION_PAIRS_PROCESSED_PRT);
+        ok &= writeVectorToCSV(file("collision_commands_go.csv"), "commands_go", metrics.COLLISION_COMMANDS_GO);
+        ok &= writeVectorToCSV(file("lifetime_commands_prt.csv"), "commands_prt", metrics.LIFETIME_COMMANDS_PRT);
         ok &= writeVectorToCSV(file("particle_population.csv"), "particles", metrics.PARTICLE_POPULATION);
 
         return ok;
