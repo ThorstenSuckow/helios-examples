@@ -67,6 +67,7 @@ using namespace helios::ecs::system::concepts;
 // Engine core
 using namespace helios::engine::state;
 using namespace helios::engine::state::types;
+using namespace helios::engine::v1_bootstrap;
 
 // Runtime
 using namespace helios::engine::runtime;
