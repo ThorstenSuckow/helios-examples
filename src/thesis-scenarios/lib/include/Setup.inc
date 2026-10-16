@@ -1,9 +1,9 @@
 auto METRICS = thesis::config::METRICS{};
 
 #ifdef THREAD_COUNT
-    auto MAX_THREADS = THREAD_COUNT;
+    const std::size_t MAX_THREADS = static_cast<std::size_t>(THREAD_COUNT);
 #else
-    auto MAX_THREAD = std::thread::hardware_concurrency() - 1U;
+    const std::size_t MAX_THREADS = std::thread::hardware_concurrency() - 1U;
 #endif
 
 auto engineRuntime = thesis::bootstrap::bootstrapGameWorld();
