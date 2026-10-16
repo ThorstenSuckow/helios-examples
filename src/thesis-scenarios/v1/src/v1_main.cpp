@@ -32,9 +32,12 @@ import thesis.components;
 
 using namespace thesis::config;
 
-#define HEADLESS false
+#define HEADLESS FALSE
+
+#define THREAD_COUNT 0
 
 int main() {
+
 
     #include "../../lib/include/Setup.inc"
     #include "../../lib/include/RenderSetup.inc"

@@ -281,8 +281,8 @@ export namespace thesis::util {
                           thesis::config::COOLDOWN_FRAMES;
     }
 
-    void prepare(helios::ecs::common::container::EcsDataContainer& ecsDataContainer) {
-        ecsDataContainer.emplace<helios::core::thread::ThreadPool>(thesis::config::MAX_THREADS);
+    void prepare(helios::ecs::common::container::EcsDataContainer& ecsDataContainer, std::size_t maxThreads) {
+        ecsDataContainer.emplace<helios::core::thread::ThreadPool>(maxThreads);
     }
 
     void init(helios::ecs::common::container::EcsDataContainer& ecsDataContainer) {
