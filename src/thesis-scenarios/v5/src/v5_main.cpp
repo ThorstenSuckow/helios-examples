@@ -15,41 +15,29 @@ import helios.opengl;
 import helios.glfw;
 import helios.imgui;
 
-import helios.engine.v5_gfx_bootstrap;
+import thesis.handles;
+import thesis.bootstrap;
 import thesis.config;
 import thesis.util;
 import thesis.systems;
 import thesis.manager;
 import thesis.types;
+import thesis.components;
 
 #include <algorithm>
 #include <cmath>
 #include <optional>
 
-#include "./Namespaces.h"
+#include "../../lib/include/Namespaces.h"
 
 using namespace thesis::config;
 
+#define HEADLESS false
 
 int main() {
-;
-    auto METRICS = thesis::config::METRICS{};
 
-    auto engineRuntime = helios::engine::v5_gfx_bootstrap::bootstrapGameWorld();
-    auto& ecsDataContainer = engineRuntime->gameWorld.resourceRegistry();
-    auto& rrr = ecsDataContainer.get<helios::ecs::common::RuntimeResultRegistry>();
-
-    auto scheduler = helios::ecs::scheduling::Scheduler();
-    ecsDataContainer.emplace<UpdateContext>(0.0f, 0.0f, 0, helios::engine::input::InputSnapshot{});
-    scheduler.init(ecsDataContainer);
-
-    FrameTiming frameTiming{};
-    std::size_t frameCount = 0;
-    float totalTime = 0.0f;
-
-    thesis::util::prepare(ecsDataContainer);
-
-    #include "RenderSetup.inc"
+    #include "../../lib/include/Setup.inc"
+    #include "../../lib/include/RenderSetup.inc"
 
     using GameObject = GameObjectHandle;
     using Particle = ParticleHandle;
@@ -70,7 +58,42 @@ int main() {
     using DeltaResResultGo = thesis::types::DeltaResResult<GameObject>;
     using DeltaResResultPrt = thesis::types::DeltaResResult<Particle>;
 
+    #if HEADLESS
+        auto gameObjectRenderCallback = [&](auto& gameObject) {
+        };
+        auto borderRenderCallback = [&](auto& border) {
+        };
+        auto particleRenderCallback = [&](auto& particle) {
+            particle.template add<thesis::components::ParticleTagComponent>();
+        };
+
+    #else
+        auto gameObjectRenderCallback = [&](auto& gameObject) {
+            gameObject.setActive(true);
+            gameObject.template add<DefaultSceneMemberComponent>(MainScene);
+            gameObject.template add<DefaultRenderPrototypeComponent<Instanced>>(
+                InstanceShader.handle(), GameObjectMaterial.handle(), RectMesh.handle()
+            );
+        };
+
+        auto borderRenderCallback = [&](auto& border) {
+            border.setActive(true);
+            border.template add<DefaultSceneMemberComponent>(MainScene);
+            border.template add<DefaultRenderPrototypeComponent<Instanced>>(
+                InstanceShader.handle(), BoundaryMaterial.handle(), RectMesh.handle()
+            );
+        };
+        auto particleRenderCallback = [&](auto& particle) {
+            particle.setActive(true);
+            particle.template add<DefaultSceneMemberComponent>(MainScene);
+            particle.template add<DefaultRenderPrototypeComponent<Instanced>>(
+                InstanceShader.handle(), ParticleMaterial.handle(), RectMesh.handle()
+            );
+        };
+    #endif
+
     auto collisionCallback = thesis::util::collCb<Particle>(particleRenderCallback);
+
     auto m_col             = CollisionManager{collisionCallback};
     auto m_lft             = LifetimeManager();
     auto s_beta_go         = BetaSystemGo();
@@ -80,6 +103,9 @@ int main() {
     auto s_delta_res_go    = DeltaResSystemGo();
     auto s_delta_res_prt   = DeltaResSystemPrt();
     auto s_lambda          = LambdaSystem();
+
+    #include "../../lib/include/ToolingSetup.inc"
+    #include "../../lib/include/SchedulerPreSetup.inc"
 
     thesis::util::createGameObjects<GameObject>(
         ecsDataContainer.get<EntityManager<GameObject>>(),
@@ -94,15 +120,9 @@ int main() {
         borderRenderCallback
     );
 
-    #include "ToolingSetup.inc"
-    #include "SchedulerPreSetup.inc"
-
     // +----------------------------------------
     // | THESIS SCHEDULE
     // +----------------------------------------
-    auto& managerSchedule = scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running));
-    auto& systemSchedule = scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running));
-
     managerSchedule.endSchedule(
         Sequential(m_col, m_lft)
     );
@@ -160,17 +180,50 @@ int main() {
         systemSchedule.idx(), 3, 0, 0,
     };
 
+#if !HEADLESS
+    scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running))
+     .add(
+         Sequential(
+             SceneMemberVisibilitySystem<
+                 GameObjectHandle, Instanced, NullCullingStrategy<GameObjectHandle>, DefaultRenderHandles
+             >(NullCullingStrategy<GameObjectHandle>()),
+             DefaultSceneRenderSystem<GameObjectHandle, Instanced>()
+         ),
+         Sequential(
+             SceneMemberVisibilitySystem<
+                 ParticleHandle, Instanced, NullCullingStrategy<ParticleHandle>, DefaultRenderHandles
+             >(NullCullingStrategy<ParticleHandle>()),
+             [&](EntityManager<ParticleHandle>& entityManager,
+                DefaultSceneMemberVisibilityRegistry<ParticleHandle, Instanced>& visibilityRegistry) {
+                 auto* lifetimeSparseSet = entityManager.sparseSet<LifetimeComponent>();
+                 visibilityRegistry.forEachVisibleMember([&lifetimeSparseSet = *lifetimeSparseSet](auto& visibleContext) {
+                     if (auto* cmp = lifetimeSparseSet.get(visibleContext.memberHandle.entityId())) {
+                         visibleContext.normalizedAge = cmp->value() / cmp->lifetime();
+                     }
+                 });
+             },
+             DefaultSceneRenderSystem<ParticleHandle, Instanced>())
 
-    #include "SchedulerPostSetup.inc"
+         )
+
+ .endSchedule<Sequential<DefaultRenderManager>>()
+#endif
+
+    #include "../../lib/include/SchedulerPostSetup.inc"
 
     thesis::util::init(ecsDataContainer);
 
     while (thesis::util::shouldbeRunning(frameCount)) {
-        framePacer.beginFrame();
+
+        #if !HEADLESS
+            framePacer.beginFrame();
+        #endif
 
         scheduler.update(true, true);
 
-        frameTiming = framePacer.sync();
+        #if !HEADLESS
+            frameTiming = framePacer.sync();
+        #endif
 
         auto collisionManagerResult = rrr.item<thesis::types::CollisionManagerResult>();
         METRICS.COLLISION_COMMANDS_GO[frameCount] = collisionManagerResult ? collisionManagerResult->collisionCount : 0;
@@ -205,7 +258,10 @@ int main() {
 
         METRICS.SCHEDULE_TIMINGS[frameCount] = (managerSchedule.timings() + systemSchedule.timings()).total();
 
-        fpsMetrics.addFrame(frameTiming);
+        #if !HEADLESS
+            fpsMetrics.addFrame(frameTiming);
+        #endif
+
         thesis::util::updateFrameMetrics(ecsDataContainer, frameTiming, frameCount, totalTime);
     }
 

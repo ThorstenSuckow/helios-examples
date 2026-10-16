@@ -4,3 +4,4 @@
 /.idea/
 /cmake-build-release/
 /cmake-build-memcheck/
+/src/thesis-scenarios/v1/measurements/
