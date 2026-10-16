@@ -1,11 +1,3 @@
-/**
- * @file bootstrap.ixx
- * @brief Engine bootstrap for the V1 reference scenario with rendering.
- *
- * @details All entities (GameObjects, particles, window, camera, shaders, ...) live in a single
- * handle domain (UniHandle). The role-specific names below are plain aliases of UniHandle,
- * i.e. there are no separate handle domains for rendering resources.
- */
 module;
 
 #include <cassert>
