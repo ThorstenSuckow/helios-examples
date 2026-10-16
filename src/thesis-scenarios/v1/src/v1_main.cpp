@@ -15,7 +15,8 @@ import helios.opengl;
 import helios.glfw;
 import helios.imgui;
 
-import helios.engine.v1_bootstrap;
+import thesis.handles;
+import thesis.bootstrap;
 import thesis.config;
 import thesis.util;
 import thesis.systems;

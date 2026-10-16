@@ -193,6 +193,12 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
                 "${CMAKE_CURRENT_SOURCE_DIR}/src/thesis-scenarios/lib/*.ixx"
         )
         list(APPEND EXAMPLE_MODULES ${SHARED_THESIS_MODULES})
+
+        # The shared lib/Bootstrap.ixx imports the scenario-local module
+        # `thesis.handles`; only use it for scenarios providing a HandleSetup.ixx.
+        if(NOT EXISTS "${EXAMPLE_DIR}/HandleSetup.ixx")
+            list(FILTER EXAMPLE_MODULES EXCLUDE REGEX "/thesis-scenarios/lib/Bootstrap\\.ixx$")
+        endif()
     endif()
 
     list(FILTER EXAMPLE_MODULES EXCLUDE REGEX "/bootstrap\\.ixx$")

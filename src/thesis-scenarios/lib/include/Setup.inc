@@ -1,6 +1,6 @@
 auto METRICS = thesis::config::METRICS{};
 
-auto engineRuntime = helios::engine::v1_bootstrap::bootstrapGameWorld();
+auto engineRuntime = thesis::bootstrap::bootstrapGameWorld();
 auto& ecsDataContainer = engineRuntime->gameWorld.resourceRegistry();
 auto& rrr = ecsDataContainer.get<helios::ecs::common::RuntimeResultRegistry>();
 
