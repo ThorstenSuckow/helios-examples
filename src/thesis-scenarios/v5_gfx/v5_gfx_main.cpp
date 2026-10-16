@@ -168,7 +168,7 @@ int main() {
     while (thesis::util::shouldbeRunning(frameCount)) {
         framePacer.beginFrame();
 
-        scheduler.update(true, false);
+        scheduler.update(true, true);
 
         frameTiming = framePacer.sync();
 
