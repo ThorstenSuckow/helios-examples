@@ -64,7 +64,6 @@ int main() {
         auto borderRenderCallback = [&](auto& border) {
         };
         auto particleRenderCallback = [&](auto& particle) {
-            particle.template add<thesis::components::ParticleTagComponent>();
         };
 
     #else
