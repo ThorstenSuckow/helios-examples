@@ -31,9 +31,10 @@ import thesis.components;
 
 using namespace thesis::config;
 
+#define HEADLESS false
 
 int main() {
-;
+
     auto METRICS = thesis::config::METRICS{};
 
     auto engineRuntime = helios::engine::v1_bootstrap::bootstrapGameWorld();
@@ -50,6 +51,10 @@ int main() {
 
     thesis::util::prepare(ecsDataContainer);
 
+    #if !HEADLESS
+        #include "RenderSetup.inc"
+    #endif
+
     using CollisionManager = thesis::manager::CollisionManager<UniHandle, UniHandle>;
     using LifetimeManager = thesis::manager::LifetimeManager<UniHandle>;
     using BetaSystem = thesis::systems::BetaSystem<UniHandle>;
@@ -60,9 +65,14 @@ int main() {
     using CollisionDetectionResult = thesis::types::UniCollisionDetectionResult<UniHandle>;
     using DeltaResResult = thesis::types::UniDeltaResResult<UniHandle>;
 
-    auto collisionCallback = thesis::util::collCb<UniHandle>([](auto& entity) {
-        entity.template add<thesis::components::ParticleTagComponent>();
-    });
+    #if HEADLESS
+        auto collisionCallback = thesis::util::collCb<UniHandle>([](auto& entity) {
+            entity.template add<thesis::components::ParticleTagComponent>();
+        });
+    #else
+        auto collisionCallback = thesis::util::collCb<UniHandle>(particleRenderCallback);
+    #endif
+
     auto m_col             = CollisionManager{collisionCallback};
     auto m_lft             = LifetimeManager();
     auto s_beta            = BetaSystem();
@@ -70,21 +80,52 @@ int main() {
     auto s_delta_res       = DeltaResSystem();
     auto s_lambda          = LambdaSystem();
 
-    thesis::util::createGameObjects<UniHandle>(ecsDataContainer.get<EntityManager<UniHandle>>(),
-        [](auto& entity) {
-            entity.template add<thesis::components::GameObjectTagComponent>();
-        }
-    );
-    thesis::util::createBoundaries<UniHandle>(ecsDataContainer.get<EntityManager<UniHandle>>());
+    #if HEADLESS
+        auto& managerSchedule = scheduler.beginSchedule();
+        auto& systemSchedule = scheduler.beginSchedule();
 
+        thesis::util::createGameObjects<UniHandle>(ecsDataContainer.get<EntityManager<UniHandle>>(),
+            [](auto& entity) {
+                entity.template add<thesis::components::GameObjectTagComponent>();
+            }
+        );
+        thesis::util::createBoundaries<UniHandle>(
+            ecsDataContainer.get<EntityManager<UniHandle>>(),
+             [](auto& entity) {
+                entity.template add<thesis::components::GameObjectTagComponent>();
+            }
+        );
+        thesis::util::createBoundaries<UniHandle>(
+            ecsDataContainer.get<EntityManager<UniHandle>>(),
+            [](auto& entity) {
+                entity.template add<thesis::components::ParticleTagComponent>();
+            }
+        );
 
+    #else
+        #include "ToolingSetup.inc"
+        #include "SchedulerPreSetup.inc"
+
+        auto& managerSchedule = scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running));
+        auto& systemSchedule = scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running));
+
+        thesis::util::createGameObjects<UniHandle>(
+            ecsDataContainer.get<EntityManager<UniHandle>>(),
+            gameObjectRenderCallback
+        );
+        thesis::util::createBoundaries<UniHandle>(
+            ecsDataContainer.get<EntityManager<UniHandle>>(),
+            borderRenderCallbackGameObject
+        );
+        thesis::util::createBoundaries<UniHandle>(
+            ecsDataContainer.get<EntityManager<UniHandle>>(),
+            borderRenderCallbackParticle
+        );
+    #endif
 
     // +----------------------------------------
     // | THESIS SCHEDULE
     // +----------------------------------------
-    auto& managerSchedule = scheduler.beginSchedule();
-    auto& systemSchedule = scheduler.beginSchedule();
-
     managerSchedule.endSchedule(
         Sequential(m_col, m_lft)
     );
@@ -125,11 +166,24 @@ int main() {
         helios::ecs::system::types::SystemTypeId::template id<LambdaSystem>(),
         systemSchedule.idx(), 0, 0, 3,
     };
+
+    #if !HEADLESS
+        #include "SchedulerPostSetup.inc"
+    #endif
+
     thesis::util::init(ecsDataContainer);
 
     while (thesis::util::shouldbeRunning(frameCount)) {
 
+        #if !HEADLESS
+            framePacer.beginFrame();
+        #endif
+
         scheduler.update(true, true);
+
+        #if !HEADLESS
+            frameTiming = framePacer.sync();
+        #endif
 
         auto collisionManagerResult = rrr.item<thesis::types::CollisionManagerResult>();
         METRICS.COLLISION_COMMANDS_GO[frameCount] = collisionManagerResult ? collisionManagerResult->collisionCount : 0;
@@ -161,6 +215,10 @@ int main() {
         METRICS.S_LAMBDA_TIMINGS[frameCount] = scheduler.timings(sLambdaTimingHandle).updateDuration;
 
         METRICS.SCHEDULE_TIMINGS[frameCount] = (managerSchedule.timings() + systemSchedule.timings()).total();
+
+        #if !HEADLESS
+            fpsMetrics.addFrame(frameTiming);
+        #endif
 
         thesis::util::updateFrameMetrics(ecsDataContainer, frameTiming, frameCount, totalTime);
     }

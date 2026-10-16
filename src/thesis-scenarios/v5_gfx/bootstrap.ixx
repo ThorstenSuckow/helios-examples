@@ -44,8 +44,6 @@ using namespace helios::engine::runtime::gameloop;
 using namespace helios::ecs;
 using namespace helios::ecs::entity;
 using namespace helios::ecs::command;
-using namespace helios::engine::runtime::pooling::commands;
-using namespace helios::engine::runtime::pooling::types;
 
 export namespace helios::engine::v5_gfx_bootstrap {
 
@@ -199,7 +197,7 @@ struct EngineRuntime {
         helios::opengl::OpenGLRenderDataResolver<DefaultRenderHandles>{}
     );
     gameWorld.emplaceResource<rendering::RenderBackend>(rendering::RenderBackend{opengl::OpenGLBackend{}});
-    gameWorld.emplaceResource<SpawnPolicyRegistry>();
+
 
     return engineRuntime;
 }
