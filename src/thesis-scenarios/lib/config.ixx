@@ -3,6 +3,7 @@ module;
 #include <cstddef>
 #include <thread>
 #include <vector>
+#include <chrono>
 
 export module thesis.config;
 
@@ -42,12 +43,20 @@ export namespace thesis::config {
     }
 
     struct METRICS {
-        std::vector<float> FRAME_TIMINGS                       = resizedVector<float>();
-        std::vector<float> SCHEDULE_TIMINGS                    = resizedVector<float>();
-        std::vector<float> S_DELTA_DET_TIMINGS                 = resizedVector<float>();
-        std::vector<float> S_DELTA_PRT_TIMINGS                 = resizedVector<float>();
-        std::vector<float> M_COL_TIMINGS                       = resizedVector<float>();
-        std::vector<float> M_LFT_TIMINGS                       = resizedVector<float>();
+        std::vector<std::chrono::nanoseconds::rep> M_COL_TIMINGS       = resizedVector<std::chrono::nanoseconds::rep>();
+        std::vector<std::chrono::nanoseconds::rep> M_LFT_TIMINGS       = resizedVector<std::chrono::nanoseconds::rep>();
+
+        std::vector<std::chrono::nanoseconds::rep> S_BETA_GO_TIMINGS = resizedVector<std::chrono::nanoseconds::rep>();
+        std::vector<std::chrono::nanoseconds::rep> S_BETA_PRT_TIMINGS = resizedVector<std::chrono::nanoseconds::rep>();
+
+        std::vector<std::chrono::nanoseconds::rep> S_DELTA_DET_GO_TIMINGS = resizedVector<std::chrono::nanoseconds::rep>();
+        std::vector<std::chrono::nanoseconds::rep> S_DELTA_DET_PRT_TIMINGS = resizedVector<std::chrono::nanoseconds::rep>();
+        std::vector<std::chrono::nanoseconds::rep> S_DELTA_RES_GO_TIMINGS = resizedVector<std::chrono::nanoseconds::rep>();
+        std::vector<std::chrono::nanoseconds::rep> S_DELTA_RES_PRT_TIMINGS = resizedVector<std::chrono::nanoseconds::rep>();
+        std::vector<std::chrono::nanoseconds::rep> S_LAMBDA_TIMINGS = resizedVector<std::chrono::nanoseconds::rep>();
+
+        std::vector<std::chrono::nanoseconds::rep> SCHEDULE_TIMINGS    = resizedVector<std::chrono::nanoseconds::rep>();
+
         std::vector<std::size_t> COLLISION_PAIRS_FOUND_GO      = resizedVector<std::size_t>();
         std::vector<std::size_t> COLLISION_PAIRS_FOUND_PRT     = resizedVector<std::size_t>();
         std::vector<std::size_t> COLLISION_PAIRS_PROCESSED_GO  = resizedVector<std::size_t>();
