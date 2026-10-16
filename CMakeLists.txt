@@ -212,6 +212,24 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
     set(RESOURCES_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/resources")
     set(RESOURCES_DEST_DIR "${CMAKE_BINARY_DIR}/examples/${SUBDIR}/resources")
 
+    # Shared thesis scenario resources (e.g. the common shader files) live in
+    # src/thesis-scenarios/lib/resources. Scenarios nested in their own src/
+    # subdirectory (e.g. v1/src/v1_main.cpp) have no local resources folder,
+    # so copy the shared one first; a local resources folder (if present)
+    # is copied afterwards and can override/add to it.
+    if(REL_PATH MATCHES "^src/thesis-scenarios/")
+        set(SHARED_THESIS_RESOURCES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/thesis-scenarios/lib/resources")
+        if(EXISTS "${SHARED_THESIS_RESOURCES_DIR}")
+            add_custom_command(
+                    TARGET ${UNIQUE_TARGET}
+                    POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "${SHARED_THESIS_RESOURCES_DIR}"
+                    "${RESOURCES_DEST_DIR}"
+            )
+        endif()
+    endif()
+
     if(EXISTS "${RESOURCES_SOURCE_DIR}")
         add_custom_command(
                 TARGET ${UNIQUE_TARGET}
