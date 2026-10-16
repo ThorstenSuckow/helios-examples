@@ -14,29 +14,27 @@ export namespace thesis::types {
     struct UniCollisionDetectionResult {
 
         using CollisionPair = helios::physics::collision::types::CollisionPair<THandle>;
+        using CollisionDetectionResult = helios::physics::collision::types::CollisionDetectionResult<THandle>;
 
-        std::vector<CollisionPair> collisionPairsGo_;
+        CollisionDetectionResult resultGo_;
 
-        std::vector<CollisionPair> collisionPairsPrt_;
+        CollisionDetectionResult resultPrt_;
 
     public:
 
-        explicit UniCollisionDetectionResult(std::vector<CollisionPair>&& pairsGo, std::vector<CollisionPair>&& pairsPrt)
-        : collisionPairsGo_(std::move(pairsGo)), collisionPairsPrt_(std::move(pairsPrt)) {};
-
         UniCollisionDetectionResult(
-            const helios::physics::collision::types::CollisionDetectionResult<THandle>& resultGo,
-            const helios::physics::collision::types::CollisionDetectionResult<THandle>& resultPrt
-        ) : collisionPairsGo_(resultGo.collisionPairs().begin(), resultGo.collisionPairs().end()),
-            collisionPairsPrt_(resultPrt.collisionPairs().begin(), resultPrt.collisionPairs().end()) {}
+            CollisionDetectionResult&& resultGo,
+            CollisionDetectionResult&& resultPrt
+        ) : resultGo_(std::move(resultGo)),
+            resultPrt_(std::move(resultPrt)) {}
 
 
         [[nodiscard]] std::span<const CollisionPair> collisionPairsGo() const {
-            return collisionPairsGo_;
+            return resultGo_.collisionPairs();
         }
 
         [[nodiscard]] std::span<const CollisionPair> collisionPairsPrt() const {
-            return collisionPairsPrt_;
+            return resultPrt_.collisionPairs();
         }
     };
 
