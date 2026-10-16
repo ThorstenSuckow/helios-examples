@@ -1,5 +1,7 @@
 module;
 
+#include <tuple>
+
 export module thesis.handles;
 
 import helios.ecs;
@@ -19,5 +21,11 @@ using MaterialHandle     = UniHandle;
 using MeshHandle         = UniHandle;
 using SceneHandle        = UniHandle;
 using CameraHandle       = UniHandle;
+
+// Handle types registered with the EntityWorld.
+using WorldHandles = std::tuple<UniHandle>;
+
+// Handle types whose entities are rendered by the RenderManager.
+using RenderMemberHandles = std::tuple<UniHandle>;
 
 } // namespace thesis::handles

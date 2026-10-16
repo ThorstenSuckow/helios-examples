@@ -3,6 +3,7 @@ module;
 #include <cassert>
 #include <cstddef>
 #include <memory>
+#include <tuple>
 #include <utility>
 
 export module thesis.bootstrap;
@@ -75,12 +76,27 @@ using DefaultRenderHandles = helios::engine::rendering::RenderHandles<
     MeshHandle
 >;
 
-using EngineWorldFactory = WorldFactory<UniHandle>;
+template <typename THandleList>
+struct WorldFactoryFor;
+
+template <typename... THandles>
+struct WorldFactoryFor<std::tuple<THandles...>> {
+    using type = WorldFactory<THandles...>;
+};
+
+template <typename THandleList>
+struct RenderManagerFor;
+
+template <typename... TMemberHandles>
+struct RenderManagerFor<std::tuple<TMemberHandles...>> {
+    using type = helios::engine::rendering::RenderManager<DefaultRenderHandles, TMemberHandles...>;
+};
+
+using EngineWorldFactory = typename WorldFactoryFor<thesis::handles::WorldHandles>::type;
 
 using DefaultTimerManager = helios::engine::runtime::timing::TimerManager;
 using DefaultGLFWPlatformManager = helios::glfw::GLFWPlatformManager<WindowHandle, DefaultRenderHandles>;
-using DefaultRenderManager =
-    helios::engine::rendering::RenderManager<DefaultRenderHandles, UniHandle>;
+using DefaultRenderManager = typename RenderManagerFor<thesis::handles::RenderMemberHandles>::type;
 using DefaultTextureUploadManager = helios::opengl::OpenGLTextureUploadManager<TextureHandle>;
 using DefaultMeshUploadManager = helios::opengl::OpenGLMeshUploadManager<MeshHandle>;
 using DefaultShaderCompileManager = helios::opengl::OpenGLShaderCompileManager<ShaderHandle>;
