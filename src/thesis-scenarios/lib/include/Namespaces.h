@@ -8,7 +8,6 @@
 
 #pragma once
 
-using namespace helios::engine::v1_bootstrap;
 
 // External backends
 using namespace helios::opengl;

@@ -1,3 +1,4 @@
+#if !HEADLESS
         scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running))
             .add(
                 Sequential(
@@ -35,4 +36,4 @@
         .beginSchedule(GameWorld::sessionState(EngineState::Shutdown))
             .add<DestroySessionSystem>()
         .endSchedule();
-
+#endif

@@ -1,3 +1,4 @@
+#if !HEADLESS
     constexpr unsigned int SCREEN_WIDTH = 1280;
     constexpr unsigned int SCREEN_HEIGHT = 720;
 
@@ -156,39 +157,4 @@
 
     auto ParticleMaterial = gameWorld.add<MaterialHandle>();
     ParticleMaterial.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Green);
-
-    auto gameObjectRenderCallback = [&](auto& gameObject) {
-        gameObject.setActive(true);
-        gameObject.template add<thesis::components::GameObjectTagComponent>();
-        gameObject.template add<DefaultSceneMemberComponent>(MainScene);
-        gameObject.template add<DefaultRenderPrototypeComponent<Instanced>>(
-            InstanceShader.handle(), GameObjectMaterial.handle(), RectMesh.handle()
-        );
-    };
-
-    auto borderRenderCallbackGameObject = [&](auto& border) {
-        border.setActive(true);
-        border.template add<thesis::components::GameObjectTagComponent>();
-        border.template add<DefaultSceneMemberComponent>(MainScene);
-        border.template add<DefaultRenderPrototypeComponent<Instanced>>(
-            InstanceShader.handle(), BoundaryMaterial.handle(), RectMesh.handle()
-        );
-    };
-
-    auto borderRenderCallbackParticle = [&](auto& border) {
-        border.setActive(true);
-        border.template add<thesis::components::ParticleTagComponent>();
-        border.template add<DefaultSceneMemberComponent>(MainScene);
-        border.template add<DefaultRenderPrototypeComponent<Instanced>>(
-            InstanceShader.handle(), BoundaryMaterial.handle(), RectMesh.handle()
-        );
-    };
-
-    auto particleRenderCallback = [&](auto& particle) {
-        particle.setActive(true);
-        particle.template add<thesis::components::ParticleTagComponent>();
-        particle.template add<DefaultSceneMemberComponent>(MainScene);
-        particle.template add<DefaultRenderPrototypeComponent<Instanced>>(
-            InstanceShader.handle(), ParticleMaterial.handle(), RectMesh.handle()
-        );
-    };
+#endif

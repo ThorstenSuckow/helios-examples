@@ -27,7 +27,7 @@ import thesis.components;
 #include <cmath>
 #include <optional>
 
-#include "./Namespaces.h"
+#include "../../lib/include/Namespaces.h"
 
 using namespace thesis::config;
 
@@ -35,25 +35,8 @@ using namespace thesis::config;
 
 int main() {
 
-    auto METRICS = thesis::config::METRICS{};
-
-    auto engineRuntime = helios::engine::v1_bootstrap::bootstrapGameWorld();
-    auto& ecsDataContainer = engineRuntime->gameWorld.resourceRegistry();
-    auto& rrr = ecsDataContainer.get<helios::ecs::common::RuntimeResultRegistry>();
-
-    auto scheduler = helios::ecs::scheduling::Scheduler();
-    ecsDataContainer.emplace<UpdateContext>(0.0f, 0.0f, 0, helios::engine::input::InputSnapshot{});
-    scheduler.init(ecsDataContainer);
-
-    FrameTiming frameTiming{};
-    std::size_t frameCount = 0;
-    float totalTime = 0.0f;
-
-    thesis::util::prepare(ecsDataContainer);
-
-    #if !HEADLESS
-        #include "RenderSetup.inc"
-    #endif
+    #include "../../lib/include/Setup.inc"
+    #include "../../lib/include/RenderSetup.inc"
 
     using CollisionManager = thesis::manager::CollisionManager<UniHandle, UniHandle>;
     using LifetimeManager = thesis::manager::LifetimeManager<UniHandle>;
@@ -66,12 +49,58 @@ int main() {
     using DeltaResResult = thesis::types::UniDeltaResResult<UniHandle>;
 
     #if HEADLESS
-        auto collisionCallback = thesis::util::collCb<UniHandle>([](auto& entity) {
-            entity.template add<thesis::components::ParticleTagComponent>();
-        });
+        auto gameObjectRenderCallback = [&](auto& gameObject) {
+            gameObject.template add<thesis::components::GameObjectTagComponent>();
+        };
+        auto borderRenderCallbackGameObject = [&](auto& border) {
+            border.template add<thesis::components::GameObjectTagComponent>();
+        };
+        auto borderRenderCallbackParticle = [&](auto& border) {
+            border.template add<thesis::components::ParticleTagComponent>();
+        };
+        auto particleRenderCallback = [&](auto& particle) {
+            particle.template add<thesis::components::ParticleTagComponent>();
+        };
+
     #else
-        auto collisionCallback = thesis::util::collCb<UniHandle>(particleRenderCallback);
+        auto gameObjectRenderCallback = [&](auto& gameObject) {
+            gameObject.setActive(true);
+            gameObject.template add<thesis::components::GameObjectTagComponent>();
+            gameObject.template add<DefaultSceneMemberComponent>(MainScene);
+            gameObject.template add<DefaultRenderPrototypeComponent<Instanced>>(
+                InstanceShader.handle(), GameObjectMaterial.handle(), RectMesh.handle()
+            );
+        };
+
+        auto borderRenderCallbackGameObject = [&](auto& border) {
+            border.setActive(true);
+            border.template add<thesis::components::GameObjectTagComponent>();
+            border.template add<DefaultSceneMemberComponent>(MainScene);
+            border.template add<DefaultRenderPrototypeComponent<Instanced>>(
+                InstanceShader.handle(), BoundaryMaterial.handle(), RectMesh.handle()
+            );
+        };
+
+        auto borderRenderCallbackParticle = [&](auto& border) {
+            border.setActive(true);
+            border.template add<thesis::components::ParticleTagComponent>();
+            border.template add<DefaultSceneMemberComponent>(MainScene);
+            border.template add<DefaultRenderPrototypeComponent<Instanced>>(
+                InstanceShader.handle(), BoundaryMaterial.handle(), RectMesh.handle()
+            );
+        };
+
+        auto particleRenderCallback = [&](auto& particle) {
+            particle.setActive(true);
+            particle.template add<thesis::components::ParticleTagComponent>();
+            particle.template add<DefaultSceneMemberComponent>(MainScene);
+            particle.template add<DefaultRenderPrototypeComponent<Instanced>>(
+                InstanceShader.handle(), ParticleMaterial.handle(), RectMesh.handle()
+            );
+        };
     #endif
+
+    auto collisionCallback = thesis::util::collCb<UniHandle>(particleRenderCallback);
 
     auto m_col             = CollisionManager{collisionCallback};
     auto m_lft             = LifetimeManager();
@@ -80,48 +109,21 @@ int main() {
     auto s_delta_res       = DeltaResSystem();
     auto s_lambda          = LambdaSystem();
 
-    #if HEADLESS
-        auto& managerSchedule = scheduler.beginSchedule();
-        auto& systemSchedule = scheduler.beginSchedule();
+    #include "../../lib/include/ToolingSetup.inc"
+    #include "../../lib/include/SchedulerPreSetup.inc"
 
-        thesis::util::createGameObjects<UniHandle>(ecsDataContainer.get<EntityManager<UniHandle>>(),
-            [](auto& entity) {
-                entity.template add<thesis::components::GameObjectTagComponent>();
-            }
-        );
-        thesis::util::createBoundaries<UniHandle>(
-            ecsDataContainer.get<EntityManager<UniHandle>>(),
-             [](auto& entity) {
-                entity.template add<thesis::components::GameObjectTagComponent>();
-            }
-        );
-        thesis::util::createBoundaries<UniHandle>(
-            ecsDataContainer.get<EntityManager<UniHandle>>(),
-            [](auto& entity) {
-                entity.template add<thesis::components::ParticleTagComponent>();
-            }
-        );
-
-    #else
-        #include "ToolingSetup.inc"
-        #include "SchedulerPreSetup.inc"
-
-        auto& managerSchedule = scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running));
-        auto& systemSchedule = scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running));
-
-        thesis::util::createGameObjects<UniHandle>(
-            ecsDataContainer.get<EntityManager<UniHandle>>(),
-            gameObjectRenderCallback
-        );
-        thesis::util::createBoundaries<UniHandle>(
-            ecsDataContainer.get<EntityManager<UniHandle>>(),
-            borderRenderCallbackGameObject
-        );
-        thesis::util::createBoundaries<UniHandle>(
-            ecsDataContainer.get<EntityManager<UniHandle>>(),
-            borderRenderCallbackParticle
-        );
-    #endif
+    thesis::util::createGameObjects<UniHandle>(
+        ecsDataContainer.get<EntityManager<UniHandle>>(),
+        gameObjectRenderCallback
+    );
+    thesis::util::createBoundaries<UniHandle>(
+        ecsDataContainer.get<EntityManager<UniHandle>>(),
+        borderRenderCallbackGameObject
+    );
+    thesis::util::createBoundaries<UniHandle>(
+        ecsDataContainer.get<EntityManager<UniHandle>>(),
+        borderRenderCallbackParticle
+    );
 
     // +----------------------------------------
     // | THESIS SCHEDULE
@@ -167,9 +169,8 @@ int main() {
         systemSchedule.idx(), 0, 0, 3,
     };
 
-    #if !HEADLESS
-        #include "SchedulerPostSetup.inc"
-    #endif
+
+    #include "../../lib/include/SchedulerPostSetup.inc"
 
     thesis::util::init(ecsDataContainer);
 

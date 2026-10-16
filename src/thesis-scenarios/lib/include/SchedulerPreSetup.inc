@@ -1,3 +1,5 @@
+#if !HEADLESS
+
         scheduler.beginSchedule(GameWorld::sessionState(EngineState::Any))
             .add<EngineFlowSystem>()
         .endSchedule<EngineStateManager>()
@@ -37,3 +39,13 @@
             PerspectiveCameraUpdateSystem<CameraHandle>
             >
         >();
+
+        auto& managerSchedule = scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running));
+        auto& systemSchedule = scheduler.beginSchedule(GameWorld::sessionState(EngineState::Running));
+
+#else
+
+        auto& managerSchedule = scheduler.beginSchedule();
+        auto& systemSchedule = scheduler.beginSchedule();
+
+#endif

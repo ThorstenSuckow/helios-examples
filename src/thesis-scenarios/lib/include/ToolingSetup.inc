@@ -1,4 +1,4 @@
-
+#if !HEADLESS
     auto fpsMetrics = FpsMetrics();
     auto framePacer = FramePacer();
 
@@ -21,3 +21,5 @@
     LogManager::getInstance().enableLogging(LOGGING_ENABLED);
     LogManager::getInstance().enableSink<ImGuiLogSink>(logWidget);
     LogManager::getInstance().enableSink<helios::core::log::ConsoleSink>(); // TEMP DIAGNOSTIC
+
+#endif
