@@ -36,6 +36,9 @@ using namespace thesis::config;
 
 int main() {
 
+    std::string PROGRAM_ID = "v5";
+
+
     #include "../../lib/include/Setup.inc"
     #include "../../lib/include/RenderSetup.inc"
 
@@ -123,14 +126,14 @@ int main() {
     // | THESIS SCHEDULE
     // +----------------------------------------
     managerSchedule.endSchedule(
-        Sequential(m_col, m_lft)
+        Sequential(m_col)
     );
     systemSchedule
         .add(s_beta_go, s_beta_prt)
         .add(s_delta_det_go, s_delta_det_prt)
         .add(s_delta_res_go, s_delta_res_prt)
         .add(s_lambda)
-    .endSchedule();
+    .endSchedule(m_lft);
     // +----------------------------------------
     // +----------------------------------------
 
@@ -141,7 +144,7 @@ int main() {
 
     auto mLftTimingHandle = helios::ecs::scheduling::types::RuntimeSystemEntryHandle<helios::ecs::manager::types::ManagerTypeId>{
         helios::ecs::manager::types::ManagerTypeId::template id<LifetimeManager>(),
-        managerSchedule.idx(), 0, 0, 1,
+        systemSchedule.idx(), 0, 0, 0,
     };
 
     auto sBetaGoTimingHandle = helios::ecs::scheduling::types::RuntimeSystemEntryHandle<helios::ecs::system::types::SystemTypeId>{
@@ -264,7 +267,14 @@ int main() {
         thesis::util::updateFrameMetrics(ecsDataContainer, frameTiming, frameCount, totalTime);
     }
 
-    thesis::util::writeMetricsToCSV(METRICS);
+    auto sysResultGo = helios::ecs::system::System(thesis::systems::CollectSpatialResultsSystem<GameObject>(
+        METRICS.POSITION_GO, METRICS.VELOCITY_GO));
+    sysResultGo.update(ecsDataContainer);
+    auto sysResultPrt = helios::ecs::system::System(thesis::systems::CollectSpatialResultsSystem<Particle>(
+        METRICS.POSITION_PRT, METRICS.VELOCITY_PRT));
+    sysResultPrt.update(ecsDataContainer);
+
+    thesis::util::writeMetricsToCSV(METRICS, PROGRAM_ID);
 
     return 0;
 }

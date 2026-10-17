@@ -32,12 +32,13 @@ import thesis.components;
 
 using namespace thesis::config;
 
-#define HEADLESS FALSE
+#define HEADLESS false
 
 #define THREAD_COUNT 0
 
 int main() {
 
+    std::string PROGRAM_ID = "v1";
 
     #include "../../lib/include/Setup.inc"
     #include "../../lib/include/RenderSetup.inc"
@@ -133,13 +134,13 @@ int main() {
     // | THESIS SCHEDULE
     // +----------------------------------------
     managerSchedule.endSchedule(
-        Sequential(m_col, m_lft)
+        Sequential(m_col)
     );
     systemSchedule.add(
         Sequential(
             s_beta, s_delta_det, s_delta_res, s_lambda
         )
-    ).endSchedule();
+    ).endSchedule(m_lft);
     // +----------------------------------------
     // +----------------------------------------
 
@@ -150,7 +151,7 @@ int main() {
 
     auto mLftTimingHandle = helios::ecs::scheduling::types::RuntimeSystemEntryHandle<helios::ecs::manager::types::ManagerTypeId>{
         helios::ecs::manager::types::ManagerTypeId::template id<LifetimeManager>(),
-        managerSchedule.idx(), 0, 0, 1,
+        systemSchedule.idx(), 0, 0, 0,
     };
 
     auto sBetaTimingHandle = helios::ecs::scheduling::types::RuntimeSystemEntryHandle<helios::ecs::system::types::SystemTypeId>{
@@ -250,7 +251,12 @@ int main() {
         thesis::util::updateFrameMetrics(ecsDataContainer, frameTiming, frameCount, totalTime);
     }
 
-    thesis::util::writeMetricsToCSV(METRICS);
+    auto sys = helios::ecs::system::System(
+        thesis::systems::CollectTaggedSpatialResultsSystem<UniHandle>(METRICS)
+    );
+    sys.update(ecsDataContainer);
+
+    thesis::util::writeMetricsToCSV(METRICS, PROGRAM_ID);
 
     return 0;
 }
