@@ -32,11 +32,13 @@ import thesis.components;
 
 using namespace thesis::config;
 
+#ifndef HEADLESS
 #define HEADLESS false
+#endif
 
 #define THREAD_COUNT 0
 
-int main() {
+int main(int argc, char** argv) {
 
     std::string PROGRAM_ID = "v1";
 

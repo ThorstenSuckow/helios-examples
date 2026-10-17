@@ -32,9 +32,11 @@ import thesis.components;
 
 using namespace thesis::config;
 
+#ifndef HEADLESS
 #define HEADLESS false
+#endif
 
-int main() {
+int main(int argc, char** argv) {
 
     std::string PROGRAM_ID = "v5";
 

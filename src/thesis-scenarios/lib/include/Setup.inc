@@ -1,3 +1,8 @@
+if (!thesis::config::init(argc, argv)) {
+    return 2;
+}
+
+
 auto METRICS = thesis::config::METRICS{};
 
 #ifdef THREAD_COUNT
