@@ -329,14 +329,19 @@ export namespace thesis::util {
         }
         std::size_t index = 0;
         for (auto& value : values) {
-            ok &= writer.tryWriteLine(outfile, std::format("{},{}", index++, value));
+
+            if constexpr (std::same_as<std::remove_cvref_t<T>, helios::math::vec3f>) {
+                ok &= writer.tryWriteLine(outfile, std::format("{},{},{},{}", index++, value[0], value[1], value[2]));
+            } else {
+                ok &= writer.tryWriteLine(outfile, std::format("{},{}", index++, value));
+            }
         }
 
         return ok;
     }
 
 
-    std::string measurementsPath() {
+    std::string measurementsPath(std::string programId) {
         const std::time_t now = std::time(nullptr);
         std::tm localTime{};
 #ifdef _WIN32
@@ -352,10 +357,10 @@ export namespace thesis::util {
     }
 
 
-    bool writeMetricsToCSV(thesis::config::METRICS& metrics) {
+    bool writeMetricsToCSV(thesis::config::METRICS& metrics, std::string programId) {
         namespace cfg = thesis::config;
 
-        std::string directory = measurementsPath();
+        std::string directory = measurementsPath(programId);
 
         std::error_code errorCode;
         std::filesystem::create_directories(directory, errorCode);
@@ -389,7 +394,13 @@ export namespace thesis::util {
         ok &= writeVectorToCSV(file("lifetime_commands_prt.csv"), "commands_prt", metrics.LIFETIME_COMMANDS_PRT);
         ok &= writeVectorToCSV(file("particle_population.csv"), "particles", metrics.PARTICLE_POPULATION);
 
+        ok &= writeVectorToCSV(file("position_go.csv"), "x,y,z", metrics.POSITION_GO);
+        ok &= writeVectorToCSV(file("position_prt.csv"), "x,y,z", metrics.POSITION_PRT);
+        ok &= writeVectorToCSV(file("velocity_go.csv"), "x,y,z", metrics.VELOCITY_GO);
+        ok &= writeVectorToCSV(file("velocity_prt.csv"), "x,y,z", metrics.VELOCITY_PRT);
+
         return ok;
     }
+
 
 }
