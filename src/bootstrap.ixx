@@ -183,7 +183,7 @@ struct EngineRuntime {
  *
  * @return A EngineRuntime object.
  */
-[[nodiscard]] std::unique_ptr<EngineRuntime> bootstrapGameWorld(size_t capacity = 1000) {
+[[nodiscard]] std::unique_ptr<EngineRuntime> bootstrapGameWorld() {
 
     auto engineRuntime = std::make_unique<EngineRuntime>(EngineWorldFactory::makeEcsWorld());
 
