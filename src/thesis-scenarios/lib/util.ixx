@@ -2,6 +2,7 @@ module;
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <ctime>
 #include <filesystem>
 #include <format>
@@ -61,15 +62,15 @@ export namespace thesis::util {
         std::uint32_t NUM_OBJECTS = 0;
 
         float borderAccount  = thesis::config::BORDER_SCALE[0]/2.0f;
-        float startLeft = -thesis::config::AXIS_LENGTH / 2.0F;
-        float startBottom = -thesis::config::AXIS_LENGTH / 2.0F - borderAccount;
+        float startLeft = -thesis::config::run().axisLength / 2.0F;
+        float startBottom = -thesis::config::run().axisLength / 2.0F - borderAccount;
         float x = startLeft + thesis::config::TILE_SIZE - borderAccount;
 
-        for (int i = 0; i < thesis::config::OBJECTS_PER_AXIS; i++) {
+        for (int i = 0; i < thesis::config::run().objectsPerAxis; i++) {
 
             float y = startBottom + thesis::config::TILE_SIZE;
 
-            for (int j = 0; j < thesis::config::OBJECTS_PER_AXIS; j++) {
+            for (int j = 0; j < thesis::config::run().objectsPerAxis; j++) {
                 auto handle = entityManager.create();
                 auto gameObject = helios::ecs::entity::Entity{handle, &entityManager};
 
@@ -175,16 +176,16 @@ export namespace thesis::util {
             auto border = helios::ecs::entity::Entity{handle, &entityManager};
 
             switch (i) {
-                case 0: border.template add<helios::engine::spatial::components::Position3DComponent<helios::engine::core::types::Local>>(0.0F, -config::AXIS_LENGTH/2.0f - borderAccount , 0.0F);
+                case 0: border.template add<helios::engine::spatial::components::Position3DComponent<helios::engine::core::types::Local>>(0.0F, -config::run().axisLength/2.0f - borderAccount , 0.0F);
                     break;
-                case 1: border.template add<helios::engine::spatial::components::Position3DComponent<helios::engine::core::types::Local>>(config::AXIS_LENGTH/2.0f + borderAccount , 0.0F, 0.0F);
+                case 1: border.template add<helios::engine::spatial::components::Position3DComponent<helios::engine::core::types::Local>>(config::run().axisLength/2.0f + borderAccount , 0.0F, 0.0F);
                     break;
-                case 2: border.template add<helios::engine::spatial::components::Position3DComponent<helios::engine::core::types::Local>>(0.0F, config::AXIS_LENGTH/2.0f + borderAccount , 0.0F);
+                case 2: border.template add<helios::engine::spatial::components::Position3DComponent<helios::engine::core::types::Local>>(0.0F, config::run().axisLength/2.0f + borderAccount , 0.0F);
                     break;
-                case 3: border.template add<helios::engine::spatial::components::Position3DComponent<helios::engine::core::types::Local>>(-config::AXIS_LENGTH/2.0f - borderAccount , 0.0F, 0.0F);
+                case 3: border.template add<helios::engine::spatial::components::Position3DComponent<helios::engine::core::types::Local>>(-config::run().axisLength/2.0f - borderAccount , 0.0F, 0.0F);
                     break;
             }
-            border.template add<helios::engine::spatial::components::Scale3DComponent<helios::engine::core::types::Local>>(config::AXIS_LENGTH , config::BORDER_SCALE[1], config::BORDER_SCALE[2]);
+            border.template add<helios::engine::spatial::components::Scale3DComponent<helios::engine::core::types::Local>>(config::run().axisLength , config::BORDER_SCALE[1], config::BORDER_SCALE[2]);
             border.template add<helios::engine::spatial::components::BoundsComponent<helios::engine::core::types::Local>>(helios::engine::rendering::mesh::assets::WireframeCube::boundsData());
             border.template add<helios::engine::spatial::components::Rotation3DComponent<helios::engine::core::types::Local>>(
                 helios::math::quatf::fromEulerAngles<helios::math::Intrinsic>(
@@ -220,7 +221,7 @@ export namespace thesis::util {
 
             worldTransform->setValue(localRotation->value()
                 .rotationMatrix()
-                .withScaling(helios::math::vec3f{config::AXIS_LENGTH , config::BORDER_SCALE[1], config::BORDER_SCALE[2]})
+                .withScaling(helios::math::vec3f{static_cast<float>(config::run().axisLength), config::BORDER_SCALE[1], config::BORDER_SCALE[2]})
                 .withTranslation(localPosition->value()));
 
             worldBounds->setValue(boundsLocal->value().applyTransform(worldTransform->value()));
@@ -259,7 +260,7 @@ export namespace thesis::util {
     template<typename Thandle>
     auto grid() {
         return thesis::strategies::GridCollisionDetection<Thandle>(
-            thesis::config::SPATIAL_GRID, thesis::config::CELL_SIZE
+            thesis::config::run().spatialGrid, thesis::config::run().cellSize
         );
     }
 
@@ -276,8 +277,8 @@ export namespace thesis::util {
     };
 
     bool shouldbeRunning(std::size_t frameCount) {
-        return frameCount < thesis::config::WARMUP_FRAMES +
-                          thesis::config::MEASURE_FRAMES +
+        return frameCount < thesis::config::run().warmupFrames +
+                          thesis::config::run().measureFrames +
                           thesis::config::COOLDOWN_FRAMES;
     }
 
@@ -328,19 +329,19 @@ export namespace thesis::util {
             std::cerr << "Couldnt write to file." << std::endl;
             std::terminate();
         }
-        if (!writeAll && values.size() < thesis::config::MEASURE_FRAMES + thesis::config::WARMUP_FRAMES) {
-            std::cerr << values.size() << "  " << thesis::config::MEASURE_FRAMES + thesis::config::WARMUP_FRAMES << " " << " " << std::endl;
+        if (!writeAll && values.size() < thesis::config::run().measureFrames + thesis::config::run().warmupFrames) {
+            std::cerr << values.size() << "  " << thesis::config::run().measureFrames + thesis::config::run().warmupFrames << " " << " " << std::endl;
             std::terminate();
         }
         std::size_t position = 0, index = 0;
         for (auto& value : values) {
 
             if (!writeAll) {
-                if (index < thesis::config::WARMUP_FRAMES) {
+                if (index < thesis::config::run().warmupFrames) {
                     index++;
                     continue;
                 }
-                if (index >= thesis::config::MEASURE_FRAMES + thesis::config::WARMUP_FRAMES) {
+                if (index >= thesis::config::run().measureFrames + thesis::config::run().warmupFrames) {
                     break;
                 }
             }
@@ -357,6 +358,10 @@ export namespace thesis::util {
 
 
     std::string measurementsPath(std::string programId) {
+        if (const char* dir = std::getenv("HELIOS_MEASUREMENTS_DIR"); dir != nullptr && *dir != '\0') {
+            return std::string{dir};
+        }
+
         const std::time_t now = std::time(nullptr);
         std::tm localTime{};
 #ifdef _WIN32
