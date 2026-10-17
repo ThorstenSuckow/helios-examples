@@ -306,7 +306,7 @@ export namespace thesis::util {
         if (values.empty() || std::all_of(
             values.begin(), values.end(),
             [&](const auto& value) {
-               return value == values.front();
+               return value == T{};
             })
         ) {
             return true;
