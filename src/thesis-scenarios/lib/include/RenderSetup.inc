@@ -17,9 +17,9 @@
     auto MainWindow = gameWorld.add<WindowHandle>();
     MainWindow.add<WindowCreateRequestComponent>(WindowConfig{
         .title = "helios thesis (" +PROGRAM_ID+")"
-            + " | n=" + std::to_string(thesis::config::OBJECTS_PER_AXIS * thesis::config::OBJECTS_PER_AXIS)
-            + " | wu=" + std::to_string(thesis::config::WARMUP_FRAMES)
-            + " | mf=" + std::to_string(thesis::config::MEASURE_FRAMES)
+            + " | n=" + std::to_string(thesis::config::run().objectCount())
+            + " | wu=" + std::to_string(thesis::config::run().warmupFrames)
+            + " | mf=" + std::to_string(thesis::config::run().measureFrames)
             + " | thr=" + std::to_string(MAX_THREADS)
             + " | dt=" + std::to_string(thesis::config::FIXED_DELTA_TIME),
         .size = {SCREEN_WIDTH, SCREEN_HEIGHT},
@@ -63,7 +63,7 @@
     MainCamera.add<YawPitchRollComponent>();
     MainCamera.add<Rotation3DComponent<Local>>();
     MainCamera.add<TransformComponent<World>>(1.0F);
-    MainCamera.add<Position3DComponent<Local>>(0.0F, 0.0F, (-AXIS_LENGTH / 2.0F) - 50.0f);
+    MainCamera.add<Position3DComponent<Local>>(0.0F, 0.0F, (-thesis::config::run().axisLength / 2.0F) - 50.0f);
     MainCamera.add<DefaultSceneMemberComponent>(MainScene);
     MainViewport.add<DefaultCameraBindingComponent>(MainCamera);
 
