@@ -3,6 +3,7 @@
 #include <utility>
 #include <numbers>
 #include <cassert>
+#include "helios-ecs-config.h"
 
 
 import helios.core;
@@ -223,7 +224,7 @@ int main(int argc, char** argv) {
             framePacer.beginFrame();
         #endif
 
-        scheduler.update(true, true);
+        scheduler.update();
 
         #if !HEADLESS
             frameTiming = framePacer.sync();

@@ -1,3 +1,9 @@
+// Scenarios read schedule and runtime system timings (scheduler.timings(...)).
+// Requires helios-ecs-config.h to be included before this file.
+#if (HELIOS_PERFORMANCE & HELIOS_PERFORMANCE_ALL) != HELIOS_PERFORMANCE_ALL
+#error "This scenario requires HELIOS_PERFORMANCE=3 (HELIOS_PERFORMANCE_SCHEDULES | HELIOS_PERFORMANCE_RUNTIME_SYSTEMS)."
+#endif
+
 if (!thesis::config::init(argc, argv)) {
     return 2;
 }

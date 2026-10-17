@@ -50,6 +50,11 @@ function(helios_enable_strict_warnings target)
     endif()
 endfunction()
 
+# Compile-time scheduler measurement (bit mask, see helios-ecs-config.h):
+#   0 = off, 1 = schedules, 2 = systems/managers (update + flush), 3 = both
+set(HELIOS_PERFORMANCE 3 CACHE STRING "Scheduler measurement bit mask (0 = off, 1 = schedules, 2 = systems/managers, 3 = both)")
+add_compile_definitions(HELIOS_PERFORMANCE=${HELIOS_PERFORMANCE})
+
 set(HELIOS_ECS_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-ecs" CACHE PATH "Local path to helios-ecs")
 set(HELIOS_ENGINE_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-engine" CACHE PATH "Local path to helios-engine")
 set(HELIOS_OPENGL_LOCAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../helios-opengl" CACHE PATH "Local path to helios-opengl")
