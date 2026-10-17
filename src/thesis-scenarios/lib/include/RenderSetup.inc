@@ -16,7 +16,12 @@
 
     auto MainWindow = gameWorld.add<WindowHandle>();
     MainWindow.add<WindowCreateRequestComponent>(WindowConfig{
-        .title = "helios - ECS Rendering Demo",
+        .title = "helios thesis (" +PROGRAM_ID+")"
+            + " | n=" + std::to_string(thesis::config::OBJECTS_PER_AXIS * thesis::config::OBJECTS_PER_AXIS)
+            + " | wu=" + std::to_string(thesis::config::WARMUP_FRAMES)
+            + " | mf=" + std::to_string(thesis::config::MEASURE_FRAMES)
+            + " | thr=" + std::to_string(MAX_THREADS)
+            + " | dt=" + std::to_string(thesis::config::FIXED_DELTA_TIME),
         .size = {SCREEN_WIDTH, SCREEN_HEIGHT},
         .aspectRatioNumer = WINDOW_ASPECT_RATIO_NUMER,
         .aspectRatioDenom = WINDOW_ASPECT_RATIO_DENOM,
