@@ -298,7 +298,8 @@ export namespace thesis::util {
     bool writeVectorToCSV(
         const std::string& filename,
         const std::string& column,
-        const std::vector<T>& values) {
+        const std::vector<T>& values,
+        const bool writeAll = false) {
         const helios::core::io::BasicStringFileWriter writer;
 
         if (values.empty() || std::all_of(
@@ -315,20 +316,34 @@ export namespace thesis::util {
         if (!outfile) {
             return false;
         }
-
-        bool ok = writer.tryWriteLine(outfile, "index," + column);
+        bool ok;
+        if (writeAll) {
+            ok = writer.tryWriteLine(outfile, "index," + column);
+        } else {
+            ok = writer.tryWriteLine(outfile, "frame," + column);
+        }
 
         if (!ok) {
             assert(ok);
             std::cerr << "Couldnt write to file." << std::endl;
             std::terminate();
         }
-        if (values.size() < thesis::config::MEASURE_FRAMES + thesis::config::WARMUP_FRAMES) {
+        if (!writeAll && values.size() < thesis::config::MEASURE_FRAMES + thesis::config::WARMUP_FRAMES) {
             std::cerr << values.size() << "  " << thesis::config::MEASURE_FRAMES + thesis::config::WARMUP_FRAMES << " " << " " << std::endl;
             std::terminate();
         }
-        std::size_t index = 0;
+        std::size_t position = 0, index = 0;
         for (auto& value : values) {
+
+            if (!writeAll) {
+                if (index < thesis::config::WARMUP_FRAMES) {
+                    index++;
+                    continue;
+                }
+                if (index >= thesis::config::MEASURE_FRAMES + thesis::config::WARMUP_FRAMES) {
+                    break;
+                }
+            }
 
             if constexpr (std::same_as<std::remove_cvref_t<T>, helios::math::vec3f>) {
                 ok &= writer.tryWriteLine(outfile, std::format("{},{},{},{}", index++, value[0], value[1], value[2]));
@@ -394,10 +409,10 @@ export namespace thesis::util {
         ok &= writeVectorToCSV(file("lifetime_commands_prt.csv"), "commands_prt", metrics.LIFETIME_COMMANDS_PRT);
         ok &= writeVectorToCSV(file("particle_population.csv"), "particles", metrics.PARTICLE_POPULATION);
 
-        ok &= writeVectorToCSV(file("position_go.csv"), "x,y,z", metrics.POSITION_GO);
-        ok &= writeVectorToCSV(file("position_prt.csv"), "x,y,z", metrics.POSITION_PRT);
-        ok &= writeVectorToCSV(file("velocity_go.csv"), "x,y,z", metrics.VELOCITY_GO);
-        ok &= writeVectorToCSV(file("velocity_prt.csv"), "x,y,z", metrics.VELOCITY_PRT);
+        ok &= writeVectorToCSV(file("position_go.csv"), "x,y,z", metrics.POSITION_GO, true);
+        ok &= writeVectorToCSV(file("position_prt.csv"), "x,y,z", metrics.POSITION_PRT, true);
+        ok &= writeVectorToCSV(file("velocity_go.csv"), "x,y,z", metrics.VELOCITY_GO, true);
+        ok &= writeVectorToCSV(file("velocity_prt.csv"), "x,y,z", metrics.VELOCITY_PRT, true);
 
         return ok;
     }

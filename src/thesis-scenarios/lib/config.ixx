@@ -17,10 +17,10 @@ export namespace thesis::config {
     constexpr auto LOGGING_ENABLED       = false;
     constexpr auto TARGET_FPS            = 0.0F;
     constexpr auto FIXED_DELTA_TIME      = 1.0F / 60.0F;
-    constexpr auto WARMUP_FRAMES         = 1000;
-    constexpr auto MEASURE_FRAMES        = 5000;
-    constexpr auto COOLDOWN_FRAMES       = 100;
-    constexpr auto OBJECTS_PER_AXIS      = 300;
+    constexpr auto WARMUP_FRAMES         = 10;
+    constexpr auto MEASURE_FRAMES        = 50;
+    constexpr auto COOLDOWN_FRAMES       = 0;
+    constexpr auto OBJECTS_PER_AXIS      = 10;
     constexpr auto BORDER_SCALE          = helios::math::vec3f{1.0F, 1.0F, 1.0F};
     constexpr auto TILE_SIZE             = 2;
     constexpr auto PARTICLE_SPAWN_COUNT  = 2;
@@ -66,5 +66,12 @@ export namespace thesis::config {
             std::vector<std::size_t> COLLISION_COMMANDS_GO         = resizedVector<std::size_t>();
             std::vector<std::size_t> LIFETIME_COMMANDS_PRT         = resizedVector<std::size_t>();
             std::vector<std::size_t> PARTICLE_POPULATION           = resizedVector<std::size_t>();
+
+            std::vector<helios::math::vec3f> POSITION_GO = resizedVector<helios::math::vec3f>(0);
+            std::vector<helios::math::vec3f> POSITION_PRT = resizedVector<helios::math::vec3f>(0);
+            std::vector<helios::math::vec3f> VELOCITY_GO = resizedVector<helios::math::vec3f>(0);
+            std::vector<helios::math::vec3f> VELOCITY_PRT = resizedVector<helios::math::vec3f>(0);
+
+
         };;
 }
