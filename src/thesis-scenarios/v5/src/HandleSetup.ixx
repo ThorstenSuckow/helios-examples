@@ -14,50 +14,24 @@ using GameObjectHandle = helios::ecs::common::types::EntityHandle<GameObjectHand
 struct ParticleHandleDomain {};
 using ParticleHandle = helios::ecs::common::types::EntityHandle<ParticleHandleDomain>;
 
-struct PlatformHandleDomain {};
-using PlatformHandle = helios::ecs::common::types::EntityHandle<PlatformHandleDomain>;
+struct UniHandleDomain {};
+using UniHandle = helios::ecs::common::types::EntityHandle<UniHandleDomain>;
 
-struct WindowHandleDomain {};
-using WindowHandle = helios::ecs::common::types::EntityHandle<WindowHandleDomain>;
-
-struct RenderTargetHandleDomain {};
-using RenderTargetHandle = helios::ecs::common::types::EntityHandle<RenderTargetHandleDomain>;
-
-struct ViewportHandleDomain {};
-using ViewportHandle = helios::ecs::common::types::EntityHandle<ViewportHandleDomain>;
-
-struct TextureHandleDomain {};
-using TextureHandle = helios::ecs::common::types::EntityHandle<TextureHandleDomain>;
-
-struct ShaderHandleDomain {};
-using ShaderHandle = helios::ecs::common::types::EntityHandle<ShaderHandleDomain>;
-
-struct MaterialHandleDomain {};
-using MaterialHandle = helios::ecs::common::types::EntityHandle<MaterialHandleDomain>;
-
-struct MeshHandleDomain {};
-using MeshHandle = helios::ecs::common::types::EntityHandle<MeshHandleDomain>;
-
-struct SceneHandleDomain {};
-using SceneHandle = helios::ecs::common::types::EntityHandle<SceneHandleDomain>;
-
-struct CameraHandleDomain {};
-using CameraHandle = helios::ecs::common::types::EntityHandle<CameraHandleDomain>;
+using WindowHandle       = UniHandle;
+using RenderTargetHandle = UniHandle;
+using ViewportHandle     = UniHandle;
+using TextureHandle      = UniHandle;
+using ShaderHandle       = UniHandle;
+using MaterialHandle     = UniHandle;
+using MeshHandle         = UniHandle;
+using SceneHandle        = UniHandle;
+using CameraHandle       = UniHandle;
 
 // Handle types registered with the EntityWorld.
 using WorldHandles = std::tuple<
     GameObjectHandle,
     ParticleHandle,
-    WindowHandle,
-    PlatformHandle,
-    SceneHandle,
-    RenderTargetHandle,
-    CameraHandle,
-    ViewportHandle,
-    TextureHandle,
-    ShaderHandle,
-    MaterialHandle,
-    MeshHandle
+    UniHandle
 >;
 
 // Handle types whose entities are rendered by the RenderManager.
