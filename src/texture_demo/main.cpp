@@ -1,32 +1,33 @@
 
-#include <utility>
-#include <functional>
-#include <format>
 #include <algorithm>
 #include <thread>
+#include <utility>
 
+import helios.core;
 import helios.ecs;
 import helios.engine;
 import helios.math;
 import helios.physics;
+import helios.gameplay;
 import helios.opengl;
 import helios.glfw;
 import helios.imgui;
 
-#include "Namespaces.h"
+import helios.engine.bootstrap;
 
+#include "../Namespaces.h"
 
 int main() {
-    auto& logger = helios::engine::util::log::LogManager::loggerForScope("main");
+    const auto& logger = helios::core::log::LogManager::loggerForScope("main");
 
     // ========================================
     // Constants
     // ========================================
-    constexpr unsigned int SCREEN_WIDTH  = 1280;
+    constexpr unsigned int SCREEN_WIDTH = 1280;
     constexpr unsigned int SCREEN_HEIGHT = 720;
 
-    constexpr float WINDOW_ASPECT_RATIO_NUMER = 16.0f;
-    constexpr float WINDOW_ASPECT_RATIO_DENOM = 9.0f;
+    constexpr float WINDOW_ASPECT_RATIO_NUMER = 16.0F;
+    constexpr float WINDOW_ASPECT_RATIO_DENOM = 9.0F;
 
     constexpr bool ENABLE_VSYNC = false;
 
@@ -34,45 +35,17 @@ int main() {
     // Infrastructure init / GameWorld / GameLoop / InputManager
     // ==========================================================
 
-    auto maxWorker = std::max(1u, std::thread::hardware_concurrency() - 1);
-    JobSystem jobSystem(maxWorker);
-
     // gameworld
-    auto [gameWorldPtr, gameLoopPtr] = bootstrapGameWorld(jobSystem);
-    auto& gameWorld = *gameWorldPtr;
-    auto& gameLoop = *gameLoopPtr;
+    auto engineRuntime = helios::engine::bootstrap::bootstrapGameWorld();
 
-
-    // Renderbackend
-    auto renderBackend = OpenGLBackend(gameWorld.engineWorld());
-
-    // register additional managers
-    gameWorld.registerManager<helios::engine::rendering::RenderManager<OpenGLBackend, GameObjectHandle>>(renderBackend);
-
-    gameWorld.registerManager<GLFWPlatformManager<
-        OpenGLBackend,
-        WindowHandle,
-        EngineCommandBuffer,
-        PlatformCommandBuffer>>(
-        renderBackend,
-        gameWorld.platformWorld(), gameWorld.resourceRegistry().commandBufferRegistry()
-    );
-
-    SceneMemberVisibilityRegistry<GameObjectHandle, NonInstanced> visibilityRegistry{};
-
-    gameWorld.registerManager<OpenGLTextureUploadManager<TextureHandle>>(gameWorld.renderResourceWorld(), ImageReader{});
-    gameWorld.registerManager<OpenGLMeshUploadManager<MeshHandle>>(gameWorld.renderResourceWorld());
-    gameWorld.registerManager<OpenGLShaderCompileManager<ShaderHandle, OpenGLUniformLocationCacheStrategy<ShaderHandle>>>(
-        gameWorld.renderResourceWorld(),
-        OpenGLUniformLocationCacheStrategy<ShaderHandle>()
-    );
-
+    auto& gameWorld = engineRuntime->gameWorld;
+    auto& gameLoop = engineRuntime->gameLoop;
 
     // ========================================
     // Window Setup
     // ========================================
-    auto MainWindow = gameWorld.add<WindowHandle>(WindowId("MainWindow"));
-    MainWindow.add<WindowCreateRequestComponent<WindowHandle>>(WindowConfig{
+    auto MainWindow = gameWorld.add<WindowHandle>();
+    MainWindow.add<WindowCreateRequestComponent>(WindowConfig{
         "helios - Game of Life",
         {SCREEN_WIDTH, SCREEN_HEIGHT},
         WINDOW_ASPECT_RATIO_NUMER,
@@ -80,159 +53,173 @@ int main() {
         ENABLE_VSYNC
     });
 
-    
     // ========================================
     // Scene and Viewport Setup
     // ========================================
 
-    auto MainRenderTarget = gameWorld.add<RenderTargetHandle>(RenderTargetId{"MainRenderTarget"});
-    MainRenderTarget.add<OpenGLRenderTargetIdComponent<RenderTargetHandle>>(0);
-    MainRenderTarget.trackDirty<Size2DComponent<RenderTargetHandle>>();
-    MainRenderTarget.add<ClearComponent<RenderTargetHandle>>(ClearFlags::Color);
-    MainRenderTarget.add<ColorComponent<RenderTargetHandle>>(helios::engine::util::Colors::Black);
+    auto MainRenderTarget = gameWorld.add<RenderTargetHandle>();
+    MainRenderTarget.add<OpenGLRenderTargetIdComponent>(0);
+    MainRenderTarget.add<Size2DComponent>();
+    MainRenderTarget.add<ClearComponent>(ClearFlags::Color);
+    MainRenderTarget.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Black);
 
-    auto MainViewport = gameWorld.add<ViewportHandle>(ViewportId{"MainViewport"});
-    MainViewport.add<DebugNameComponent<ViewportHandle>>("MainViewport");
-    MainViewport.add<ClearComponent<ViewportHandle>>(ClearFlags::Color);
-    MainViewport.add<ColorComponent<ViewportHandle>>(helios::engine::util::Colors::Black);
+    auto MainViewport = gameWorld.add<ViewportHandle>();
+    MainViewport.add<DebugNameComponent>("MainViewport");
+    MainViewport.add<ClearComponent>(ClearFlags::Color);
+    MainViewport.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Black);
     // RenderTarget : Viewport (1:N)
-    MainViewport.add<RenderTargetBindingComponent<ViewportHandle>>(MainRenderTarget);
-    MainViewport.add<RectComponent<ViewportHandle>>(helios::math::vec4f{0.0f, 0.0f, 1.0f, 1.0f});
+    MainViewport.add<DefaultRenderTargetBindingComponent>(MainRenderTarget);
+    MainViewport.add<RectComponent>(helios::math::vec4f{0.0f, 0.0f, 1.0f, 1.0f});
 
-
-    auto MainScene = gameWorld.add<SceneHandle>(SceneId("MainScene"));
-    MainWindow.add<RenderTargetBindingComponent<WindowHandle>>(MainRenderTarget);
+    auto MainScene = gameWorld.add<SceneHandle>();
+    MainWindow.add<DefaultRenderTargetBindingComponent>(MainRenderTarget);
 
     // Viewport : Scene (N:1)
-    MainViewport.add<SceneBindingComponent<ViewportHandle>>(MainScene);
+    MainViewport.add<DefaultSceneBindingComponent>(MainScene);
 
-    auto MainCamera = gameWorld.add<CameraHandle>(CameraId("MainCamera"));
-    MainCamera.add<DebugNameComponent<CameraHandle>>("MainCamera");
-    MainCamera.trackDirty<PerspectiveCameraComponent<CameraHandle>>(helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / WINDOW_ASPECT_RATIO_DENOM);
-    MainCamera.trackDirty<ProjectionMatrixComponent<CameraHandle>>();
-    MainCamera.trackDirty<ViewMatrixComponent<CameraHandle>>();
-    MainCamera.trackDirty<YawPitchRollComponent<CameraHandle>>();
-    MainCamera.trackDirty<Rotation3DComponent<CameraHandle, Local>>();
-    MainCamera.trackDirty<TransformComponent<CameraHandle, World>>(1.0f);
-    MainCamera.trackDirty<Position3DComponent<CameraHandle, Local>>(0.0f, 0.0f, -5.0f);
+    auto MainCamera = gameWorld.add<CameraHandle>();
+    MainCamera.add<DebugNameComponent>("MainCamera");
+    MainCamera.add<PerspectiveCameraComponent>(
+        helios::math::radians(90.0f), WINDOW_ASPECT_RATIO_NUMER / WINDOW_ASPECT_RATIO_DENOM
+    );
+    MainCamera.add<ProjectionMatrixComponent>();
+    MainCamera.add<ViewMatrixComponent>();
+    MainCamera.add<YawPitchRollComponent>();
+    MainCamera.add<Rotation3DComponent<Local>>();
+    MainCamera.add<TransformComponent<World>>(1.0f);
+    MainCamera.add<Position3DComponent<Local>>(0.0f, 0.0f, -5.0f);
 
-    // camera does not need a scene binding, since there is no camera selection
-    // using scenes. The SceneMemberVisibilitySystem will directly use the Viewport's mapping
-    //MainCamera.add<SceneBindingComponent<CameraHandle>>(MainScene);
-    MainViewport.add<CameraBindingComponent<ViewportHandle>>(MainCamera);
 
+    MainViewport.add<DefaultCameraBindingComponent>(MainCamera);
 
     // ========================================
     // Rendering Management setup
     // ========================================
 
     // Texture Setup
-    auto TextureShader = gameWorld.add<ShaderHandle>(ShaderId("TextureShader"));
-    TextureShader.add<ShaderSourceComponent<ShaderHandle>>("./resources/shader/texture.vert", "./resources/shader/texture.frag");
-    TextureShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Pass>>(
+    auto TextureShader = gameWorld.add<ShaderHandle>();
+    TextureShader.add<ShaderSourceComponent>(
+        "./resources/shader/texture.vert", "./resources/shader/texture.frag"
+    );
+    TextureShader.add<UniformMappingsComponent<UniformScope::Pass>>(
         UniformMapping{UniformSemantics::ProjectionMatrix, "projectionMatrix"},
         UniformMapping{UniformSemantics::ViewMatrix, "viewMatrix"}
     );
-    TextureShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Material>>(
+    TextureShader.add<UniformMappingsComponent<UniformScope::Material>>(
         UniformMapping{UniformSemantics::MaterialBaseColor, "color"}
     );
-    TextureShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Draw>>(
+    TextureShader.add<UniformMappingsComponent<UniformScope::Draw>>(
         UniformMapping{UniformSemantics::ModelMatrix, "modelMatrix"}
     );
 
     // define Texture Entity
-    auto Texture = gameWorld.add<TextureHandle>(TextureId{"Texture"});
-    Texture.add<TextureSourceComponent<TextureHandle>>("./resources/textures/garagecraft_games.png");
+    auto Texture = gameWorld.add<TextureHandle>();
+    Texture.add<TextureSourceComponent>("./resources/textures/garagecraft_games.png");
 
     // TextureObject uses a Rect
-    auto TextureMesh = gameWorld.add<MeshHandle>(MeshId("TextureMesh"));
-    TextureMesh.add<MeshDataComponent<MeshHandle>>(Rect::meshData());
-    TextureMesh.add<MeshUploadRequestComponent<MeshHandle>>();
-    TextureMesh.add<VertexAttributeLayoutComponent<MeshHandle, PerVertex>>(
+    auto TextureMesh = gameWorld.add<MeshHandle>();
+    TextureMesh.add<MeshDataComponent>(Rect::meshData());
+    TextureMesh.add<MeshUploadRequestComponent>();
+    TextureMesh.add<VertexAttributeLayoutComponent<PerVertex>>(
         VertexAttributeLayout{
-            VertexAttribute{VertexAttributeSemantics::Position,  VertexAttributeType::Vec3f},
-            0, sizeof(Vertex), offsetof(Vertex, position),0
+            VertexAttribute{VertexAttributeSemantics::Position, VertexAttributeType::Vec3f},
+            0,
+            sizeof(Vertex),
+            offsetof(Vertex, position),
+            0
         },
         VertexAttributeLayout{
             VertexAttribute{VertexAttributeSemantics::TextureCoordinates, VertexAttributeType::Vec2f},
-            2, sizeof(Vertex), offsetof(Vertex, texCoords),0}
-        );
-    auto TextureMaterial = gameWorld.add<MaterialHandle>(MaterialId("TextureMaterial"));
-    TextureMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::Blue);
+            2,
+            sizeof(Vertex),
+            offsetof(Vertex, texCoords),
+            0
+        }
+    );
+    auto TextureMaterial = gameWorld.add<MaterialHandle>();
+    TextureMaterial.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Blue);
 
     // Plain Mesh
     // Texture Setup
-    auto PlainShader = gameWorld.add<ShaderHandle>(ShaderId("PlainShader"));
-    PlainShader.add<ShaderSourceComponent<ShaderHandle>>("./resources/shader/mesh.vert", "./resources/shader/mesh.frag");
-    PlainShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Pass>>(
+    auto PlainShader = gameWorld.add<ShaderHandle>();
+    PlainShader.add<ShaderSourceComponent>(
+        "./resources/shader/mesh.vert", "./resources/shader/mesh.frag"
+    );
+    PlainShader.add<UniformMappingsComponent<UniformScope::Pass>>(
         UniformMapping{UniformSemantics::ProjectionMatrix, "projectionMatrix"},
         UniformMapping{UniformSemantics::ViewMatrix, "viewMatrix"}
     );
-    PlainShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Material>>(
+    PlainShader.add<UniformMappingsComponent<UniformScope::Material>>(
         UniformMapping{UniformSemantics::MaterialBaseColor, "color"}
     );
-    PlainShader.add<UniformMappingsComponent<ShaderHandle, UniformScope::Draw>>(
+    PlainShader.add<UniformMappingsComponent<UniformScope::Draw>>(
         UniformMapping{UniformSemantics::ModelMatrix, "modelMatrix"}
     );
 
-    auto PlainMesh = gameWorld.add<MeshHandle>(MeshId("PlainMesh"));
-    PlainMesh.add<MeshDataComponent<MeshHandle>>(WireframeSphere::meshData());
-    PlainMesh.add<MeshUploadRequestComponent<MeshHandle>>();
-    PlainMesh.add<VertexAttributeLayoutComponent<MeshHandle, PerVertex>>(
+    auto PlainMesh = gameWorld.add<MeshHandle>();
+    PlainMesh.add<MeshDataComponent>(WireframeSphere::meshData());
+    PlainMesh.add<MeshUploadRequestComponent>();
+    PlainMesh.add<VertexAttributeLayoutComponent<PerVertex>>(
         VertexAttributeLayout{
-            VertexAttribute{VertexAttributeSemantics::Position,  VertexAttributeType::Vec3f},
-            0, sizeof(Vertex), offsetof(Vertex, position),0
+            VertexAttribute{VertexAttributeSemantics::Position, VertexAttributeType::Vec3f},
+            0,
+            sizeof(Vertex),
+            offsetof(Vertex, position),
+            0
         },
         VertexAttributeLayout{
             VertexAttribute{VertexAttributeSemantics::TextureCoordinates, VertexAttributeType::Vec2f},
-            2, sizeof(Vertex), offsetof(Vertex, texCoords),0}
-        );
-    auto PlainMaterial = gameWorld.add<MaterialHandle>(MaterialId("PlainMaterial"));
-    PlainMaterial.add<ColorComponent<MaterialHandle>>(helios::engine::util::Colors::Red);
-
+            2,
+            sizeof(Vertex),
+            offsetof(Vertex, texCoords),
+            0
+        }
+    );
+    auto PlainMaterial = gameWorld.add<MaterialHandle>();
+    PlainMaterial.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Red);
 
     // ========================================
     // Entity Setup
     // ========================================
-    auto texturedObject = gameWorld.add<GameObjectHandle>(GameObjectId{}, true);
-    texturedObject.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
-    texturedObject.trackDirty<BoundsComponent<GameObjectHandle, Local>>(Rect::boundsData());
-    texturedObject.trackDirty<BoundsComponent<GameObjectHandle, World>>();
-    texturedObject.trackDirty<Rotation3DComponent<GameObjectHandle, Local>>();
-    texturedObject.trackDirty<Position3DComponent<GameObjectHandle, Local>>(1.0f, 0.0f, 0.0f);
-    texturedObject.trackDirty<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
-    texturedObject.trackDirty<TransformComponent<GameObjectHandle, World>>(1.0f);
-    texturedObject.add<RenderPrototypeComponent<GameObjectHandle, NonInstanced>>(
+    auto texturedObject = gameWorld.add<GameObjectHandle>();
+    texturedObject.add<DefaultSceneMemberComponent>(MainScene);
+    texturedObject.add<BoundsComponent<Local>>(Rect::boundsData());
+    texturedObject.add<BoundsComponent<World>>();
+    texturedObject.add<Rotation3DComponent<Local>>();
+    texturedObject.add<Position3DComponent<Local>>(1.0f, 0.0f, 0.0f);
+    texturedObject.add<Position3DComponent<World>>(0.0f, 0.0f, 0.0f);
+    texturedObject.add<TransformComponent<World>>(1.0f);
+    texturedObject.add<DefaultRenderPrototypeComponent<NonInstanced>>(
         TextureShader.handle(), TextureMaterial.handle(), TextureMesh.handle(), Texture.handle()
     );
 
-    auto plainObject = gameWorld.add<GameObjectHandle>(GameObjectId{}, true);
-    plainObject.add<SceneMemberComponent<GameObjectHandle>>(MainScene);
-    plainObject.trackDirty<BoundsComponent<GameObjectHandle, Local>>(WireframeCube::boundsData());
-    plainObject.trackDirty<BoundsComponent<GameObjectHandle, World>>();
-    plainObject.trackDirty<Rotation3DComponent<GameObjectHandle, Local>>();
-    plainObject.trackDirty<Position3DComponent<GameObjectHandle, Local>>(-1.0f, 0.0f, 0.0f);
-    plainObject.trackDirty<Position3DComponent<GameObjectHandle, World>>(0.0f, 0.0f, 0.0f);
-    plainObject.trackDirty<TransformComponent<GameObjectHandle, World>>(1.0f);
-    plainObject.add<RenderPrototypeComponent<GameObjectHandle, NonInstanced>>(
+    auto plainObject = gameWorld.add<GameObjectHandle>();
+    plainObject.add<DefaultSceneMemberComponent>(MainScene);
+    plainObject.add<BoundsComponent<Local>>(WireframeCube::boundsData());
+    plainObject.add<BoundsComponent<World>>();
+    plainObject.add<Rotation3DComponent<Local>>();
+    plainObject.add<Position3DComponent<Local>>(-1.0f, 0.0f, 0.0f);
+    plainObject.add<Position3DComponent<World>>(0.0f, 0.0f, 0.0f);
+    plainObject.add<TransformComponent<World>>(1.0f);
+    plainObject.add<DefaultRenderPrototypeComponent<NonInstanced>>(
         PlainShader.handle(), PlainMaterial.handle(), PlainMesh.handle()
     );
 
     // ----------------------------------------
     // ImGui and Debug Tooling
     // ----------------------------------------
-    auto imguiBackend = ImGuiGlfwOpenGLBackend(MainWindow.handle(), gameWorld.platformWorld());
+    auto imguiBackend = ImGuiGlfwOpenGLBackend(MainWindow.handle(), gameWorld.ecsWorld());
     auto imguiOverlay = ImGuiOverlay::forBackend(&imguiBackend);
     auto fpsMetrics = FpsMetrics();
     auto framePacer = FramePacer();
-    framePacer.setTargetFps(0.0f);
-    FrameStats frameStats{};
+    framePacer.setTargetFps(0.0F);
+    FrameTiming frameTiming{};
 
     auto menu = new MainMenuWidget();
     auto fpsWidget = new FpsWidget(&fpsMetrics, &framePacer);
     auto logWidget = new LogWidget();
 
-    auto cameraWidget = new CameraWidget(gameWorld);
+    auto* cameraWidget = new CameraWidget<DefaultRenderHandles>(gameWorld);
 
     imguiOverlay.addWidget(menu);
     imguiOverlay.addWidget(fpsWidget);
@@ -243,137 +230,114 @@ int main() {
     // Logger Configuration
     // ----------------------------------------
     LogManager::getInstance().enableLogging(true);
-    //LogManager::getInstance().enableSink<ImGuiLogSink>(logWidget);
-
+    // LogManager::getInstance().enableSink<ImGuiLogSink>(logWidget);
 
     // ========================================
     // Initialization of GameWorld and Game Loop
     // ========================================
-    float DELTA_TIME = 0.0f;
-
-
 
     // ----------------------------------------
     // GameLoop Config
     // ----------------------------------------
-    gameLoop.phase(PhaseType::Pre)
+    gameLoop.scheduler()
 
-            .beginPass<EngineState>(EngineState::Any)
-                .addSystem<EngineFlowSystem<EngineCommandBuffer>>()
-            .flush<EngineStateManager>()
-            .endPass()
+        .beginSchedule(GameWorld::sessionState(EngineState::Any))
+            .add<EngineFlowSystem>()
+        .endWith<EngineStateManager>()
 
-            .beginPass<EngineState>(EngineState::Booting)
-                .addSystem<PlatformInitSystem<PlatformCommandBuffer>>()
-            .flush<GLFWPlatformManager<OpenGLBackend, WindowHandle, EngineCommandBuffer, PlatformCommandBuffer>>()
-            .endPass()
+        .beginSchedule(GameWorld::sessionState(EngineState::Booting))
+            .add<PlatformInitSystem>()
+        .endWith<DefaultGLFWPlatformManager>()
 
-            .beginPass<EngineState>(EngineState::Booted | EngineState::Running)
-                .addSystem<PollEventsSystem<PlatformCommandBuffer>>()
-                .addSystem<WindowCreateSystem<WindowHandle, PlatformCommandBuffer>>()
-            .flush<GLFWPlatformManager<OpenGLBackend, WindowHandle, EngineCommandBuffer, PlatformCommandBuffer>>()
-            .endPass()
-
-            .beginPass<EngineState>(EngineState::Warmup)
-                .addSystem<TextureUploadSystem<TextureHandle, RenderCommandBuffer>>()
-                .addSystem<MeshUploadSystem<MeshHandle, RenderCommandBuffer>>()
-                .addSystem<ShaderCompileSystem<ShaderHandle, RenderCommandBuffer>>()
-                .addSystem<WarmupDoneSystem<EngineCommandBuffer>>()
-
-            .flush<
-                OpenGLTextureUploadManager<TextureHandle>,
-                OpenGLMeshUploadManager<MeshHandle>,
-                OpenGLShaderCompileManager<ShaderHandle, OpenGLUniformLocationCacheStrategy<ShaderHandle>>,
-                EngineStateManager
+        .beginSchedule(GameWorld::sessionState(EngineState::Booted | EngineState::Running))
+            .add<
+                Sequential<
+                    PollEventsSystem,
+                    WindowCreateSystem<WindowHandle>
+                >
             >()
-            .endPass();
+        .endWith<DefaultGLFWPlatformManager>()
 
-            // intentionally left empty
-            gameLoop.phase(PhaseType::Main).beginPass(EngineState::Running).endPass();
+        .beginSchedule(GameWorld::sessionState(EngineState::Warmup))
+            .add<TextureUploadSystem<TextureHandle>>()
+            .add<MeshUploadSystem<MeshHandle>>()
+            .add<ShaderCompileSystem<ShaderHandle>>()
+            .add<DefaultWarmupDoneSystem>()
 
-            gameLoop.phase(PhaseType::Post)
-                 .beginPass(EngineState::Running)
+        .endWith<
+            Sequential<
+                OpenGLTextureUploadManager<TextureHandle>,
+                DefaultMeshUploadManager,
+                DefaultShaderCompileManager,
+                EngineStateManager
+            >
+        >()
 
-                    // create parallel groups
-                    .addParallelSystems<
-                        Serial<
-                            WorldTransformSystem<GameObjectHandle>,
-                            WorldBoundsUpdateSystem<GameObjectHandle>
-                        >,
-                        Serial<
-                            YawPitchRollUpdateSystem<CameraHandle>,
-                            WorldTransformSystem<CameraHandle>,
-                            PerspectiveCameraUpdateSystem<CameraHandle>
-                        >,
-                        Serial<
-                            WorldTransformSystem<ParticleHandle>,
-                            WorldBoundsUpdateSystem<ParticleHandle>
-                        >
-                    >()
+        .beginSchedule(GameWorld::sessionState(EngineState::Running))
 
-                    // this will produce render commands after scenes have been culled according to
-                    // their active viewports
-                    .addSystem<
-                        SceneMemberVisibilitySystem<GameObjectHandle, NonInstanced, AABBCullingStrategy<GameObjectHandle>>
-                        >(AABBCullingStrategy<GameObjectHandle>(), visibilityRegistry)
+            // create parallel groups
+            .add<
+                Sequential<WorldTransformSystem<GameObjectHandle>, WorldBoundsUpdateSystem<GameObjectHandle>>,
+                Sequential<
+                    YawPitchRollUpdateSystem<CameraHandle>,
+                    WorldTransformSystem<CameraHandle>,
+                    PerspectiveCameraUpdateSystem<CameraHandle>
+                >,
+                Sequential<WorldTransformSystem<ParticleHandle>, WorldBoundsUpdateSystem<ParticleHandle>>
+            >()
 
-                    .addSystem<
-                        SceneRenderSystem<GameObjectHandle, NonInstanced, RenderCommandBuffer>
-                    >(visibilityRegistry)
+            // this will produce render commands after scenes have been culled according to
+            // their active viewports
+            .add(
+                 DefaultSceneMemberVisibilitySystem<
+                     GameObjectHandle, NonInstanced, AABBCullingStrategy<GameObjectHandle>
+                 >(AABBCullingStrategy<GameObjectHandle>())
+             )
 
-                .flush<RenderManager<OpenGLBackend, GameObjectHandle>>()
-                .endPass()
-
-                 // Clear, bufferswapping
-                .beginPass<EngineState>(EngineState::Running)
-                    .addSystem<GLFWWindowCloseSystem<WindowHandle, PlatformCommandBuffer>>()
-                    .addSystem<WindowBasedShutdownSystem<WindowHandle, PlatformCommandBuffer>>()
-                    .addSystem<ClearAllDirtySetsSystem>()
-                    .addSystem<ImGuiOverlayRenderSystem>(imguiOverlay)
-                    .addSystem<SwapBuffersSystem<WindowHandle, PlatformCommandBuffer>>()
-                .flush<GLFWPlatformManager<
-                    OpenGLBackend,
-                    WindowHandle,
-                    EngineCommandBuffer,
-                    PlatformCommandBuffer>>()
-                .endPass()
-
-                .beginPass<EngineState>(EngineState::Shutdown)
-                    .addSystem<DestroySessionSystem>()
-                .endPass()
-            ;
+            .add<DefaultSceneRenderSystem<GameObjectHandle, NonInstanced>>()
+        .endWith<DefaultRenderManager>()
 
 
-    gameLoop.init(gameWorld.init());
+        // Clear, bufferswapping
+        .beginSchedule(GameWorld::sessionState(EngineState::Running))
+           .add(
+               Sequential(
+                   GLFWWindowCloseSystem<WindowHandle>(),
+                   WindowBasedShutdownSystem<WindowHandle>(),
+                   ClearAllDirtySetsSystem(),
+                   ImGuiOverlayRenderSystem(imguiOverlay),
+                   SwapBuffersSystem<WindowHandle>())
+           )
+       .endWith<DefaultGLFWPlatformManager>()
 
 
-    while (gameLoop.isRunning(gameWorld)) {
+        .beginSchedule(GameWorld::sessionState(EngineState::Shutdown))
+            .add<DestroySessionSystem>()
+        .endSchedule();
+
+
+    gameWorld.init();
+    gameLoop.init();
+
+    gameWorld.session().template setStateFrom<EngineState>(StateTransitionContext<EngineState>(
+        EngineState::Undefined, EngineState::Booting, EngineStateTransitionId::BootRequest
+    ));
+
+
+    while (gameLoop.isRunning()) {
 
         framePacer.beginFrame();
 
-        //app->eventManager().dispatchAll();
-        //inputManager.poll(0.0f);
-
-        // Game Logic Update
-        const GamepadState gamepadState = GamepadState();// = {};//inputManager->gamepadState(Gamepad::ONE);
+        const GamepadState gamepadState = GamepadState(); // = {};//inputManager->gamepadState(Gamepad::ONE);
         const auto inputSnapshot = InputSnapshot(gamepadState);
 
-        //const auto viewportSnapshots = renderTargetsRegistry.viewportSnapshots();
+        gameLoop.update(frameTiming, inputSnapshot); // inputSnapshot, viewportSnapshots);;
 
-
-        // Frame Synchronization is now done via GLFWSwapBuffersSystems
-        gameLoop.update(gameWorld, DELTA_TIME, inputSnapshot);//inputSnapshot, viewportSnapshots);;
-
-
-
-        frameStats = framePacer.sync();
-        fpsMetrics.addFrame(frameStats);
-        DELTA_TIME = frameStats.totalFrameTime;
+        frameTiming = framePacer.sync();
+        fpsMetrics.addFrame(frameTiming);
     }
 
-
     logger.info("Engine is now in State {0}", std::to_underlying(gameWorld.session().state<EngineState>()));
-
 
     return 0;
 }
