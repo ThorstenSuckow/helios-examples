@@ -8,6 +8,7 @@ module;
 #include <cstddef>
 #include <memory>
 #include <utility>
+#include <thread>
 
 export module helios.engine.bootstrap;
 
@@ -188,7 +189,7 @@ struct EngineRuntime {
     auto engineRuntime = std::make_unique<EngineRuntime>(EngineWorldFactory::makeEcsWorld());
 
     auto& gameWorld = engineRuntime->gameWorld;
-
+    gameWorld.emplaceResource<helios::core::thread::ThreadPool>(std::max(1U, std::thread::hardware_concurrency() - 1));
     EngineWorldFactory::initPermaResources(gameWorld);
 
     gameWorld.emplaceResource<helios::engine::state::StateTransitionRules<EngineState>>(
