@@ -46,7 +46,7 @@ int main() {
 
     helios::core::thread::JobSystem jobSystem{std::max(1U, std::thread::hardware_concurrency() - 1)};
     // gameworld
-    auto engineRuntime = helios::engine::bootstrap::bootstrapGameWorld(jobSystem);
+    auto engineRuntime = helios::engine::bootstrap::bootstrapGameWorld();
 
     auto& gameWorld = engineRuntime->gameWorld;
     auto& gameLoop = engineRuntime->gameLoop;
@@ -69,7 +69,7 @@ int main() {
 
     auto MainRenderTarget = gameWorld.add<helios::engine::bootstrap::RenderTargetHandle>();
     MainRenderTarget.add<OpenGLRenderTargetIdComponent>(0);
-    MainRenderTarget.trackDirty<Size2DComponent>();
+    MainRenderTarget.add<Size2DComponent>();
     MainRenderTarget.add<ClearComponent>(ClearFlags::Color);
     MainRenderTarget.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Black);
 
@@ -98,33 +98,29 @@ int main() {
 
     auto CullingCamera = gameWorld.add<CameraHandle>();
     CullingCamera.add<DebugNameComponent<CameraHandle>>("CullingCamera");
-    CullingCamera.trackDirty<PerspectiveCameraComponent>(
+    CullingCamera.add<PerspectiveCameraComponent>(
         helios::math::radians(90.0F), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM)
     );
-    CullingCamera.trackDirty<ProjectionMatrixComponent>();
-    CullingCamera.trackDirty<ViewMatrixComponent>();
-    CullingCamera.trackDirty<YawPitchRollComponent>();
-    CullingCamera.trackDirty<Rotation3DComponent<Local>>();
-    CullingCamera.trackDirty<TransformComponent<World>>(1.0F);
-    CullingCamera.trackDirty<Position3DComponent<Local>>(0.0F, 0.0F, -50.0F);
+    CullingCamera.add<ProjectionMatrixComponent>();
+    CullingCamera.add<ViewMatrixComponent>();
+    CullingCamera.add<YawPitchRollComponent>();
+    CullingCamera.add<Rotation3DComponent<Local>>();
+    CullingCamera.add<TransformComponent<World>>(1.0F);
+    CullingCamera.add<Position3DComponent<Local>>(0.0F, 0.0F, -50.0F);
     CullingCamera.add<DefaultSceneMemberComponent>(MainScene);
-    // later on: rebuildHandleMultiMapFromSceneMembership(). SSoT w/ components, but systems get the
-    // multimaps for faster access / querying?
-    // or the view gets extended internally that it can fall back to a multimap, e.g. filter<> instead of view<>
-    // or some other adequate semantic name
     CullingViewport.add<DefaultCameraBindingComponent>(CullingCamera);
 
     auto CullingCamera_bottom = gameWorld.add<CameraHandle>();
     CullingCamera_bottom.add<DebugNameComponent<CameraHandle>>("CullingCamera_bottom");
-    CullingCamera_bottom.trackDirty<PerspectiveCameraComponent>(
+    CullingCamera_bottom.add<PerspectiveCameraComponent>(
         helios::math::radians(90.0F), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM)
     );
-    CullingCamera_bottom.trackDirty<ProjectionMatrixComponent>();
-    CullingCamera_bottom.trackDirty<ViewMatrixComponent>();
-    CullingCamera_bottom.trackDirty<YawPitchRollComponent>();
-    CullingCamera_bottom.trackDirty<Rotation3DComponent<Local>>();
-    CullingCamera_bottom.trackDirty<Position3DComponent<Local>>(0.0F, 0.0F, -110.0F);
-    CullingCamera_bottom.trackDirty<TransformComponent<World>>(1.0F);
+    CullingCamera_bottom.add<ProjectionMatrixComponent>();
+    CullingCamera_bottom.add<ViewMatrixComponent>();
+    CullingCamera_bottom.add<YawPitchRollComponent>();
+    CullingCamera_bottom.add<Rotation3DComponent<Local>>();
+    CullingCamera_bottom.add<Position3DComponent<Local>>(0.0F, 0.0F, -110.0F);
+    CullingCamera_bottom.add<TransformComponent<World>>(1.0F);
     CullingCamera_bottom.add<DefaultSceneMemberComponent>(MainScene);
     CullingViewport_bottom.add<DefaultCameraBindingComponent>(CullingCamera_bottom);
 
@@ -182,20 +178,20 @@ int main() {
         for (int y = -OBJECT_COUNT / 2; y < OBJECT_COUNT / 2; y += OBJECT_DISTANCE) {
             auto cube = gameWorld.add<GameObjectHandle>();
             cube.add<DefaultSceneMemberComponent>(MainScene);
-            cube.trackDirty<BoundsComponent<Local>>(Triangle::boundsData());
-            cube.trackDirty<BoundsComponent<World>>();
-            cube.trackDirty<Rotation3DComponent<Local>>();
+            cube.add<BoundsComponent<Local>>(Triangle::boundsData());
+            cube.add<BoundsComponent<World>>();
+            cube.add<Rotation3DComponent<Local>>();
 
-            cube.trackDirty<Position3DComponent<Local>>(
+            cube.add<Position3DComponent<Local>>(
                 static_cast<float>(x), static_cast<float>(y), 0.0F
             );
-            cube.trackDirty<Position3DComponent<World>>(0.0F, 0.0F, 0.0F);
-            cube.trackDirty<helios::physics::motion::components::Velocity3DComponent<Intent>>(
+            cube.add<Position3DComponent<World>>(0.0F, 0.0F, 0.0F);
+            cube.add<helios::physics::motion::components::Velocity3DComponent<Intent>>(
                 randomVec3f(x * y).withZ(0.0F).normalize()
             );
-            cube.trackDirty<helios::physics::motion::components::Velocity3DComponent<Local>>();
+            cube.add<helios::physics::motion::components::Velocity3DComponent<Local>>();
 
-            cube.trackDirty<TransformComponent<World>>(1.0F);
+            cube.add<TransformComponent<World>>(1.0F);
             cube.add<DefaultRenderPrototypeComponent<Instanced>>(
                 CubeShader.handle(), CubeMaterial.handle(), CubeMesh.handle()
             );
@@ -262,25 +258,33 @@ int main() {
         // PRE
         .beginSchedule(GameWorld::sessionState(EngineState::Any))
             .add<EngineFlowSystem>()
-        .endSchedule<EngineStateManager>()
+        .endWith<EngineStateManager>()
 
         .beginSchedule(GameWorld::sessionState(EngineState::Booting))
             .add<PlatformInitSystem>()
-        .endSchedule<DefaultGLFWPlatformManager>()
+        .endWith<DefaultGLFWPlatformManager>()
 
         .beginSchedule(GameWorld::sessionState(EngineState::Booted | EngineState::Running))
-            .add<PollEventsSystem>()
-            .add<WindowCreateSystem<WindowHandle>>()
-        .endSchedule<DefaultGLFWPlatformManager>()
+            .add<
+                Sequential<
+                    PollEventsSystem,
+                    WindowCreateSystem<WindowHandle>
+                >
+            >()
+        .endWith<DefaultGLFWPlatformManager>()
 
         .beginSchedule(GameWorld::sessionState(EngineState::Warmup))
-            .add<MeshUploadSystem<MeshHandle>>()
-            .add<ShaderCompileSystem<ShaderHandle>>()
-            .add<DefaultWarmupDoneSystem>()
-        .endSchedule<
-            DefaultMeshUploadManager,
+            .add<
+                Sequential<
+                    MeshUploadSystem<MeshHandle>,
+                    ShaderCompileSystem<ShaderHandle>,
+                    DefaultWarmupDoneSystem
+                >
+            >()
+        .endWith<
+            Sequential<DefaultMeshUploadManager,
             DefaultShaderCompileManager,
-            EngineStateManager
+            EngineStateManager>
         >()
 
         // MAIN
@@ -320,38 +324,46 @@ int main() {
 
             // this will produce render commands after scenes have been culled according to
             // their active viewports
-            .add<
-                DefaultSceneMemberVisibilitySystem<GameObjectHandle, Instanced, AABBCullingStrategy<GameObjectHandle>>
-            >(AABBCullingStrategy<GameObjectHandle>())
+            .add(
+                DefaultSceneMemberVisibilitySystem<
+                    GameObjectHandle, Instanced, AABBCullingStrategy<GameObjectHandle>
+                >(AABBCullingStrategy<GameObjectHandle>())
+            )
             .add(
                 [&](EntityManager<GameObjectHandle>& entityManager,
-                    DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry) {
+                    DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry,
+                    ThreadPool& threadPool) {
                     const auto viewport = CullingViewport.handle();
-                    enableMemberMaterialOverride(
-                        entityManager, visibilityRegistry.culledMembers(viewport), true
-                    );
-                },
-                [&](EntityManager<GameObjectHandle>& entityManager,
-                    DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry) {
-                    const auto viewport = CullingViewport.handle();
-                    enableMemberMaterialOverride(
-                        entityManager, visibilityRegistry.visibleMembers(viewport), false
-                    );
+
+                    threadPool.runAndWait(2, [&](const std::size_t threadIndex) {
+                        if (threadIndex == 0) {
+                            enableMemberMaterialOverride(
+                                entityManager, visibilityRegistry.culledMembers(viewport), true
+                            );
+                        } else if (threadIndex == 1) {
+                            enableMemberMaterialOverride(
+                                entityManager, visibilityRegistry.visibleMembers(viewport), false
+                            );
+                        }
+                    });
                 }
             )
             // consume the scenemember-registry
             .add<DefaultSceneRenderSystem<GameObjectHandle, Instanced>>()
-        .endSchedule<DefaultRenderManager>()
+        .endWith<DefaultRenderManager>()
 
         // POST
         // Clear, bufferswapping
         .beginSchedule(GameWorld::sessionState(EngineState::Running))
-            .add<GLFWWindowCloseSystem<WindowHandle>>()
-            .add<WindowBasedShutdownSystem<WindowHandle>>()
-            .add<ClearAllDirtySetsSystem>()
-            .add<ImGuiOverlayRenderSystem>(imguiOverlay)
-            .add<SwapBuffersSystem<WindowHandle>>()
-        .endSchedule<DefaultGLFWPlatformManager>()
+            .add(
+                Sequential(
+                    GLFWWindowCloseSystem<WindowHandle>(),
+                    WindowBasedShutdownSystem<WindowHandle>(),
+                    ClearAllDirtySetsSystem(),
+                    ImGuiOverlayRenderSystem(imguiOverlay),
+                    SwapBuffersSystem<WindowHandle>())
+            )
+        .endWith<DefaultGLFWPlatformManager>()
 
         .beginSchedule(GameWorld::sessionState(EngineState::Shutdown))
             .add<DestroySessionSystem>()
@@ -369,17 +381,11 @@ int main() {
 
         framePacer.beginFrame();
 
-        // app->eventManager().dispatchAll();
-        // inputManager.poll(0.0f);
-
         // Game Logic Update
-        const GamepadState gamepadState = GamepadState(); // = {};//inputManager->gamepadState(Gamepad::ONE);
+        const GamepadState gamepadState = GamepadState();
         const auto inputSnapshot = InputSnapshot(gamepadState);
 
-        // const auto viewportSnapshots = renderTargetsRegistry.viewportSnapshots();
-
-        // Frame Synchronization is now done via GLFWSwapBuffersSystems
-        gameLoop.update(frameTiming, inputSnapshot); // inputSnapshot, viewportSnapshots);;
+        gameLoop.update(frameTiming, inputSnapshot);
 
         frameTiming = framePacer.sync();
         fpsMetrics.addFrame(frameTiming);
