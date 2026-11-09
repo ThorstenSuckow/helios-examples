@@ -74,20 +74,20 @@ int main() {
     MainRenderTarget.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Black);
 
     auto CullingViewport = gameWorld.add<helios::engine::bootstrap::ViewportHandle>();
-    CullingViewport.add<DebugNameComponent<ViewportHandle>>("CullingViewport");
+    CullingViewport.add<DebugNameComponent>("CullingViewport");
     CullingViewport.add<ClearComponent>(ClearFlags::Color);
     CullingViewport.add<ColorComponent>(helios::engine::rendering::common::types::Colors::LightGray);
     // RenderTarget : Viewport (1:N)
     CullingViewport.add<DefaultRenderTargetBindingComponent>(MainRenderTarget);
-    CullingViewport.add<RectComponent<>>(helios::math::vec4f{0.0F, .5f, 1.0F, 0.5F});
+    CullingViewport.add<RectComponent>(helios::math::vec4f{0.0F, .5f, 1.0F, 0.5F});
 
     auto CullingViewport_bottom = gameWorld.add<helios::engine::bootstrap::ViewportHandle>();
-    CullingViewport_bottom.add<DebugNameComponent<ViewportHandle>>("CullingViewport_bottom");
+    CullingViewport_bottom.add<DebugNameComponent>("CullingViewport_bottom");
     CullingViewport_bottom.add<ClearComponent>(ClearFlags::Color);
     CullingViewport_bottom.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Gray);
     // RenderTarget : Viewport (1:N)
     CullingViewport_bottom.add<DefaultRenderTargetBindingComponent>(MainRenderTarget);
-    CullingViewport_bottom.add<RectComponent<>>(helios::math::vec4f{0.0F, .0f, 1.0F, 0.5F});
+    CullingViewport_bottom.add<RectComponent>(helios::math::vec4f{0.0F, .0f, 1.0F, 0.5F});
 
     auto MainScene = gameWorld.add<SceneHandle>();
     MainWindow.add<DefaultRenderTargetBindingComponent>(MainRenderTarget);
@@ -97,7 +97,7 @@ int main() {
     CullingViewport_bottom.add<DefaultSceneBindingComponent>(MainScene);
 
     auto CullingCamera = gameWorld.add<CameraHandle>();
-    CullingCamera.add<DebugNameComponent<CameraHandle>>("CullingCamera");
+    CullingCamera.add<DebugNameComponent>("CullingCamera");
     CullingCamera.add<PerspectiveCameraComponent>(
         helios::math::radians(90.0F), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM)
     );
@@ -111,7 +111,7 @@ int main() {
     CullingViewport.add<DefaultCameraBindingComponent>(CullingCamera);
 
     auto CullingCamera_bottom = gameWorld.add<CameraHandle>();
-    CullingCamera_bottom.add<DebugNameComponent<CameraHandle>>("CullingCamera_bottom");
+    CullingCamera_bottom.add<DebugNameComponent>("CullingCamera_bottom");
     CullingCamera_bottom.add<PerspectiveCameraComponent>(
         helios::math::radians(90.0F), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM)
     );
@@ -282,9 +282,11 @@ int main() {
                 >
             >()
         .endWith<
-            Sequential<DefaultMeshUploadManager,
-            DefaultShaderCompileManager,
-            EngineStateManager>
+            Sequential<
+                DefaultMeshUploadManager,
+                DefaultShaderCompileManager,
+                EngineStateManager
+            >
         >()
 
         // MAIN
