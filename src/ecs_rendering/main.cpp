@@ -1,4 +1,3 @@
-
 #include <thread>
 #include <utility>
 
@@ -47,82 +46,46 @@ int main() {
     helios::core::thread::JobSystem jobSystem{std::max(1U, std::thread::hardware_concurrency() - 1)};
     // gameworld
     auto engineRuntime = helios::engine::bootstrap::bootstrapGameWorld();
-
     auto& gameWorld = engineRuntime->gameWorld;
     auto& gameLoop = engineRuntime->gameLoop;
+    auto factory = helios::engine::factory::Factory<DefaultRenderHandles>(gameWorld.ecsWorld());
 
     // ========================================
     // Window Setup
     // ========================================
-    auto MainWindow = gameWorld.add<helios::engine::bootstrap::WindowHandle>();
-    MainWindow.add<WindowCreateRequestComponent>(WindowConfig{
-        .title = "helios - ECS Rendering Demo",
-        .size = {SCREEN_WIDTH, SCREEN_HEIGHT},
-        .aspectRatioNumer = WINDOW_ASPECT_RATIO_NUMER,
-        .aspectRatioDenom = WINDOW_ASPECT_RATIO_DENOM,
-        .vsyncEnabled = ENABLE_VSYNC
-    });
+
+    auto MainWindow = factory.createWindow<WindowHandle>(
+        "helios - ECS Rendering Demo", SCREEN_WIDTH, SCREEN_HEIGHT
+    );
+    MainWindow.enforceAspectRatio(WINDOW_ASPECT_RATIO_NUMER, WINDOW_ASPECT_RATIO_DENOM)
+              .enableVSync(ENABLE_VSYNC);
+
+    auto MainRenderTarget = MainWindow.renderTarget();
+    //gameWorld.resource<rendering::RenderBackend>.prepare(MainWindow);
+    MainRenderTarget.entity().add<OpenGLRenderTargetIdComponent>(0);
 
     // ========================================
-    // Scene and Viewport Setup
+    // Scene, camera and Viewport Setup
     // ========================================
-
-    auto MainRenderTarget = gameWorld.add<helios::engine::bootstrap::RenderTargetHandle>();
-    MainRenderTarget.add<OpenGLRenderTargetIdComponent>(0);
-    MainRenderTarget.add<Size2DComponent>();
-    MainRenderTarget.add<ClearComponent>(ClearFlags::Color);
-    MainRenderTarget.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Black);
-
-    auto CullingViewport = gameWorld.add<helios::engine::bootstrap::ViewportHandle>();
-    CullingViewport.add<DebugNameComponent>("CullingViewport");
-    CullingViewport.add<ClearComponent>(ClearFlags::Color);
-    CullingViewport.add<ColorComponent>(helios::engine::rendering::common::types::Colors::LightGray);
-    // RenderTarget : Viewport (1:N)
-    CullingViewport.add<DefaultRenderTargetBindingComponent>(MainRenderTarget);
-    CullingViewport.add<RectComponent>(helios::math::vec4f{0.0F, .5f, 1.0F, 0.5F});
-
-    auto CullingViewport_bottom = gameWorld.add<helios::engine::bootstrap::ViewportHandle>();
-    CullingViewport_bottom.add<DebugNameComponent>("CullingViewport_bottom");
-    CullingViewport_bottom.add<ClearComponent>(ClearFlags::Color);
-    CullingViewport_bottom.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Gray);
-    // RenderTarget : Viewport (1:N)
-    CullingViewport_bottom.add<DefaultRenderTargetBindingComponent>(MainRenderTarget);
-    CullingViewport_bottom.add<RectComponent>(helios::math::vec4f{0.0F, .0f, 1.0F, 0.5F});
-
-    auto MainScene = gameWorld.add<SceneHandle>();
-    MainWindow.add<DefaultRenderTargetBindingComponent>(MainRenderTarget);
-
-    // Viewport : Scene (N:1)
-    CullingViewport.add<DefaultSceneBindingComponent>(MainScene);
-    CullingViewport_bottom.add<DefaultSceneBindingComponent>(MainScene);
-
-    auto CullingCamera = gameWorld.add<CameraHandle>();
-    CullingCamera.add<DebugNameComponent>("CullingCamera");
-    CullingCamera.add<PerspectiveCameraComponent>(
-        helios::math::radians(90.0F), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM)
+    auto mainScene = factory.createScene();
+    auto cameraTop = mainScene.addPerspectiveCamera(
+        radians(90.0F), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM)
     );
-    CullingCamera.add<ProjectionMatrixComponent>();
-    CullingCamera.add<ViewMatrixComponent>();
-    CullingCamera.add<YawPitchRollComponent>();
-    CullingCamera.add<Rotation3DComponent<Local>>();
-    CullingCamera.add<TransformComponent<World>>(1.0F);
-    CullingCamera.add<Position3DComponent<Local>>(0.0F, 0.0F, -50.0F);
-    CullingCamera.add<DefaultSceneMemberComponent>(MainScene);
-    CullingViewport.add<DefaultCameraBindingComponent>(CullingCamera);
+    cameraTop.setPosition<Local>(helios::math::vec3f{0.0F, 0.0F, -50.0F});
 
-    auto CullingCamera_bottom = gameWorld.add<CameraHandle>();
-    CullingCamera_bottom.add<DebugNameComponent>("CullingCamera_bottom");
-    CullingCamera_bottom.add<PerspectiveCameraComponent>(
-        helios::math::radians(90.0F), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM)
+    auto cameraBottom = mainScene.addPerspectiveCamera(
+        radians(90.0F), WINDOW_ASPECT_RATIO_NUMER / (.5f * WINDOW_ASPECT_RATIO_DENOM)
     );
-    CullingCamera_bottom.add<ProjectionMatrixComponent>();
-    CullingCamera_bottom.add<ViewMatrixComponent>();
-    CullingCamera_bottom.add<YawPitchRollComponent>();
-    CullingCamera_bottom.add<Rotation3DComponent<Local>>();
-    CullingCamera_bottom.add<Position3DComponent<Local>>(0.0F, 0.0F, -110.0F);
-    CullingCamera_bottom.add<TransformComponent<World>>(1.0F);
-    CullingCamera_bottom.add<DefaultSceneMemberComponent>(MainScene);
-    CullingViewport_bottom.add<DefaultCameraBindingComponent>(CullingCamera_bottom);
+    cameraBottom.setPosition<Local>(helios::math::vec3f{0.0F, 0.0F, -110.0F});
+
+    auto viewportTop = MainWindow.addViewport(helios::math::vec4f{0.0F, .5f, 1.0F, 0.5F});
+    viewportTop.setBackgroundColor(Colors::LightGray);
+
+    auto viewportBottom = MainWindow.addViewport(helios::math::vec4f{0.0F, .0f, 1.0F, 0.5F});
+    viewportBottom.setBackgroundColor(Colors::Gray);
+
+    viewportTop.render(mainScene, cameraTop);
+    viewportBottom.render(mainScene, cameraBottom);
 
     // ========================================
     // Rendering Management setup
@@ -146,18 +109,20 @@ int main() {
     CubeMesh.add<MeshDataComponent>(Triangle::meshData());
     CubeMesh.add<MeshUploadRequestComponent>();
     CubeMesh.add<VertexAttributeLayoutComponent<PerVertex>>(VertexAttributeLayout{
-        .attribute =
-            VertexAttribute{.semantics = VertexAttributeSemantics::Position, .type = VertexAttributeType::Vec3f},
+        .attribute = VertexAttribute{
+            .semantics = VertexAttributeSemantics::Position,
+            .type = VertexAttributeType::Vec3f
+        },
         .location = 0,
         .stride = sizeof(Vertex),
         .offset = offsetof(Vertex, position),
         .divisor = 0
     });
     CubeMesh.add<VertexAttributeLayoutComponent<PerInstance>>(VertexAttributeLayout{
-        .attribute =
-            VertexAttribute{
-                .semantics = VertexAttributeSemantics::InstancedModelMatrix, .type = VertexAttributeType::Mat4f
-            },
+        .attribute = VertexAttribute{
+            .semantics = VertexAttributeSemantics::InstancedModelMatrix,
+            .type = VertexAttributeType::Mat4f
+        },
         .location = 4,
         .stride = sizeof(InstanceData),
         .offset = offsetof(InstanceData, modelMatrix),
@@ -177,7 +142,7 @@ int main() {
     for (int x = -OBJECT_COUNT / 2; x < OBJECT_COUNT / 2; x += OBJECT_DISTANCE) {
         for (int y = -OBJECT_COUNT / 2; y < OBJECT_COUNT / 2; y += OBJECT_DISTANCE) {
             auto cube = gameWorld.add<GameObjectHandle>();
-            cube.add<DefaultSceneMemberComponent>(MainScene);
+            cube.add<DefaultSceneMemberComponent>(mainScene);
             cube.add<BoundsComponent<Local>>(Triangle::boundsData());
             cube.add<BoundsComponent<World>>();
             cube.add<Rotation3DComponent<Local>>();
@@ -335,7 +300,7 @@ int main() {
                 [&](EntityManager<GameObjectHandle>& entityManager,
                     DefaultSceneMemberVisibilityRegistry<GameObjectHandle, Instanced>& visibilityRegistry,
                     ThreadPool& threadPool) {
-                    const auto viewport = CullingViewport.handle();
+                    const auto viewport = viewportTop.handle();
 
                     threadPool.runAndWait(2, [&](const std::size_t threadIndex) {
                         if (threadIndex == 0) {
@@ -397,3 +362,4 @@ int main() {
 
     return 0;
 }
+
