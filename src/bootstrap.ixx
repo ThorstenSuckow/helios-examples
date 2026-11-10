@@ -130,6 +130,9 @@ using DefaultRenderManager =
     helios::engine::rendering::RenderManager<DefaultRenderHandles, ParticleHandle, GameObjectHandle>;
 using DefaultTextureUploadManager = helios::opengl::OpenGLTextureUploadManager<TextureHandle>;
 using DefaultMeshUploadManager = helios::opengl::OpenGLMeshUploadManager<MeshHandle>;
+using DefaultRenderTargetManager = helios::opengl::OpenGLRenderTargetManager<RenderTargetHandle>;
+using DefaultAssignRenderTargetIdSystem =
+    helios::opengl::systems::OpenGLAssignRenderTargetIdSystem<WindowHandle, DefaultRenderHandles>;
 using DefaultShaderCompileManager = helios::opengl::OpenGLShaderCompileManager<ShaderHandle>;
 
 using DefaultWarmupDoneSystem = platform::lifecycle::systems::WarmupDoneSystem<DefaultRenderHandles>;

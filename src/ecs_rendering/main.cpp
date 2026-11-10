@@ -60,10 +60,6 @@ int main() {
     MainWindow.enforceAspectRatio(WINDOW_ASPECT_RATIO_NUMER, WINDOW_ASPECT_RATIO_DENOM)
               .enableVSync(ENABLE_VSYNC);
 
-    auto MainRenderTarget = MainWindow.renderTarget();
-    //gameWorld.resource<rendering::RenderBackend>.prepare(MainWindow);
-    MainRenderTarget.entity().add<OpenGLRenderTargetIdComponent>(0);
-
     // ========================================
     // Scene, camera and Viewport Setup
     // ========================================
@@ -233,10 +229,14 @@ int main() {
             .add<
                 Sequential<
                     PollEventsSystem,
+                    DefaultAssignRenderTargetIdSystem,
                     WindowCreateSystem<WindowHandle>
                 >
             >()
-        .endWith<DefaultGLFWPlatformManager>()
+        .endWith<Sequential<
+            DefaultGLFWPlatformManager,
+            DefaultRenderTargetManager
+        >>()
 
         .beginSchedule(GameWorld::sessionState(EngineState::Warmup))
             .add<
