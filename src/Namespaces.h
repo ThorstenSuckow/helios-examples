@@ -26,6 +26,7 @@ using namespace helios::engine::rendering::texture::components;
 using namespace helios::engine::rendering::texture::systems;
 using namespace helios::engine::rendering::common;
 using namespace helios::engine::rendering::common::types;
+using namespace helios::engine::rendering::common::systems;
 using namespace helios::engine::rendering::common::components;
 using namespace helios::engine::rendering::mesh::assets;
 using namespace helios::engine::rendering::mesh::components;

@@ -49,15 +49,16 @@ int main() {
     auto& gameWorld = engineRuntime->gameWorld;
     auto& gameLoop = engineRuntime->gameLoop;
     auto factory = helios::engine::factory::Factory<DefaultRenderHandles>(gameWorld.ecsWorld());
+    //factory.setRenderBackendFactory(helios::opengl::OpenGLBackendFactory{});
 
     // ========================================
     // Window Setup
     // ========================================
 
-    auto MainWindow = factory.createWindow<WindowHandle>(
+    auto mainWindow = factory.createWindow<WindowHandle>(
         "helios - ECS Rendering Demo", SCREEN_WIDTH, SCREEN_HEIGHT
     );
-    MainWindow.enforceAspectRatio(WINDOW_ASPECT_RATIO_NUMER, WINDOW_ASPECT_RATIO_DENOM)
+    mainWindow.enforceAspectRatio(WINDOW_ASPECT_RATIO_NUMER, WINDOW_ASPECT_RATIO_DENOM)
               .enableVSync(ENABLE_VSYNC);
 
     // ========================================
@@ -74,14 +75,39 @@ int main() {
     );
     cameraBottom.setPosition<Local>(helios::math::vec3f{0.0F, 0.0F, -110.0F});
 
-    auto viewportTop = MainWindow.addViewport(helios::math::vec4f{0.0F, .5f, 1.0F, 0.5F});
+    auto viewportTop = mainWindow.addViewport(helios::math::vec4f{0.0F, .5f, 1.0F, 0.5F});
     viewportTop.setBackgroundColor(Colors::LightGray);
 
-    auto viewportBottom = MainWindow.addViewport(helios::math::vec4f{0.0F, .0f, 1.0F, 0.5F});
+    auto viewportBottom = mainWindow.addViewport(helios::math::vec4f{0.0F, .0f, 1.0F, 0.5F});
     viewportBottom.setBackgroundColor(Colors::Gray);
 
     viewportTop.render(mainScene, cameraTop);
     viewportBottom.render(mainScene, cameraBottom);
+
+    // 3d Object
+
+   /* auto cube = mainScene.addActor<GameObjectHandle>(cubeMesh, cubeMaterial);
+    cube.renderWith(cubeShader);
+
+    auto cube = gameWorld.add<GameObjectHandle>();
+    cube.add<DefaultSceneMemberComponent>(mainScene);
+    cube.add<BoundsComponent<Local>>(Triangle::boundsData());
+    cube.add<BoundsComponent<World>>();
+    cube.add<Rotation3DComponent<Local>>();
+
+    cube.add<Position3DComponent<Local>>(
+        static_cast<float>(x), static_cast<float>(y), 0.0F
+    );
+    cube.add<Position3DComponent<World>>(0.0F, 0.0F, 0.0F);
+    cube.add<helios::physics::motion::components::Velocity3DComponent<Intent>>(
+        randomVec3f(x * y).withZ(0.0F).normalize()
+    );
+    cube.add<helios::physics::motion::components::Velocity3DComponent<Local>>();
+
+    cube.add<TransformComponent<World>>(1.0F);
+    cube.add<DefaultRenderPrototypeComponent<Instanced>>(
+        CubeShader.handle(), CubeMaterial.handle(), CubeMesh.handle()
+    );*/
 
     // ========================================
     // Rendering Management setup
@@ -101,29 +127,43 @@ int main() {
         UniformMapping{.semantics = UniformSemantics::ModelMatrix, .name = "modelMatrix"}
     );
 
+     CubeShader.add<VertexAttributeMappingsComponent>(
+        VertexAttributeMappings(VertexAttributeMapping{
+            .semantics = VertexAttributeSemantics::Position,
+            .name = "position",
+            .location = 0
+        }, VertexAttributeMapping{
+            .semantics = VertexAttributeSemantics::InstancedModelMatrix,
+            .name = "instanceMatrix",
+            .location = 4
+        })
+    );
+
+
     auto CubeMesh = gameWorld.add<MeshHandle>();
     CubeMesh.add<MeshDataComponent>(Triangle::meshData());
     CubeMesh.add<MeshUploadRequestComponent>();
-    CubeMesh.add<VertexAttributeLayoutComponent<PerVertex>>(VertexAttributeLayout{
-        .attribute = VertexAttribute{
-            .semantics = VertexAttributeSemantics::Position,
-            .type = VertexAttributeType::Vec3f
-        },
-        .location = 0,
-        .stride = sizeof(Vertex),
-        .offset = offsetof(Vertex, position),
-        .divisor = 0
-    });
-    CubeMesh.add<VertexAttributeLayoutComponent<PerInstance>>(VertexAttributeLayout{
-        .attribute = VertexAttribute{
-            .semantics = VertexAttributeSemantics::InstancedModelMatrix,
-            .type = VertexAttributeType::Mat4f
-        },
-        .location = 4,
-        .stride = sizeof(InstanceData),
-        .offset = offsetof(InstanceData, modelMatrix),
-        .divisor = 1
-    });
+    CubeMesh.add<VertexAttributeLayoutsComponent>(
+        VertexAttributeLayouts(VertexAttributeLayout{
+            .attribute = VertexAttribute{
+                .semantics = VertexAttributeSemantics::Position,
+                .type = VertexAttributeType::Vec3f
+            },
+            .inputRate = VertexInputRate::PerVertex,
+            .stride = sizeof(Vertex),
+            .offset = offsetof(Vertex, position)
+        }, VertexAttributeLayout{
+            .attribute = VertexAttribute{
+                .semantics = VertexAttributeSemantics::InstancedModelMatrix,
+                .type = VertexAttributeType::Mat4f
+            },
+            .inputRate = VertexInputRate::PerInstance,
+            .stride = sizeof(InstanceData),
+            .offset = offsetof(InstanceData, modelMatrix),
+            .divisor = 1
+
+        })
+    );
 
     auto CubeMaterial = gameWorld.add<MaterialHandle>();
     CubeMaterial.add<ColorComponent>(helios::engine::rendering::common::types::Colors::Red);
@@ -162,7 +202,7 @@ int main() {
     // ----------------------------------------
     // ImGui and Debug Tooling
     // ----------------------------------------
-    auto imguiBackend = ImGuiGlfwOpenGLBackend(MainWindow.handle(), gameWorld.ecsWorld());
+    auto imguiBackend = ImGuiGlfwOpenGLBackend(mainWindow.handle(), gameWorld.ecsWorld());
     auto imguiOverlay = ImGuiOverlay::forBackend(&imguiBackend);
     auto fpsMetrics = FpsMetrics();
     auto framePacer = FramePacer();
@@ -292,6 +332,7 @@ int main() {
             // this will produce render commands after scenes have been culled according to
             // their active viewports
             .add(
+                VertexAttributeConfigurationSystem<GameObjectHandle, Instanced, DefaultRenderHandles>(),
                 DefaultSceneMemberVisibilitySystem<
                     GameObjectHandle, Instanced, AABBCullingStrategy<GameObjectHandle>
                 >(AABBCullingStrategy<GameObjectHandle>())
